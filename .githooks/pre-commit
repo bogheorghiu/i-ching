@@ -35,6 +35,14 @@
 # Activate per clone:  git config core.hooksPath .githooks
 set -uo pipefail
 
+# --- Derived plugin files: every .claude-plugin/plugin.json and SKILL.md metadata.version is
+# written from plugins/<plugin>/plugin.json by sync_manifests.py. Checked here, not rewritten, so a
+# hand edit to a derived file is reported instead of silently overwritten.
+if ! python3 "$(git rev-parse --show-toplevel)/.github/scripts/sync_manifests.py" --check; then
+  echo "pre-commit BLOCKED: derived plugin files are stale (see above)." >&2
+  exit 1
+fi
+
 # --- Layer 1/2: gitleaks (via global hook when present) ---
 # --type=path, not --get: core.hooksPath is pathname-typed, so git expands a leading `~` when it
 # resolves it and `--get` returns the raw bytes. With `hooksPath = ~/.githooks` the -x test below

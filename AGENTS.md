@@ -197,3 +197,23 @@ To propose a plugin: a PR to `.claude/settings.json` stating what the project ne
 - Never: a secret in the tree; a workflow action not pinned to a full commit SHA; a dependency
   change without its lockfile; a hook, MCP server or permission outside an owner-gated PR.
 - Coordination across sessions, if the project needs it: `bogheorghiu/board-pattern`.
+
+## 8. This project: the `i-ching-reading` skill
+
+Sections 1-7 are the template's and govern security and merging. This section is this
+project's own, from `bogheorghiu/afk-ease`, whose packaging this repository reuses.
+
+- **State the why.** Every decision, rule and instruction written here carries its reason, so
+  the next reader can apply it to a case its author never saw. Where a rule must hold exactly
+  and a script can enforce it, it goes in the script.
+- **What ships.** `plugins/<plugin>/` is what an install receives: a plugin in two formats at
+  once (the rule `agent-plugins-first`), its skills at `skills/<name>/SKILL.md` plus the files
+  each references. Nothing outside `plugins/` ships; `tests/` checks the skill against its
+  bundled text, `docs/` holds proposals that do not ship. The tree is the inventory (the rule
+  `filesystem-is-the-index`).
+- **Rules** live in `.claude/rules/`, one file each, each with its reason, named by file. A rule
+  with `paths:` applies to changes of matching files; one without applies to every change.
+  Claude Code loads them by that frontmatter; OpenCode loads all of them through
+  `opencode.json`; every other agent reads the matching ones by hand before changing a file
+  (whether they do is untested).
+- **Branches and releases:** the rule `branches-and-releases`.

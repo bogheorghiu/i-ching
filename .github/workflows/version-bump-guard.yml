@@ -1,0 +1,49 @@
+name: Version bump guard
+
+# Fails a PR when files under a plugin directory changed but that plugin's
+# .claude-plugin/plugin.json `version` did not increase. The plugin version is
+# what `claude plugin update` keys on, so a change shipped without a bump is
+# silently skipped by installs — the regression this guard prevents. Ported from
+# bogheorghiu/ex-cog-dev. Decision logic lives in .github/scripts/check_version_bump.py
+# and is unit-tested in skills-ci.yml.
+#
+# Note: this guard is intentionally strict — any tracked change under a plugin
+# dir (including docs) requires a bump, because docs are part of the plugin's
+# shipped interface. Genuine no-ops can opt out by putting "[skip-version-bump]"
+# in the PR title or applying the "skip-version-bump" label (the `labeled` /
+# `edited` event types below let that opt-out take effect without a new push).
+
+on:
+  # No base-branch filter: a PR is compared with its base branch
+  # (github.event.pull_request.base.ref), which in this repository is main.
+  pull_request:
+    # Default (opened/synchronize/reopened) plus the events that let a title
+    # marker or label toggle the opt-out re-run the check immediately.
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  version-bump-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history so the merge-base of base...head is reachable.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Check plugin version bumps
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$BASE_REF"
+          python3 .github/scripts/check_version_bump.py "origin/$BASE_REF" HEAD
