@@ -15,4 +15,4 @@ The simulation of section E ("Rule validation") runs before any model is asked; 
 
 ## Deviations
 
-(none yet)
+1. **2026-11-04, before any key was built (owner's decision): two library catalogues from different institutions count as independent records.** Reason: in three test runs (keys-pipeline-test*, 0 keys kept), a book's searchable records were mostly other libraries' catalogues, which the design's custodian-class rule counted as one class; 12 of 35 candidates died on it in test 3. Each library catalogues separately, so two institutions (different registered domains, e.g. CiNii and a Chinese university OPAC) are independent enough for a key. Unchanged: CNKI, VIP and Wanfang still count as one class (they repackage the same publisher metadata), and booksellers are not records.

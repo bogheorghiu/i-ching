@@ -228,6 +228,73 @@ def author_key(a):
     return (frozenset(cjk), tuple(latin))
 
 
+NAME_DROP = {"author", "authors", "editor", "editors", "ed", "eds", "edited", "by", "translator", "translators",
+             "trans", "tr", "compiler", "comp", "contributor", "illustrator", "writer", "joint", "introduction",
+             "foreword", "preface", "jr", "sr", "dr", "prof", "professor"}
+NAME_PARTICLES = {"van", "von", "der", "den", "de", "du", "di", "da", "del", "della", "dos", "das", "la", "le",
+                  "ter", "ten", "bin", "al"}
+LIFE_DATES = re.compile(
+    r"\b(?:b|d|fl|ca|c|born|died|active|approximately)\.?\s*\d{3,4}\??"
+    r"|\d{3,4}\??\s*[-–—]\s*(?:\d{3,4}\??)?"
+    r"|\b\d{1,2}(?:st|nd|rd|th)\s+cent(?:ury|\.)?"
+    r"|\d+", re.I)
+
+def _name_tokens(seg):
+    seg = LIFE_DATES.sub(" ", seg)
+    return [t for t in re.findall(r"[a-z]+", seg) if t not in NAME_DROP and t not in ROLE_EN]
+
+def _latin_people(a):
+    """Alternative parses of a Latin-script author string into persons (surname_set_or_None, tokens).
+    'Surname, Given, dates, role' gives a known surname; a 2-segment comma chunk is also tried as two persons."""
+    s = deaccent(unicodedata.normalize("NFKC", str(a or "")).lower())
+    chunks = [ch for ch in re.split(r"[;；|/&+]|\band\b|\bwith\b", s) if _name_tokens(ch)]
+    options = []
+    for ch in chunks:
+        segs = [t for t in (_name_tokens(x) for x in re.split(r"[,，]", ch)) if t]
+        opts = [[(None, tuple(t)) for t in segs]]
+        if len(segs) == 2:
+            opts.insert(0, [(frozenset(segs[0]), tuple(segs[0] + segs[1]))])
+        options.append(opts)
+    if not options:
+        return []
+    return [[p for grp in combo for p in grp] for combo in itertools.islice(itertools.product(*options), 32)]
+
+def _person_match(p, q):
+    """Surname plus at least one given name shared, order-insensitive."""
+    shared = set(p[1]) & set(q[1])
+    if len(shared) < 2:
+        return False
+    for x, y in ((p, q), (q, p)):
+        if x[0] is None:
+            continue
+        core = {t for t in x[0] if t not in NAME_PARTICLES} or set(x[0])
+        if not core <= shared or not (shared - x[0]):
+            return False
+        if y[0] is None and not core & {y[1][0], y[1][-1]}:    # surname must sit at an end of the other name
+            return False
+    if p[0] is None and q[0] is None and not ({p[1][0], p[1][-1]} & {q[1][0], q[1][-1]} & shared):
+        return False
+    return True
+
+def authors_match(a, b):
+    """Author equality for cross-record checks. Exact author_key equality always matches. Strings containing CJK
+    keep the exact rule only (no loosening). Latin-script names: catalogue forms ('Eyferth, Jan Jacob Karl,
+    1962-') match 'Jacob Eyferth' when surname + >=1 given name agree, every person on each side matched."""
+    sa = "; ".join(map(str, a)) if isinstance(a, list) else str(a or "")
+    sb = "; ".join(map(str, b)) if isinstance(b, list) else str(b or "")
+    if author_key(sa) == author_key(sb):
+        return True
+    if has_cjk(sa) or has_cjk(sb):
+        return False
+    for pa in _latin_people(sa):
+        for pb in _latin_people(sb):
+            if pa and pb and all(any(_person_match(p, q) for q in pb) for p in pa) \
+                    and all(any(_person_match(q, p) for p in pa) for q in pb):
+                return True
+    return False
+
+
+
 def venue_key(v):
     n = norm(v)
     return n[3:] if n.startswith("the") else n
@@ -558,6 +625,27 @@ def reg_domain(host):
     return ".".join(p[-2:])
 
 
+# Journal-introduction / journal-home pages are listings, not records (owner rule 4).
+JOURNAL_PAGE_TITLE = re.compile(
+    r"期刊介绍|期刊简介|期刊概况|本刊简介|本刊介绍|刊物简介|杂志简介|关于本刊|期刊首页|投稿须知|投稿指南|征稿启事|编委会|"
+    r"about\s+(?:the|this)\s+journal|journal\s+(?:home(?:page)?|information|overview)|aims\s+(?:and|&)\s+scope|"
+    r"editorial\s+board", re.I)
+JOURNAL_PAGE_PATH = re.compile(
+    r"/(?:qkjs|qkjj|qkgk|bkjj|bkjs|gybk|kwjj|tgxz|tgzn|zgqs|bwh)(?:[./?_#-]|$)"
+    r"|/(?:about(?:[-_]?(?:us|the[-_]?journal|journal))?|aims[-_]?(?:and|&)[-_]?scope|editorial[-_]?board|"
+    r"journal[-_]?(?:info|information|intro|introduction|home))(?:[./?#]|$)", re.I)
+SITE_HOME_PATH = re.compile(r"/?(?:(?:index|default|home)\.(?:s?html?|aspx?|php|jsp))?/?", re.I)
+JOURNAL_BODY_MARKS = [re.compile(x, re.I) for x in (
+    r"主办单位|主办[:：]", r"主管单位|主管[:：]", r"创刊于|创刊时间|创刊年",
+    r"国际标准连续出版物号|ISSN\s*[:：]?\s*\d{4}\s*-?\s*\d{3}[\dX]",
+    r"国内统一连续出版物号|CN\s*[:：]?\s*\d{2}\s*-\s*\d{4}", r"刊期|出版周期", r"邮发代号",
+    r"aims\s+(?:and|&)\s+scope", r"editorial\s+board", r"about\s+(?:the|this)\s+journal",
+    r"submission\s+guidelines|instructions\s+for\s+authors|submit\s+(?:an|your)\s+(?:article|manuscript)",
+    r"call\s+for\s+papers")]
+ARTICLE_BODY_MARK = re.compile(r"摘要|关键词|关键字|abstract|keywords|doi\s*[:：]?\s*10\.", re.I)
+
+
+
 def classify(url):
     hp = url_hp(url)
     if not hp or any(b in hp for b in BANNED):
@@ -594,14 +682,17 @@ ITEM_URL = [
 
 
 def is_listing_url(url):
-    """True if the URL is a listing (search result, TOC/issue index, hotword/wiki page, column) rather than one work's
-    own item page. Hosts with a known item-URL form must match it; other hosts are judged by listing patterns only."""
+    """True if the URL is a listing (search result, TOC/issue index, hotword/wiki page, column, journal
+    introduction/home page, site root) rather than one work's own item page. Hosts with a known item-URL form
+    must match it; other hosts are judged by listing patterns only."""
     hp = url_hp(url)
     host = host_of(url)
     path = hp[len(hp.split("/")[0]):]
     if host.startswith("wiki.") or ".wiki." in host or "wiki.cnki" in hp:
         return True
-    if LISTING_PATH.search(path):
+    if LISTING_PATH.search(path) or JOURNAL_PAGE_PATH.search(path):
+        return True
+    if SITE_HOME_PATH.fullmatch(path):            # a site/journal root is never one work's record
         return True
     for dom, pat in ITEM_URL:
         if host == dom or host.endswith("." + dom):
@@ -616,12 +707,17 @@ LIST_BODY_MARK = re.compile(r"(检索结果|搜索结果|共找到|找到约|条
 
 
 def is_listing_text(text, title=""):
-    """Content test on a search hit: listing markers in its title or text, more than one year/issue, or several
-    different 《》 titles mean the hit describes a listing, not one work."""
-    if title and LIST_TITLE_MARK.search(unicodedata.normalize("NFKC", str(title))):
-        return True
+    """Content test on a search hit: listing or journal-page markers in its title, listing markers in its text,
+    a journal-introduction profile (>=3 journal markers and no article markers), more than one year/issue, or
+    several different 《》 titles mean the hit describes a listing, not one work."""
+    if title:
+        tn = unicodedata.normalize("NFKC", str(title))
+        if LIST_TITLE_MARK.search(tn) or JOURNAL_PAGE_TITLE.search(tn):
+            return True
     t = unicodedata.normalize("NFKC", str(text or ""))
     if LIST_BODY_MARK.search(t):
+        return True
+    if sum(1 for rx in JOURNAL_BODY_MARKS if rx.search(t)) >= 3 and not ARTICLE_BODY_MARK.search(t):
         return True
     issues = {(m.group(1), m.group(2)) for m in re.finditer(r"((?:19|20)\d\d)\s*年\s*第?\s*0?(\d{1,2})\s*期", t)}
     if len(issues) > 1:
@@ -888,6 +984,50 @@ def verify_entry(e, raw):
     return out, dropped
 
 
+def author_gap(d):
+    """From an item_entry diag: the single verified hit entry if it has title, venue and year but no author
+    (owner rule 3). Returns (entry_or_None, note)."""
+    ents = d.get("verified")
+    if not isinstance(ents, list):
+        return None, "no_verified_dicts_in_diag"
+    if len(ents) != 1:
+        return None, "not_single_entry"
+    v = ents[0]
+    if v.get("author"):
+        return None, "author_present"
+    if not (v.get("title") and v.get("venue") and v.get("year")):
+        return None, "title_venue_year_incomplete"
+    if venue_key(v["title"]) == venue_key(v["venue"]):
+        return None, "title_is_venue"
+    return dict(v), "author_gap"
+
+def merge_author(gap, d, F):
+    """Take the author from the hit's own fetched page (fields verified on that page) into the hit entry.
+    Same work required: the hit title is on the page; the page entry's title matches; year and venue do not conflict.
+    Returns (merged_entry_or_None, result)."""
+    if not loose_title_in(gap["title"], F["text"]):
+        return None, "hit_title_absent_on_page"
+    auths = {}
+    for v in d.get("verified") or []:
+        if not v.get("author") or not v.get("title"):
+            continue
+        if not (loose_title_in(gap["title"], v["title"]) or loose_title_in(v["title"], gap["title"])):
+            continue
+        if v.get("year") and v["year"] != gap["year"]:
+            return None, "year_conflict"
+        if v.get("venue"):
+            a, b = venue_key(v["venue"]), venue_key(gap["venue"])
+            if a != b and a not in b and b not in a:
+                return None, "venue_conflict"
+        auths[author_key(v["author"])] = v["author"]
+    if not auths:
+        return None, "author_not_on_page"
+    if len(auths) > 1:
+        return None, "ambiguous_author"
+    return dict(gap, author=next(iter(auths.values()))), "ok"
+
+
+
 def extract(snapfile, url, mode, target=None):
     # v2: verification source changed (verify_source), so old cached extractions are not reused
     key = f"{snapfile}__{mode}__v2__{sha(json.dumps(target, ensure_ascii=False) if target else '')}"
@@ -958,11 +1098,14 @@ def cand_hit(c):
 
 
 def record_from_hit(hit, idx, sfile, query, route, url, mode, target=None, diag=None):
-    """Record from a search hit: the hit's JSON is the snapshot; the page is fetched only if the hit lacks a field.
+    """Record from a search hit: the hit's JSON is the snapshot; the page is fetched (once) only if the hit lacks a
+    field. If the hit verifies title/venue/year but lacks the author, the author may come from that fetched page
+    (record keeps both snapshots; field_sources names the page for 'author').
     Returns (entry, record_dict, None) or (None, None, reason). diag (optional dict) receives a 'steps' log."""
     diag = {} if diag is None else diag
     steps = diag.setdefault("steps", [])
     why = "field_unverified"
+    hfn, gap = None, None
     if hit is not None:
         ht = hit_text(hit)
         if is_listing_text(ht, str(hit.get("title", ""))):
@@ -973,6 +1116,8 @@ def record_from_hit(hit, idx, sfile, query, route, url, mode, target=None, diag=
             d = {"step": "hit", "hit_title": str(hit.get("title", ""))[:80]}
             e, why = item_entry(hfn, url, mode, target, d)
             d["result"] = why or "ok"
+            if why == "field_unverified":
+                gap, d["author_gap"] = author_gap(d)
             steps.append(d)
             if e is not None:
                 return e, {"url": url, "snapshot_file": hfn, "snapshot_kind": "search_hit", "search_snapshot": sfile,
@@ -983,7 +1128,7 @@ def record_from_hit(hit, idx, sfile, query, route, url, mode, target=None, diag=
             steps.append({"step": "hit", "result": "hit_text_too_short", "chars": len(norm(ht))})
     else:
         steps.append({"step": "hit", "result": "hit_not_in_search_snapshot"})
-    F = ds_fetch(url, route)                      # optional fallback for a missing field
+    F = ds_fetch(url, route)                      # single fetch: missing-field fallback and author check
     if not F["ok"]:
         steps.append({"step": "fetch", "result": "fetch_failed"})
         return None, None, ("unfetchable_source" if hit is None else why)
@@ -997,6 +1142,14 @@ def record_from_hit(hit, idx, sfile, query, route, url, mode, target=None, diag=
     if e is not None:
         return e, {"url": url, "snapshot_file": F["file"], "snapshot_kind": "fetch", "search_snapshot": sfile,
                    "hit_index": idx, "query": query, "route": route, "date": F["date"] or today()}, None
+    if why2 != "listing_page" and gap is not None:
+        m, res = merge_author(gap, d, F)
+        steps.append({"step": "author_from_page", "result": res, "snapshot": F["file"]})
+        if m is not None:
+            return m, {"url": url, "snapshot_file": hfn, "snapshot_kind": "search_hit+page_author",
+                       "author_snapshot_file": F["file"], "field_sources": {"author": F["file"]},
+                       "search_snapshot": sfile, "hit_index": idx, "query": query, "route": route,
+                       "date": F["date"] or today()}, None
     return None, None, (why2 if why2 == "listing_page" else why)
 
 
@@ -1128,6 +1281,7 @@ def stage_b(st, args):
         save_state(st)
     entry = st["entryA"]
     a_cls = st["recA"]["custodian_class"]
+    a_dom = reg_domain(host_of(c["url"]))
     a_text = verify_source(st["recA"]["snapshot_file"])      # record A's own text only (not our query/URL)
     qs = b_queries(entry, a_text, c)
     if not qs:
@@ -1157,11 +1311,13 @@ def stage_b(st, args):
             if not u:
                 skip("no_url"); continue
             if not cl:
-                skip("unclassified"); continue
+                skip("unclassified"); continue          # includes booksellers (BANNED): never records
             classes_seen[cl] = classes_seen.get(cl, 0) + 1
-            if cl == a_cls:
-                skip("same_class"); continue   # different custodian class required; two aggregators never pair
-            if reg_domain(host_of(u)) == reg_domain(host_of(c["url"])):
+            # Different custodian class required (CNKI/VIP/Wanfang = one aggregator class, never pair), EXCEPT
+            # owner deviation: library catalogues of different institutions (registered domains) pair.
+            if cl == a_cls and cl != "library":
+                skip("same_class"); continue
+            if reg_domain(host_of(u)) == a_dom:
                 skip("same_domain"); continue
             if is_listing_url(u) or is_listing_text(hit_text(r), str(r.get("title", ""))):
                 skip("listing"); continue
@@ -1170,7 +1326,12 @@ def stage_b(st, args):
             tried += 1
             e, rec, why = record_from_hit(r, i, sfile, q, rt, u, "B", target)
             if e is not None:
-                st["recB"] = dict(rec, custodian_class=cl)
+                lib_pair = cl == a_cls
+                st["recB"] = dict(rec, custodian_class=cl,
+                                  pairing="cross_institution_library" if lib_pair else "cross_class",
+                                  prereg_deviation="owner: library catalogues of different institutions"
+                                  if lib_pair else None,
+                                  institutions=[a_dom, reg_domain(host_of(u))])
                 return
             fails[why] = fails.get(why, 0) + 1
     drop(st, "no_second_record", "b",
