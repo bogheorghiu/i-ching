@@ -29,3 +29,10 @@ Verification discipline
 
 Coordination
 - A shared board (Delegation artifact) carries in-flight heavy calls and dated environment facts between sessions; a second session built a "courier" (scheduled task that fires OpenRouter/DeepSeek calls and writes results to Drive) for the same purpose.
+
+## Review record for methodology.md (2026-11-04)
+
+DeepSeek flash (direct API) checked the first draft against this file and returned 16 findings. Kept verbatim locally; adjudicated by the session before the revision (Opus via BYOK, generation gen-1793792815-YGvbXMjUjICGqmGUYXbX):
+- Refuted: finding 5 (no `keys.py` timeout/HTTPError detail). `research/keys.py` has `timeout=600` and catches `urllib.error.HTTPError`.
+- Wrong source, not unsupported: findings 7, 8, 13 (stated in `docs/research-method.md`); finding 6 (stated in `research/battery2/design/final-design.md`, A.4 and C.2); finding 4 (stated in `research/battery2/pipeline/WRITE-PIPELINE.md`, requirement 5).
+- Fixed in the doc: findings 1-3, 9-12, 14-16.

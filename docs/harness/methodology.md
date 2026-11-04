@@ -18,15 +18,15 @@ Six habits made the work reliable:
 - **Robust transport.** Long calls are streamed, and truncated answers are continued and stitched.
 - **Resumable jobs.** Every job can pick up from files, because processes die.
 - **Scripts do the work.** Models are called only where judging language is unavoidable, and code checks every model output.
-- **Corroboration and records.** Load-bearing artefacts are checked by an independent model. Questions are pre-registered. Every call is recorded with its generation id in a ledger that another session can read.
+- **Corroboration and records.** Load-bearing artefacts are checked by an independent model. Questions are pre-registered. Generation ids are recorded (GROUNDED: `docs/research-method.md`), and a shared board carries in-flight heavy calls and dated environment facts between sessions (GROUNDED: F, Coordination).
 
-Agents earn their keep by writing and patching the script, not by running open-ended loops. Almost all of this is independent of the research topic, so it translates to a general harness. The topic-specific parts are listed in section 4.
+On the one task tested, the agent's best use was writing and patching the script; open-ended loops closed no items. Almost all of this is independent of the research topic, so it translates to a general harness. The topic-specific parts are listed in section 4.
 
 ## 2. Layers
 
 ### 2.1 Routing and keys
 
-**What it does.** It reads keys from the environment only, chooses the endpoint and provider, and fails loudly when a key is missing.
+**What it does.** It reads keys from the environment only, decides where requests go, and stops with an error when a key is missing (GROUNDED: `research/keys.py`).
 
 **Rules learned**
 - One module reads keys; everything else calls it. Where a cloud proxy injects credentials, placeholder keys work. (GROUNDED: F, Routing; `research/keys.py` docstring)
@@ -53,7 +53,7 @@ Agents earn their keep by writing and patching the script, not by running open-e
   - Anthropic automatic caching needs a top-level `cache_control` in chat completions, or `cacheControl` in `@openrouter/agent`. The snake_case form is silently dropped there.
   - In a probe, the second call cached 4,011 tokens and its cost fell from 0.0101 to 0.00045.
   - (GROUNDED: F, Cost)
-- Maximum reasoning effort can consume all of `max_tokens`. Opus returned an empty answer after 32k tokens of reasoning; DeepSeek produced 64k thinking tokens and no text, ignoring its budget. Set `reasoning.max_tokens` explicitly, and set `max_tokens` near the model's real output limit rather than a habit number. (GROUNDED: F, Cost)
+- Maximum reasoning effort can consume all of `max_tokens`. Opus returned an empty answer after 32k tokens of reasoning; DeepSeek produced 64k thinking tokens and no text, ignoring its budget. Set `reasoning.max_tokens` explicitly, and set `max_tokens` near the model's real output limit (Opus/Sonnet 5.5: 128k; DeepSeek flash: ~943k) rather than a habit number. (GROUNDED: F, Cost)
 
 **What exists**
 - `WRITE-PIPELINE.md` specifies the upstream-cost cap, `--max-usd`, and a `calls.jsonl` log with model, generation id, tokens and cost.
@@ -71,11 +71,11 @@ Agents earn their keep by writing and patching the script, not by running open-e
 **Rules learned**
 - Long non-streamed calls drop. DeepSeek reset connections, OpenRouter sent padding before the JSON, and Kimi raised IncompleteRead. Stream long calls and strip padding before parsing. (GROUNDED: F, Transport)
 - Opus 5.5 rejects assistant prefill. Continue a truncated answer with a new user turn, then stitch the parts. (GROUNDED: F, Transport)
-- Retry each call twice on connection errors. (GROUNDED: `WRITE-PIPELINE.md` req. 5)
+- Retry each call twice on connection errors. (GROUNDED: `research/battery2/pipeline/WRITE-PIPELINE.md`, requirement 5)
 
-**What exists.** `keys.py` strips the blank and `:`-prefixed padding lines and uses a 600-second timeout.
+**What exists.** `keys.py` strips the blank and `:`-prefixed padding lines and uses a 600-second timeout. (GROUNDED: `research/keys.py`)
 
-**Gaps**
+**Gaps** (GROUNDED: `research/keys.py`)
 - `keys.py` does not stream.
 - It catches only `HTTPError`, so resets and IncompleteRead crash the caller.
 - It has no retry and no continue-and-stitch helper.
@@ -102,7 +102,7 @@ Agents earn their keep by writing and patching the script, not by running open-e
 - Open agent loops failed on this task. Sonnet and Opus, each at maximum reasoning with the same prompt, collected about 200 source snapshots and closed 0 items in about 37 calls each. (GROUNDED: F, Agents vs scripts)
 - The scripted pipeline accepts or drops each candidate in one pass. Its fourth test produced the first verified item. (GROUNDED: F, Agents vs scripts)
 - The agent's best use is writing and patching the script. Opus wrote 1,531 lines. Three function-level patches, based on evidence from runs, cost about $0.4–0.7 each and were applied by an AST-based applier. (GROUNDED: F, Agents vs scripts; `research/battery2/pipeline/apply_patch.py`)
-- Code checks model output. For example, every extracted field must appear verbatim in its snapshot or the field is dropped, and leakage and identifiability are checked in code. (GROUNDED: `WRITE-PIPELINE.md` 1c, 1f)
+- Code checks model output. For example, code checks that each extracted field appears verbatim in its snapshot, and if not, the item is dropped; leakage is checked in code. (GROUNDED: `research/battery2/design/final-design.md` A.4, C.2)
 - An agent with a shell tool installed a package unasked. Forbid installs explicitly. (GROUNDED: F, Agents vs scripts)
 
 **What exists**
@@ -121,8 +121,8 @@ Agents earn their keep by writing and patching the script, not by running open-e
 **What it does.** It makes results trustworthy before anyone relies on them.
 
 **Rules learned**
-- Pre-register before any run. Check keys against the fact's own record before the run: one key copied from a secondary note was wrong. Record deviations, with reasons, before the data they affect. A bar may be raised after results, never lowered. (GROUNDED: F, Verification; `research/battery2/PREREG.md`)
-- A model's memory gives leads, never evidence. Models agreeing from memory confirms nothing, because their errors are correlated. (GROUNDED: `docs/research-method.md`)
+- Pre-register before any run. Check keys against the fact's own record before the run: one key copied from a secondary note was wrong, and a question misdescribed its work. Record deviations, with reasons, before the data they affect. A bar may be raised after results, never lowered. (GROUNDED: F, Verification; `research/battery2/PREREG.md`)
+- A model's memory gives leads, never evidence. Models agreeing from memory confirms nothing, because their errors are correlated. (GROUNDED: `docs/research-method.md`, Principle)
 - Corroborate load-bearing artefacts with an independent, cheap, strong model. DeepSeek Flash independently wrote the same pipeline, 1,747 lines. (GROUNDED: F, Verification)
 - Run blind design rounds: eight models proposed, seven critiqued, one merged. List disagreements rather than averaging them. (GROUNDED: F, Verification; `PREREG.md`)
 - Verify blind: shuffle items and strip writer labels. Drop flagged items; never repair them. (GROUNDED: `WRITE-PIPELINE.md` 1g and addendum)
@@ -141,7 +141,7 @@ Agents earn their keep by writing and patching the script, not by running open-e
 
 **Rules learned**
 - A shared board carries in-flight heavy calls and dated environment facts between sessions. (GROUNDED: F, Coordination)
-- Record every generation id, so the owner can pull the logs. Keep a ledger per lead with quote, URL, date, tool, id and tier. (GROUNDED: `research-method.md` steps 2 and 5)
+- Record every generation id, so the owner can pull the logs. Keep a ledger per lead with quote, URL, date, tool, id and tier. (GROUNDED: `docs/research-method.md` steps 2 and 5)
 
 **What exists.** `calls.jsonl`, and the ledger specification in `research-method.md`.
 
@@ -154,7 +154,7 @@ Agents earn their keep by writing and patching the script, not by running open-e
 
 ### (i) Standalone harness library and CLI
 
-**What it gives.** All seven layers as tested code: a call wrapper, a model table, a job store, a budget accountant, corroboration and a ledger. Scripts, cloud sessions and agents can all use it, and it can be developed and tested in this repository's existing cloud environment (GROUNDED: `docs/cloud-environment.md`).
+**What it gives.** All seven layers as code, to be built and tested: a call wrapper, a model table, a job store, a budget accountant, corroboration and a ledger. Most of these are Gaps today (section 2). Scripts, cloud sessions and agents could all use it, and it can be developed and tested in this repository's existing cloud environment (GROUNDED: `docs/cloud-environment.md`).
 
 **What it cannot do.** It cannot be used from a Claude Desktop conversation without a wrapper.
 
@@ -162,7 +162,7 @@ Agents earn their keep by writing and patching the script, not by running open-e
 
 **Risks**
 - Keys stay in environment variables, as today.
-- Prompt injection from third-party outputs is limited, because outputs land in files and pass code checks before any model reads them.
+- Prompt injection from third-party outputs might be limited if outputs land in files and pass code checks before any model reads them; this mitigation is untested (UNRESOLVED).
 
 ### (ii) An MCP server for Claude Desktop and Claude Code
 
@@ -172,9 +172,9 @@ Agents earn their keep by writing and patching the script, not by running open-e
 - `ledger()`
 - job status
 
-This would use other models, and the Claude API on the owner's key via BYOK routing (GROUNDED: F, Routing), from inside a conversation.
+This would use other models, and the Claude API on the owner's key via BYOK routing, from inside a conversation. BYOK routing is GROUNDED for direct OpenRouter calls (F, Routing); whether it works the same way from an MCP-served conversation is UNRESOLVED.
 
-**What is UNRESOLVED about the platform.** Claude Desktop and Claude Code can load MCP servers. All of the following must be checked before design depends on them:
+**What is UNRESOLVED about the platform.** That Claude Desktop and Claude Code can load MCP servers is itself UNRESOLVED here. All of the following must be checked before design depends on them:
 - how a local server is configured;
 - how secrets are passed to it;
 - tool-call timeouts;
@@ -222,7 +222,9 @@ This is the other session's approach (GROUNDED: F, Coordination).
 
 Build **(i) first, then (ii) as a thin wrapper over it**, and later move the courier (iii) onto the same library and job store.
 
-**Reason.** Every rule learned lives in code: the cap on upstream cost, streaming and stitching, resumability, code-checked outputs and the ledger. None of it lives in the transport. Options (ii) and (iii) each need that same core, and without it they would reimplement it badly. Option (i) can also be built and tested now, here, while the Desktop facts are being verified.
+**Reason.** Most rules learned can live in code: the cap on upstream cost, streaming and stitching, resumability, code-checked outputs and the ledger. None of it lives in the transport. Options (ii) and (iii) each need that same core, and without it they would reimplement it badly. Option (i) can also be built and tested now, here, while the Desktop facts are being verified.
+
+Two limits on this. First, some rules are account and operating practice, not code: the workspace budget, the guardrail, testing each network rule, and the pre-registration bar. The harness can check or log them but not settle them. Second, (ii) is not only a thin wrapper: it carries its own unresolved work on MCP platform facts, key security, asynchronous jobs and in-server spend caps.
 
 ### Build order, smallest first
 
@@ -264,7 +266,7 @@ Build **(i) first, then (ii) as a thin wrapper over it**, and later move the cou
 
 **Account-specific settings.** The guardrail's settings and the workspace budget belong to the owner's account. The harness should read and respect them, not assume them.
 
-**DeepSeek's tool API.** It offers no zero-retention guarantee, so it suits public, academic queries only (GROUNDED: `keys.py`). General use needs a policy per data class.
+**DeepSeek's tool API.** It offers no zero-retention guarantee, so it suits public, academic queries only (GROUNDED: `docs/research-method.md`; `keys.py`). General use needs a policy per data class.
 
 ## 5. Open questions for the owner
 
@@ -279,4 +281,4 @@ Build **(i) first, then (ii) as a thin wrapper over it**, and later move the cou
 9. **Untrusted output.** Should third-party output ever reach Claude's context directly, or only as a file path plus a short code-checked summary?
 10. **Retention.** Which kinds of call require zero data retention, and should the harness refuse them when no ZDR endpoint exists?
 
-<!-- drafted by anthropic/claude-opus-5.5 via OpenRouter BYOK, generation gen-1793787559-VixegdQW5iITXPSKHMOI -->
+<!-- drafted by anthropic/claude-opus-5.5 via OpenRouter BYOK, generation gen-[PHONE]-VixegdQW5iITXPSKHMOI -->
