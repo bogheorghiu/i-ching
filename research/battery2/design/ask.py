@@ -20,10 +20,18 @@ def ask(name):
     body = {"model": model, "messages": [{"role": "user", "content": BRIEF}], "max_tokens": 12000}
     if reasoning: body["reasoning"] = reasoning
     if not model.startswith(("openai/", "google/", "anthropic/")): body["provider"] = {"zdr": True}
-    r = keys.openrouter_chat(body)
+    for attempt in (1, 2):
+        try:
+            r = keys.openrouter_chat(body)
+            break
+        except OSError as e:
+            r = {"error": {"exception": repr(e), "attempt": attempt}}
     text = r["choices"][0]["message"].get("content") if "choices" in r else json.dumps(r)[:800]
     return name, {"model": model, "generation_id": r.get("id"), "text": text}
+def ask_and_save(name):
+    name, rec = ask(name)
+    (HERE / f"round1-{name}.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1))
+    print(name, rec["generation_id"], len(rec["text"] or ""), flush=True)
+names = sys.argv[1:] or list(OR_ARMS)
 with ThreadPoolExecutor(8) as ex:
-    out = dict(ex.map(ask, OR_ARMS))
-(HERE / "round1.json").write_text(json.dumps(out, ensure_ascii=False, indent=1))
-for k, v in out.items(): print(k, v["generation_id"], len(v["text"] or ""))
+    list(ex.map(ask_and_save, names))
