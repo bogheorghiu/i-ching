@@ -19,9 +19,15 @@ def _post(url, key_var, body, timeout=600):
                                  headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read())
+            raw = r.read().decode(errors="replace")
     except urllib.error.HTTPError as e:
         return {"error": {"status": e.code, "body": e.read().decode(errors="replace")[:2000]}}
+    # OpenRouter pads long (reasoning) calls with blank lines and ': OPENROUTER PROCESSING' comments.
+    body = "\n".join(l for l in raw.splitlines() if l.strip() and not l.startswith(":"))
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError:
+        return {"error": {"unparsed_body": raw[-3000:]}}
 
 
 def _get(url, key_var, timeout=60):
