@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://www.jstor.org/journal/earlychina",
+ "route": "probe3",
+ "date": "2026-11-04T07:39:33Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: 8711fad8-e86d-439a-9fbf-7b89feb445ba)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}

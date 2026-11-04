@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://www.cambridge.org/core/journals/early-china/issue/ACEBA21B5A9D7C6B0E3E4D6B0E9CF0A8",
+ "route": "probe",
+ "date": "2026-11-04T07:36:42Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: fc99ce7e-eca3-48cc-9823-c27e40d39092)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}

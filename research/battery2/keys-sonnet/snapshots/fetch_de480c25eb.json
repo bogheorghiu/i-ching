@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://katalog.slub-dresden.de/id/0-770027008",
+ "route": "probe7",
+ "date": "2026-11-04T08:22:37Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: ec2d5b41-ef10-402c-a6b3-a5610bdb44bf)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}

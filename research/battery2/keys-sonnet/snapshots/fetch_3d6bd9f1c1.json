@@ -1,0 +1,10 @@
+{
+ "kind": "fetch",
+ "url": "https://vufind.library.sh.cn/Record/28fa5c7b-ad72-4187-8165-88a45323c77f?lng=en",
+ "route": "probe7",
+ "date": "2026-11-04T08:22:45Z",
+ "raw": {
+  "content": "拖动滑块完成拼图\n\n验证失败，请重新尝试\n\n您的验证过于频繁，请稍后再试！",
+  "title": "您的验证过于频繁，请稍后再试！"
+ }
+}

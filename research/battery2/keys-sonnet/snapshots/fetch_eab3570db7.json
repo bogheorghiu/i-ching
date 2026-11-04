@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://www.zhbc.com.cn/",
+ "route": "probe7",
+ "date": "2026-11-04T08:22:24Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: 4f6bc5d6-6b07-40e1-8e68-6a9e45e282b7)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}

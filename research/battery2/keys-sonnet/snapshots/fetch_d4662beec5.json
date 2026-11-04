@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://book.cnki.net/book?id=1893855",
+ "route": "probe8",
+ "date": "2026-11-04T08:23:51Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: 80f8f18f-c13d-497e-910b-06b72e3d000f)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}

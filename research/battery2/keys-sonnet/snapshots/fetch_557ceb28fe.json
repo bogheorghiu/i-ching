@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "http://ilasweb.kmlib.yn.cn/NTRdrBookRetr.aspx?strType=text&strKeyValue=978-7-5325-8317-1",
+ "route": "probe7",
+ "date": "2026-11-04T08:22:22Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: fecebcb5-a8d7-4d20-8ede-fbe17853f584)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}

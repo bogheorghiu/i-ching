@@ -1,0 +1,10 @@
+{
+ "kind": "fetch",
+ "url": "https://api.crossref.org/works?query.container-title=Early+China&rows=3&select=DOI,title,author,issued,volume,issue,container-title,publisher,type",
+ "route": "probe",
+ "date": "2026-11-04T07:37:11Z",
+ "raw": {
+  "content": "{\"status\":\"ok\",\"message-type\":\"work-list\",\"message-version\":\"1.0.0\",\"message\":{\"facets\":{},\"total-results\":559724,\"items\":[{\"publisher\":\"Cambridge University Press (CUP)\",\"issue\":\"1\",\"DOI\":\"10.1017\\/s0362502800006957\",\"type\":\"journal-article\",\"title\":[\"The Concept of Predetermination and Fate in the Han\"],\"volume\":\"1\",\"author\":[{\"given\":\"Cho-yun\",\"family\":\"Hsu\",\"sequence\":\"first\",\"affiliation\":[],\"role\":[{\"role\":\"author\",\"vocabulary\":\"crossref\"}]}],\"container-title\":[\"Early China\"],\"issued\":{\"date-parts\":[[1975]]}},{\"DOI\":\"10.1017\\/s0362502800003539\",\"title\":[\"Abstracts\"],\"issued\":{\"date-parts\":[[1994]]},\"volume\":\"19\",\"container-title\":[\"Early China\"],\"publisher\":\"Cambridge University Press (CUP)\",\"type\":\"journal-article\"},{\"DOI\":\"10.1017\\/s0362502800000328\",\"title\":[\"<i>Shigaku Zasshi<\\/i> Summary of Japanese Scholarship for 2009: Shang, Zhou, Spring and Autumn\"],\"issued\":{\"date-parts\":[[2011]]},\"volume\":\"33\",\"container-title\":[\"Early China\"],\"publisher\":\"Cambridge University Press (CUP)\",\"type\":\"journal-article\"}],\"items-per-page\":3,\"query\":{\"start-index\":0,\"search-terms\":null}}}",
+  "title": ""
+ }
+}

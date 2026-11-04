@@ -1,0 +1,1 @@
+{"url": "https://tpl.ncl.edu.tw/NclService/JournalContentDetail?SysId=A78001175", "route": "explore", "date": "2026-11-04", "response": {"error": {"status": 404, "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: f7cfb1d3-7976-4a25-b5a9-f68ccf465eb3)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"}}}

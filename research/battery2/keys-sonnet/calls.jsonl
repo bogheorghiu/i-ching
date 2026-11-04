@@ -1,0 +1,85 @@
+{"kind": "search", "query": "周易研究 2018年第5期 目录", "file": "snapshots/search_3c356ed111_10_0.json", "date": "2026-11-04T07:36:34Z"}
+{"kind": "search", "query": "Early China volume 40 2017 Cambridge Core table of contents", "file": "snapshots/search_bacdf21f70_10_0.json", "date": "2026-11-04T07:36:35Z"}
+{"kind": "fetch", "url": "https://www.cambridge.org/core/journals/early-china/issue/ACEBA21B5A9D7C6B0E3E4D6B0E9CF0A8", "file": "snapshots/fetch_5648c5ebbd.json", "date": "2026-11-04T07:36:42Z"}
+{"kind": "fetch", "url": "https://www.cambridge.org/core/journals/early-china/all-issues", "file": "snapshots/fetch_2c7cff8875.json", "date": "2026-11-04T07:36:51Z"}
+{"kind": "fetch", "url": "https://brill.com/view/journals/tpao/tpao-overview.xml", "file": "snapshots/fetch_6d5652aa5e.json", "date": "2026-11-04T07:37:02Z"}
+{"kind": "fetch", "url": "https://ci.nii.ac.jp/books/search?q=%E5%91%A8%E6%98%93%E7%A0%94%E7%A9%B6&count=20", "file": "snapshots/fetch_3766d42679.json", "date": "2026-11-04T07:37:07Z"}
+{"kind": "fetch", "url": "https://api.crossref.org/works?query.container-title=Early+China&rows=3&select=DOI,title,author,issued,volume,issue,container-title,publisher,type", "file": "snapshots/fetch_8d624bb4eb.json", "date": "2026-11-04T07:37:11Z"}
+{"kind": "search", "query": "周易研究 编辑部 官方网站 往期目录 山东大学", "file": "snapshots/search_5979155b87_8_0.json", "date": "2026-11-04T07:37:49Z"}
+{"kind": "search", "query": "中国哲学史 杂志 编辑部 官网 过刊目录 2019年第2期", "file": "snapshots/search_bc95f57e8e_8_0.json", "date": "2026-11-04T07:37:49Z"}
+{"kind": "search", "query": "出土文献 中西书局 辑刊 目录 2020年第1期", "file": "snapshots/search_4634470204_8_0.json", "date": "2026-11-04T07:37:50Z"}
+{"kind": "search", "query": "简帛 上海古籍出版社 第十五辑 目录", "file": "snapshots/search_4f31ff1cb0_8_0.json", "date": "2026-11-04T07:37:51Z"}
+{"kind": "search", "query": "T'oung Pao Volume 105 issue brill.com table of contents", "file": "snapshots/search_e17c54b3bb_8_0.json", "date": "2026-11-04T07:37:52Z"}
+{"kind": "fetch", "url": "https://www.cambridge.org/core/journals/early-china/volume/88C8D37E3E0B6748C2BD70458CBED300", "file": "snapshots/fetch_e459606eda.json", "date": "2026-11-04T07:37:59Z"}
+{"kind": "fetch", "url": "https://ci.nii.ac.jp/ncid/BC09213224", "file": "snapshots/fetch_ae0687d2c0.json", "date": "2026-11-04T07:38:06Z"}
+{"kind": "fetch", "url": "https://www.cqvip.com/journal/3004/index.html", "file": "snapshots/fetch_2b780ccd51.json", "date": "2026-11-04T07:38:15Z"}
+{"kind": "fetch", "url": "https://c.wanfangdata.com.cn/magazine/zhouyyj?tabId=article&publishYear=2015&issueNum=1&page=1&isSync=0", "file": "snapshots/fetch_0d3feb6db3.json", "date": "2026-11-04T07:38:23Z"}
+{"kind": "fetch", "url": "https://www.haoqikan.com/zhouyiyanjiu/201805/", "file": "snapshots/fetch_b1f33731d9.json", "date": "2026-11-04T07:38:36Z"}
+{"kind": "fetch", "url": "https://brill.com/view/journals/tpao/109/1-2/tpao.109.issue-1-2.xml", "file": "snapshots/fetch_03c8e94ee4.json", "date": "2026-11-04T07:39:33Z"}
+{"kind": "fetch", "url": "https://www.jstor.org/journal/earlychina", "file": "snapshots/fetch_8db0e09ca0.json", "date": "2026-11-04T07:39:33Z"}
+{"kind": "fetch", "url": "https://lccn.loc.gov/2002066577", "file": "snapshots/fetch_f6264a7ce8.json", "date": "2026-11-04T07:39:48Z"}
+{"kind": "fetch", "url": "https://www.cnki.com.cn/Journal/F-F5-ZYJY-1989-02.htm", "file": "snapshots/fetch_66d502abf7.json", "date": "2026-11-04T07:39:53Z"}
+{"kind": "fetch", "url": "https://cqvip.com/journal/42632/42632/2002", "file": "snapshots/fetch_bfcc5992e3.json", "date": "2026-11-04T07:40:23Z"}
+{"kind": "search", "query": "shsjcb.com 出土数字卦文献辑释 贾连翔 中西书局", "file": "snapshots/search_6dfde5b4a7_8_0.json", "date": "2026-11-04T07:40:24Z"}
+{"kind": "search", "query": "周易研究 编辑部 投稿 山东大学 官网 zyyj.sdu.edu.cn", "file": "snapshots/search_b57fe023a0_8_0.json", "date": "2026-11-04T07:40:25Z"}
+{"kind": "search", "query": "《中国哲学史》编辑部 官网 中国社会科学院哲学研究所 期刊 目录 往期", "file": "snapshots/search_6bb40270ae_8_0.json", "date": "2026-11-04T07:40:25Z"}
+{"kind": "search", "query": "Studies of Zhouyi brill OR cambridge \"Early China\" volume 12 1987 table of contents", "file": "snapshots/search_163d4252c3_8_0.json", "date": "2026-11-04T07:40:26Z"}
+{"kind": "search", "query": "上海古籍出版社 官网 周易 新书 出版 ISBN 978-7-5325", "file": "snapshots/search_0d61298d6a_8_0.json", "date": "2026-11-04T07:40:27Z"}
+{"kind": "search", "query": "中华书局 zhbc.com.cn 周易 出土文献 新书 图书详情", "file": "snapshots/search_65f9a3bd14_8_0.json", "date": "2026-11-04T07:40:27Z"}
+{"kind": "search", "query": "周易研究 虞氏易集义 乾卦 刘大钧 2018年第5期 知网 维普 万方", "file": "snapshots/search_19be3535d3_10_0.json", "date": "2026-11-04T07:41:04Z"}
+{"kind": "fetch", "url": "http://zhouyi.sdu.edu.cn/zyyjxk/qkjs.htm", "file": "snapshots/fetch_0378cdc5b5.json", "date": "2026-11-04T07:41:08Z"}
+{"kind": "search", "query": "zhouyi.sdu.edu.cn zyyjxk 周易研究 2019年第3期 目录", "file": "snapshots/search_f9f11eb361_8_0.json", "date": "2026-11-04T07:41:08Z"}
+{"kind": "search", "query": "zhouyi.sdu.edu.cn 周易研究 往期目录 2016年第1期", "file": "snapshots/search_b5c5877bc9_8_0.json", "date": "2026-11-04T07:41:09Z"}
+{"kind": "fetch", "url": "https://zyjy.chinajournal.net.cn/EditorGN/PromptPageInfo.aspx?t=v&c=4", "file": "snapshots/fetch_44778c7b1a.json", "date": "2026-11-04T07:41:13Z"}
+{"kind": "search", "query": "brill.com view journals tpao 2019 T'oung Pao 105 issue 1-2 \"Brill\" article", "file": "snapshots/search_8eb8eae622_8_0.json", "date": "2026-11-04T07:41:14Z"}
+{"kind": "search", "query": "周易研究 2018 虞氏易集义 刘大钧", "file": "snapshots/search_08564d6d63_3_1.json", "date": "2026-11-04T07:41:15Z"}
+{"kind": "search", "query": "周易研究 1989年02期 目录 天道、人道、道统 陈立夫 cnki.com.cn", "file": "snapshots/search_99cbe86fd7_6_1.json", "date": "2026-11-04T07:42:16Z"}
+{"kind": "search", "query": "中国哲学史 2013年第2期 目录 知网", "file": "snapshots/search_f4c80b9c0d_6_1.json", "date": "2026-11-04T07:42:16Z"}
+{"kind": "fetch", "url": "http://www.cnki.com.cn/Journal/F-F5-ZYJY-1989-02.htm", "file": "snapshots/fetch_e9374bf40d.json", "date": "2026-11-04T07:42:23Z"}
+{"kind": "fetch", "url": "https://www.cnki.com.cn/Article/CJFDTotal-ZYJY198902001.htm", "file": "snapshots/fetch_2a6db1ea22.json", "date": "2026-11-04T07:42:29Z"}
+{"kind": "fetch", "url": "http://www.shsjcb.com/sjcb/bkview.aspx?bkid=280204&cid=837487", "file": "snapshots/fetch_31f7412b79.json", "date": "2026-11-04T07:42:37Z"}
+{"kind": "search", "query": "Society for the Study of Early China Early China journal volume contents earlychina.org", "file": "snapshots/search_e1058c621c_8_0.json", "date": "2026-11-04T07:42:38Z"}
+{"kind": "search", "query": "T'oung Pao brill.com/view/journals/tpao 2019 \"Volume 105: Issue 1-2\" ", "file": "snapshots/search_4a6add1e70_8_0.json", "date": "2026-11-04T07:42:39Z"}
+{"kind": "search", "query": "Early China 2015 vol. 38 article jstor", "file": "snapshots/search_d25bed16d3_6_0.json", "date": "2026-11-04T07:42:39Z"}
+{"kind": "fetch", "url": "https://ci.nii.ac.jp/books/opensearch/search?q=%E5%B8%9B%E6%9B%B8%E5%91%A8%E6%98%93&format=json&count=3", "file": "snapshots/fetch_ec167cd6c8.json", "date": "2026-11-04T07:45:14Z"}
+{"kind": "fetch", "url": "https://api.crossref.org/journals/0362-5028/works?sample=4&select=DOI,title,author,issued,volume,issue,page,is-referenced-by-count,type", "file": "snapshots/fetch_19a75db295.json", "date": "2026-11-04T07:45:19Z"}
+{"kind": "fetch", "url": "https://api.crossref.org/journals/1568-5322/works?sample=3&select=DOI,title,author,issued,volume,issue,page,is-referenced-by-count,type", "file": "snapshots/fetch_573313fca7.json", "date": "2026-11-04T07:45:25Z"}
+{"kind": "fetch", "url": "http://zhouyi.sdu.edu.cn/", "file": "snapshots/fetch_2855a5d982.json", "date": "2026-11-04T08:22:16Z"}
+{"kind": "fetch", "url": "https://zyjy.chinajournal.net.cn/", "file": "snapshots/fetch_fc48f6ce89.json", "date": "2026-11-04T08:22:16Z"}
+{"kind": "fetch", "url": "http://zgzxs.cssn.cn/", "file": "snapshots/fetch_cff28da33e.json", "date": "2026-11-04T08:22:16Z"}
+{"kind": "fetch", "url": "https://zgzxs.cbpt.cnki.net/", "file": "snapshots/fetch_15440d14d5.json", "date": "2026-11-04T08:22:17Z"}
+{"kind": "fetch", "url": "https://zyjy.chinajournal.net.cn/WKA/WebPublication/index.aspx?mid=zyjy", "file": "snapshots/fetch_baac0c476c.json", "date": "2026-11-04T08:22:17Z"}
+{"kind": "fetch", "url": "https://www.cnki.com.cn/Article/CJFDTOTAL-ZYJY201805003.htm", "file": "snapshots/fetch_e38e57091a.json", "date": "2026-11-04T08:22:18Z"}
+{"kind": "fetch", "url": "https://www.cnki.com.cn/Article/CJFDTotal-ZYJY201805003.htm", "file": "snapshots/fetch_b246f83d00.json", "date": "2026-11-04T08:22:19Z"}
+{"kind": "fetch", "url": "http://mp.weixin.qq.com/s?__biz=MjM5ODA3MTYzOA==&mid=[PHONE]&idx=1&sn=2a1cc69872046920dbf8ba8a4e13aa63", "file": "snapshots/fetch_0d8d30ec36.json", "date": "2026-11-04T08:22:21Z"}
+{"kind": "fetch", "url": "https://ci.nii.ac.jp/books/search?isbn=9787532583171", "file": "snapshots/fetch_1c6eb589e7.json", "date": "2026-11-04T08:22:21Z"}
+{"kind": "fetch", "url": "http://ilasweb.kmlib.yn.cn/NTRdrBookRetr.aspx?strType=text&strKeyValue=978-7-5325-8317-1", "file": "snapshots/fetch_557ceb28fe.json", "date": "2026-11-04T08:22:22Z"}
+{"kind": "fetch", "url": "https://d.wanfangdata.com.cn/periodical/zhouyyj201805003", "file": "snapshots/fetch_52f42bd9f7.json", "date": "2026-11-04T08:22:23Z"}
+{"kind": "fetch", "url": "https://www.zhbc.com.cn/", "file": "snapshots/fetch_eab3570db7.json", "date": "2026-11-04T08:22:24Z"}
+{"kind": "fetch", "url": "https://kns.cnki.net/kcms/detail/detail.aspx?dbcode=CJFD&dbname=CJFD2018&filename=ZYJY201805003", "file": "snapshots/fetch_917459175b.json", "date": "2026-11-04T08:22:27Z"}
+{"kind": "fetch", "url": "https://www.cambridge.org/core/journals/early-china/listing?pageNum=8", "file": "snapshots/fetch_02d9934bad.json", "date": "2026-11-04T08:22:28Z"}
+{"kind": "fetch", "url": "http://opac.nlc.cn/F/?func=find-b&find_code=ISB&request=9787547514511", "file": "snapshots/fetch_00ff0e4b04.json", "date": "2026-11-04T08:22:28Z"}
+{"kind": "fetch", "url": "https://www.loc.gov/books/?q=Zhouyi+commentary&fo=json&c=3", "file": "snapshots/fetch_13203d0414.json", "date": "2026-11-04T08:22:32Z"}
+{"kind": "fetch", "url": "http://www.shsjcb.com/", "file": "snapshots/fetch_eaef17eccf.json", "date": "2026-11-04T08:22:36Z"}
+{"kind": "fetch", "url": "https://katalog.slub-dresden.de/id/0-770027008", "file": "snapshots/fetch_de480c25eb.json", "date": "2026-11-04T08:22:37Z"}
+{"kind": "fetch", "url": "https://earlychina.org/category/early-china-journal/new-publication/", "file": "snapshots/fetch_ae07ba6f2e.json", "date": "2026-11-04T08:22:38Z"}
+{"kind": "fetch", "url": "https://vufind.library.sh.cn/Record/28fa5c7b-ad72-4187-8165-88a45323c77f?lng=en", "file": "snapshots/fetch_3d6bd9f1c1.json", "date": "2026-11-04T08:22:45Z"}
+{"kind": "fetch", "url": "https://www.guji.com.cn/", "file": "snapshots/fetch_c8f7f53dd1.json", "date": "2026-11-04T08:22:54Z"}
+{"kind": "search", "query": "虞氏易集义 乾卦 刘大钧 维普 cqvip.com doc journal", "file": "snapshots/search_a2ed49636a_8_0.json", "date": "2026-11-04T08:22:54Z"}
+{"kind": "search", "query": "Early China Cambridge Core article \"Excavated\" manuscript Zhouyi hexagram early-china article", "file": "snapshots/search_d154d4d9ef_8_0.json", "date": "2026-11-04T08:22:55Z"}
+{"kind": "search", "query": "上海古籍出版社 图书 易学 出版时间 guji.com.cn 周易 新著 2019", "file": "snapshots/search_eccb5bab7c_8_0.json", "date": "2026-11-04T08:22:55Z"}
+{"kind": "search", "query": "简帛网 bsm.org.cn 《简帛》 第二十辑 目录", "file": "snapshots/search_f0649c5b06_8_0.json", "date": "2026-11-04T08:22:55Z"}
+{"kind": "search", "query": "周易研究 chinajournal.net.cn paperDigest 摘要 关键词 刘大钧 虞氏易集义", "file": "snapshots/search_607be64592_8_0.json", "date": "2026-11-04T08:22:55Z"}
+{"kind": "search", "query": "出土文献 2021年第1期 目录 清华大学出土文献研究与保护中心 中西书局 杂志", "file": "snapshots/search_2f947a0498_8_0.json", "date": "2026-11-04T08:22:55Z"}
+{"kind": "search", "query": "中华书局 周易 图书 出版时间 ISBN 9787101 zhbc.com.cn 易学", "file": "snapshots/search_ae7c014a3a_8_0.json", "date": "2026-11-04T08:22:55Z"}
+{"kind": "search", "query": "brill.com view journals tpao article 2022 Yijing OR Zhouyi OR Yi jing OR divination", "file": "snapshots/search_e458bf58e3_8_0.json", "date": "2026-11-04T08:22:55Z"}
+{"kind": "fetch", "url": "http://search.cnki.com.cn/cjfd/Detail/Navi/CUWX", "file": "snapshots/fetch_b3fc256e1c.json", "date": "2026-11-04T08:23:49Z"}
+{"kind": "fetch", "url": "https://www.ctwx.tsinghua.edu.cn/ctwx/qkml/1.htm", "file": "snapshots/fetch_3a00806047.json", "date": "2026-11-04T08:23:50Z"}
+{"kind": "fetch", "url": "http://opac.nlc.cn/F/?func=find-b&find_code=ISB&request=9787547516911", "file": "snapshots/fetch_9c97d13dcb.json", "date": "2026-11-04T08:23:50Z"}
+{"kind": "fetch", "url": "https://www.ctwx.tsinghua.edu.cn/ctwx/qkml/2.htm", "file": "snapshots/fetch_b19781c796.json", "date": "2026-11-04T08:23:51Z"}
+{"kind": "fetch", "url": "https://book.cnki.net/book?id=1893855", "file": "snapshots/fetch_d4662beec5.json", "date": "2026-11-04T08:23:51Z"}
+{"kind": "fetch", "url": "http://m.bsm.org.cn/?xinx/", "file": "snapshots/fetch_ce8ef5ecb7.json", "date": "2026-11-04T08:23:51Z"}
+{"kind": "fetch", "url": "http://opac.nlc.cn/F/?func=find-b&find_code=ISB&request=9787532583171", "file": "snapshots/fetch_144c4fd4eb.json", "date": "2026-11-04T08:23:54Z"}
+{"kind": "fetch", "url": "http://www.bsm.org.cn/?xinx/", "file": "snapshots/fetch_6593213946.json", "date": "2026-11-04T08:23:55Z"}
+{"kind": "fetch", "url": "https://ci.nii.ac.jp/books/opensearch/search?isbn=9787532583171&format=json&count=2", "file": "snapshots/fetch_918a1bea6c.json", "date": "2026-11-04T08:23:56Z"}
+{"kind": "fetch", "url": "https://ci.nii.ac.jp/books/search?isbn=9787547516911", "file": "snapshots/fetch_17fcfee9c5.json", "date": "2026-11-04T08:23:58Z"}

@@ -1,0 +1,10 @@
+{
+ "kind": "fetch",
+ "url": "https://api.crossref.org/journals/1568-5322/works?sample=3&select=DOI,title,author,issued,volume,issue,page,is-referenced-by-count,type",
+ "route": "probe6",
+ "date": "2026-11-04T07:45:25Z",
+ "raw": {
+  "content": "{\"status\":\"ok\",\"message-type\":\"work-list\",\"message-version\":\"1.0.0\",\"message\":{\"facets\":{},\"total-results\":2927,\"items\":[{\"issue\":\"1\",\"DOI\":\"10.1163\\/156853206x00374\",\"type\":\"journal-article\",\"page\":\"707-721\",\"is-referenced-by-count\":0,\"title\":[\"Bulletin Critique\"],\"volume\":\"7\",\"author\":[{\"given\":\"ED\",\"family\":\"Chavannes\",\"sequence\":\"first\",\"affiliation\":[],\"role\":[{\"role\":\"author\",\"vocabulary\":\"crossref\"}]},{\"given\":\"Henri\",\"family\":\"Cordier\",\"sequence\":\"additional\",\"affiliation\":[],\"role\":[{\"role\":\"author\",\"vocabulary\":\"crossref\"}]}],\"issued\":{\"date-parts\":[[1896]]}},{\"issue\":\"1\",\"DOI\":\"10.1163\\/156853230x00278\",\"type\":\"journal-article\",\"page\":\"451-459\",\"is-referenced-by-count\":0,\"title\":[\"N\\u00e9crologie\"],\"volume\":\"27\",\"author\":[{\"given\":\"J.J.L.\",\"family\":\"Duyvendak\",\"sequence\":\"first\",\"affiliation\":[],\"role\":[{\"role\":\"author\",\"vocabulary\":\"crossref\"}]}],\"issued\":{\"date-parts\":[[1930]]}},{\"DOI\":\"10.1163\\/156853205x00096\",\"title\":[\"Chronique\"],\"issued\":{\"date-parts\":[[1895]]},\"volume\":\"6\",\"issue\":\"1\",\"page\":\"134-136\",\"is-referenced-by-count\":1,\"type\":\"journal-article\"}],\"items-per-page\":20,\"query\":{\"start-index\":0,\"search-terms\":null}}}",
+  "title": ""
+ }
+}
