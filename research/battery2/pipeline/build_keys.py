@@ -744,6 +744,35 @@ def parse_json_obj(text):
     return None
 
 
+
+
+def load_host_stats(extra_paths, min_attempts=3):
+    """Hosts with >= min_attempts uncached DeepSeek fetches and none with status 200, counted over this
+    workdir's tools.jsonl plus any --host-stats files (each file read once, by real path)."""
+    paths, seen_real = [], set()
+    for p in [os.path.join(W, "tools.jsonl")] + list(extra_paths or []):
+        rp = os.path.realpath(p)
+        if rp in seen_real or not os.path.exists(p):
+            continue
+        seen_real.add(rp)
+        paths.append(p)
+    att, ok = collections.Counter(), collections.Counter()
+    for p in paths:
+        for t in read_jsonl(p):
+            if not isinstance(t, dict) or t.get("tool") != "fetch" or t.get("cached") or "status" not in t:
+                continue
+            h = host_of(t.get("url", ""))
+            if not h:
+                continue
+            att[h] += 1
+            if t.get("status") == 200:
+                ok[h] += 1
+    blocked = {h: {"fetch_attempts": att[h], "fetch_200": 0} for h in att if att[h] >= min_attempts and ok[h] == 0}
+    return blocked, paths
+
+
+
+
 # ----------------------------------------------------------------------------- stage a: harvest
 def cand_path():
     return os.path.join(W, "candidates.jsonl")
@@ -805,8 +834,8 @@ def seed_queries(r, cell, meta):
     return out
 
 
-def harvest_hit(r, idx, sfile, q, cell, meta, rank, offset, allowed, seen, seed_from=None):
-    """Register one search hit as a candidate if it is an item record; returns 'added', 'listing' or None."""
+def harvest_hit(r, idx, sfile, q, cell, meta, rank, offset, allowed, seen, seed_from=None, blocked=None):
+    """Register one search hit as a candidate if it is an item record; returns 'added', 'listing', 'skipped' or None."""
     if not isinstance(r, dict):
         return None
     u = r_url(r).split("#")[0]
@@ -819,6 +848,13 @@ def harvest_hit(r, idx, sfile, q, cell, meta, rank, offset, allowed, seen, seed_
         return "listing"
     if u in seen:
         return None
+    h = host_of(u)
+    if blocked and h in blocked:            # host steering: not a candidate, logged for the sampling-frame report
+        jlog(os.path.join(W, "harvest_skips.jsonl"),
+             {"ts": nowiso(), "reason": "host_unfetchable", "host": h, "url": u, "hint_title": hint,
+              "cell": list(cell), "query": q, "search_snapshot": sfile, "hit_index": idx, "seed_from": seed_from,
+              "fetch_attempts": blocked[h]["fetch_attempts"], "fetch_200": blocked[h]["fetch_200"], "date": today()})
+        return "skipped"
     c = {"cid": "c" + sha(u, 10), "url": u, "hint_title": hint, "query": q, "search_snapshot": sfile, "hit_index": idx,
          "cell": list(cell), "meta": meta, "rank": rank, "offset": offset, "seed_from": seed_from, "date": today()}
     jlog(cand_path(), c)
@@ -835,6 +871,10 @@ def stage_a(args):
     nq = collections.Counter(tuple(q["cell"]) for q in read_jsonl(os.path.join(W, "harvest_queries.jsonl")))
     seed_log = os.path.join(W, "listing_seeds.jsonl")
     seeded = {s.get("seed_query") for s in read_jsonl(seed_log)}
+    blocked, stat_paths = load_host_stats(getattr(args, "host_stats", None))
+    print(f"[a] host steering: {len(blocked)} unfetchable hosts from {len(stat_paths)} tools log(s)"
+          + (": " + ", ".join(sorted(blocked)[:12]) if blocked else ""))
+    n_skipped = 0
     for cell, share in CELLS.items():
         quota = math.ceil(args.target * share * args.harvest_factor)
         maxq = math.ceil(quota / 3) + 5
@@ -850,12 +890,14 @@ def stage_a(args):
                 window, eff = res[10:], 10
             else:
                 window, eff = res, 0
-            added, listings = 0, []
+            added, skipped, listings = 0, 0, []
             for k, r in enumerate(window):
-                out = harvest_hit(r, eff + k, sfile, q, cell, meta, eff + k + 1, eff, allowed, seen)
+                out = harvest_hit(r, eff + k, sfile, q, cell, meta, eff + k + 1, eff, allowed, seen, blocked=blocked)
                 if out == "added":
                     added += 1
                     have[cell] += 1
+                elif out == "skipped":
+                    skipped += 1
                 elif out == "listing":
                     listings.append(r)
             for r in listings[:3]:              # a listing only seeds item queries; it is never a record
@@ -864,20 +906,26 @@ def stage_a(args):
                         continue
                     seeded.add(sq)
                     res2, sf2 = ds_search(sq, 10, route=f"listing_seed: {r_url(r)}")
-                    n2 = 0
+                    n2, s2 = 0, 0
                     for j, r2 in enumerate(res2):
-                        if harvest_hit(r2, j, sf2, sq, cell, meta, j + 1, 0, allowed, seen, seed_from=r_url(r)) == "added":
+                        out2 = harvest_hit(r2, j, sf2, sq, cell, meta, j + 1, 0, allowed, seen,
+                                           seed_from=r_url(r), blocked=blocked)
+                        if out2 == "added":
                             n2 += 1
+                        elif out2 == "skipped":
+                            s2 += 1
                     have[cell] += n2
                     added += n2
+                    skipped += s2
                     jlog(seed_log, {"cell": list(cell), "listing_url": r_url(r), "harvest_query": q, "seed_query": sq,
-                                    "search_snapshot": sf2, "added": n2, "date": today()})
+                                    "search_snapshot": sf2, "added": n2, "skipped_host": s2, "date": today()})
+            n_skipped += skipped
             jlog(os.path.join(W, "harvest_queries.jsonl"), {"cell": list(cell), "query": q, "count": offset + 10,
                                                            "offset_requested": offset, "offset_used": eff,
                                                            "returned": len(res), "listings_seen": len(listings),
-                                                           "added": added, "date": today()})
+                                                           "added": added, "skipped_host": skipped, "date": today()})
             nq[cell] += 1
-    print(f"[a] candidates: {dict(have)}")
+    print(f"[a] candidates: {dict(have)}; hits skipped on unfetchable hosts this run: {n_skipped}")
 
 
 # ----------------------------------------------------------------------------- per-candidate state
@@ -917,6 +965,20 @@ def all_states():
 
 def drop(st, rule, stage, detail=""):
     st["drop"] = {"rule": rule, "stage": stage, "detail": str(detail)[:500], "date": today()}
+
+
+def record_excerpts(st):
+    """Sanitised record blocks (A, B) with excerpts around the key fields; shared by pre-screen and verification."""
+    k, forms = st["key"], st.get("key_forms", {})
+    recs = []
+    for tag, r in zip(("A", "B"), st["records"]):
+        f = forms.get(tag) or k
+        txt = snapshot_text(r["snapshot_file"])
+        recs.append({"url": r["url"], "custodian_class": r["custodian_class"], "route": sanitize(r["route"])[:200],
+                     "snapshot_kind": r.get("snapshot_kind", "fetch"),
+                     "excerpt": excerpt(txt, [f.get("title"), f.get("venue"), f.get("author"), f.get("volume_issue")])})
+    return recs
+
 
 
 # ----------------------------------------------------------------------------- stage c helper: extraction + verbatim check
@@ -1628,16 +1690,105 @@ def excerpt(text, needles, width=300, cap=1200):
 
 
 def unit_block(st, w, uid):
-    k, forms = st["key"], st.get("key_forms", {})
-    recs = []
-    for tag, r in zip(("A", "B"), st["records"]):
-        f = forms.get(tag) or k
-        txt = snapshot_text(r["snapshot_file"])
-        recs.append({"url": r["url"], "custodian_class": r["custodian_class"], "route": sanitize(r["route"])[:200],
-                     "snapshot_kind": r.get("snapshot_kind", "fetch"),
-                     "excerpt": excerpt(txt, [f.get("title"), f.get("venue"), f.get("author"), f.get("volume_issue")])})
+    k = st["key"]
     return {"id": uid, "key": {x: k.get(x) for x in ("author", "title", "venue", "year", "volume_issue")},
-            "work_type": st["stratum"]["type"], "records": recs, "clue": st["clues"][w]["clue"]}
+            "work_type": st["stratum"]["type"], "records": record_excerpts(st), "clue": st["clues"][w]["clue"]}
+
+
+def prescreen_system():
+    return (
+        "You screen candidate bibliographic items before a more expensive check. You see one work: its key fields "
+        "(author, title, venue, year, volume_issue), excerpts from the catalogue or journal records it was taken from, "
+        "the target cell (type and language) and the field the harvest query was aimed at. Answer two questions.\n\n"
+        "(a) on_topic: Is this work about the target field: Yijing/Zhouyi studies, excavated or transmitted early "
+        "Chinese texts, early China, or Chinese philosophy of that period? A work on another region, on modern or "
+        "contemporary society, or on an unrelated subject is not on topic.\n"
+        "(b) type_match: Does the work's type match the cell?\n"
+        "  - article = one article in a journal issue, or one article or chapter in an edited volume.\n"
+        "  - book = a monograph, or a single edition of a text.\n"
+        "  - An edited serial volume as a whole (one numbered volume of a series of collected papers, e.g. a "
+        "volume titled like 《…研究》第六輯) is NOT an article. A journal issue as a whole is neither an article nor a book.\n\n"
+        "Answer each question with \"yes\", \"no\" or \"unsure\", plus a one-line reason. Answer \"no\" only when "
+        "the key and excerpts make it clear; if the evidence is thin, answer \"unsure\". Do not judge whether the "
+        "record is accurate or whether the key is correct.\n\n"
+        "Output only this JSON object:\n"
+        "{\"on_topic\": \"yes|no|unsure\", \"on_topic_reason\": \"...\", "
+        "\"type_match\": \"yes|no|unsure\", \"type_reason\": \"...\"}")
+
+
+def prescreen_call(st, cand):
+    """One cheap call per item (cid), cached on disk with its raw output. Runs in a worker thread: no state writes."""
+    path = os.path.join(W, "prescreen", f"{st['cid']}.json")
+    saved = read_json(path)
+    if saved is not None and "raw_output" in saved:
+        return saved
+    k = st["key"]
+    cell = list(cand.get("cell") or st.get("cell") or [st["stratum"]["type"], st["stratum"].get("language")])
+    meta = cand.get("meta") or st.get("meta") or {}
+    req = {"key": {x: k.get(x) for x in ("author", "title", "venue", "year", "volume_issue")},
+           "records": record_excerpts(st),
+           "cell": {"type": cell[0], "language": cell[1] if len(cell) > 1 else None},
+           "harvest_field": meta.get("field")}
+    user = json.dumps(req, ensure_ascii=False, indent=1)
+    txt = openrouter_chat(EXTRACT_MODEL, [{"role": "system", "content": prescreen_system()},
+                                          {"role": "user", "content": user}],
+                          purpose="prescreen", anthropic=False)
+    saved = {"cid": st["cid"], "date": today(), "model": EXTRACT_MODEL, "request": req, "raw_output": txt,
+             "request_rejected": txt is None}
+    write_json(path, saved)
+    return saved
+
+
+def apply_prescreen(st, saved):
+    """Drop-only. An explicit 'no' drops; 'yes', 'unsure', missing or unparseable output never drops."""
+    def yn(v):
+        if isinstance(v, bool):
+            return "yes" if v else "no"
+        if isinstance(v, str):
+            s = v.strip().strip(".").lower()
+            if s in ("yes", "no", "unsure"):
+                return s
+        return None
+    obj = parse_json_obj(saved.get("raw_output"))
+    obj = obj if isinstance(obj, dict) else {}
+    a, b = yn(obj.get("on_topic")), yn(obj.get("type_match"))
+    ra, rb = str(obj.get("on_topic_reason", ""))[:240], str(obj.get("type_reason", ""))[:240]
+    st["prescreen"] = {"file": f"prescreen/{st['cid']}.json", "parsed": bool(obj), "on_topic": a,
+                       "on_topic_reason": ra, "type_match": b, "type_reason": rb, "date": today()}
+    if a == "no":
+        rule, detail = "prescreen:off_topic", ra + (f" | type_match=no: {rb}" if b == "no" else "")
+    elif b == "no":
+        rule, detail = "prescreen:type_mismatch", rb
+    else:
+        return None
+    st.pop("accepted", None)
+    drop(st, rule, "g_pre", detail)
+    return rule
+
+
+def stage_prescreen(args, states):
+    """Cheap pre-screen of every item that has a unit about to go to Opus. One call per cid covers all its units
+    (the inputs do not include the clue). Can only drop."""
+    from concurrent.futures import ThreadPoolExecutor
+    cmap = {c["cid"]: c for c in read_jsonl(cand_path())}
+    todo = [st for st in states if not st.get("drop") and st.get("key")
+            and any(r.get("status") == "passed_f" for r in (st.get("clues") or {}).values())]
+    os.makedirs(os.path.join(W, "prescreen"), exist_ok=True)
+    print(f"[g0] pre-screen: {len(todo)} items")
+    dropped = collections.Counter()
+    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as ex:
+        futs = [(st, ex.submit(prescreen_call, st, cmap.get(st["cid"], {}))) for st in todo]
+        for st, fut in futs:
+            saved = fut.result()          # InfraError / BudgetExceeded propagate; finished calls are already cached
+            rule = apply_prescreen(st, saved)
+            save_state(st)
+            if rule:
+                dropped[rule] += 1
+    print(f"[g0] pre-screen drops: {dict(dropped) or 'none'}")
+
+
+
+
 
 
 def verify_system():
@@ -1652,6 +1803,7 @@ def verify_system():
 
 
 def stage_g(args, states):
+    stage_prescreen(args, states)                            # drop-only; dropped items are skipped below
     units = []
     for st in states:
         if st.get("drop") or not st.get("key"):
@@ -1844,6 +1996,39 @@ def write_report(args, states, chosen, rest, dropped, note):
     proc = len(states)
     L.append(f"\nYield: {len(chosen) + len(rest)} accepted / {proc} processed candidates"
              f" = {((len(chosen) + len(rest)) / proc * 100 if proc else 0):.1f}%.\n")
+    # --- sampling frame (host steering)
+    L.append("## Sampling frame\n")
+    srcs = ["tools.jsonl (this workdir)"] + [f"`{p}`" for p in (getattr(args, "host_stats", None) or [])]
+    L.append("Host steering in harvest: a search hit that would otherwise be registered is skipped when its host has "
+             "≥3 uncached DeepSeek fetch attempts and none returned status 200, counted over "
+             + ", ".join(srcs) + " at harvest time. Skips are logged in harvest_skips.jsonl and are not counted as "
+             "candidates.\n")
+    skips = read_jsonl(os.path.join(W, "harvest_skips.jsonl"))
+    if not skips:
+        L.append("No hits were skipped.\n")
+    else:
+        hs = {}
+        for s in skips:
+            h = hs.setdefault(s.get("host"), {"hits": 0, "urls": set(), "cells": collections.Counter(), "att": 0})
+            h["hits"] += 1
+            h["urls"].add(s.get("url"))
+            h["cells"]["/".join(s.get("cell") or [])] += 1
+            h["att"] = max(h["att"], int(s.get("fetch_attempts") or 0))
+        L.append("| host | skipped hits | distinct URLs | by cell | uncached fetch attempts (none 200) |")
+        L.append("|---|---|---|---|---|")
+        for host, h in sorted(hs.items(), key=lambda x: (-x[1]["hits"], str(x[0]))):
+            cells = ", ".join(f"{c} {n}" for c, n in sorted(h["cells"].items()))
+            L.append(f"| {host} | {h['hits']} | {len(h['urls'])} | {cells} | {h['att']} |")
+        n_urls = len({s.get("url") for s in skips})
+        L.append(f"\nItems on these {len(hs)} hosts cannot enter the set: {len(skips)} hits ({n_urls} distinct URLs) "
+                 "were skipped. The item set therefore samples works whose records sit on hosts the DeepSeek fetch "
+                 "tool can read, not every work the searches return.")
+        early = [c for c in cands if host_of(c.get("url", "")) in hs]
+        if early:
+            acc_ids = {s["cid"] for s in chosen + rest}
+            L.append(f"Exception: {len(early)} candidates on these hosts were registered before steering applied and "
+                     f"were processed normally ({sum(1 for c in early if c['cid'] in acc_ids)} accepted).")
+        L.append("")
     L.append("## Items by stratum (items.jsonl)\n")
     for dim in ("fame", "type", "language", "decade"):
         c = collections.Counter(s["stratum"][dim] for s in chosen)
@@ -1862,6 +2047,8 @@ def write_report(args, states, chosen, rest, dropped, note):
     dcc = collections.Counter((d["rule"], "/".join(d["cell"])) for d in dropped)
     for (r, c), v in sorted(dcc.items()):
         L.append(f"- {r} | {c}: {v}")
+    L.append("\n`prescreen:*` drops come from a cheap EXTRACT_MODEL screen run before Opus; it can only drop "
+             "(an explicit 'no'), never accept. Raw outputs: prescreen/<cid>.json.")
     # --- per-writer table
     calls = read_jsonl(os.path.join(W, "calls.jsonl"))
     L.append("\n## Writer comparison (same verified candidates)\n")
@@ -1920,6 +2107,41 @@ def write_report(args, states, chosen, rest, dropped, note):
     L.append("|---|---|---|---|---|---|---|")
     for (api, model), m in sorted(bym.items(), key=lambda x: str(x[0])):
         L.append(f"| {api} | {model} | {m[0]} | {m[1]:.4f} | {m[2]} | {m[3]} | {m[4]} |")
+    # --- cost by stage
+    def stage_of(c):
+        p = str(c.get("purpose") or "")
+        if p.startswith("write:"):
+            return "writing"
+        if p == "verify":
+            return "verification"
+        if p == "prescreen":
+            return "pre-screen"
+        return "extraction"
+    sc = collections.OrderedDict((k, {"n": 0, "usd": 0.0, "unk": 0, "purp": set()})
+                                 for k in ("extraction", "pre-screen", "writing", "verification"))
+    for c in calls:
+        s = sc[stage_of(c)]
+        s["n"] += 1
+        s["usd"] += float(c.get("cost_usd") or 0)
+        s["unk"] += 0 if c.get("cost_known", True) else 1
+        s["purp"].add(str(c.get("purpose") or "?").split(":")[0][:30])
+    n_acc = len(chosen) + len(rest)
+    tot = sum(s["usd"] for s in sc.values())
+    L.append("\n### Cost by stage\n")
+    L.append("| stage | calls | cost USD | share | cost / accepted item | calls without cost | purposes |")
+    L.append("|---|---|---|---|---|---|---|")
+    for k, s in sc.items():
+        share = f"{s['usd'] / tot * 100:.0f}%" if tot else "n/a"
+        per = f"${s['usd'] / n_acc:.4f}" if n_acc else "n/a"
+        purp = ", ".join(sorted(s["purp"])[:6])
+        L.append(f"| {k} | {s['n']} | {s['usd']:.4f} | {share} | {per} | {s['unk']} | {purp} |")
+    L.append(f"| **total** | {sum(s['n'] for s in sc.values())} | {tot:.4f} | 100% | "
+             f"{('$' + format(tot / n_acc, '.4f')) if n_acc else 'n/a (0 accepted)'} | "
+             f"{sum(s['unk'] for s in sc.values())} | |")
+    n_units = sum(1 for s in states for c in (s.get("clues") or {}).values() if c.get("verify"))
+    if n_units:
+        L.append(f"\nOpus verification: {n_units} units verified, ${sc['verification']['usd'] / n_units:.4f} per unit. "
+                 "'extraction' covers every model call not tagged prescreen, write:* or verify.")
     L.append(f"\nTotal model cost: ${LEDGER.spent:.4f} (OpenRouter: usage.cost plus "
              "cost_details.upstream_inference_cost for BYOK). Per-call log: calls.jsonl.")
     tools = read_jsonl(os.path.join(W, "tools.jsonl"))
@@ -1979,11 +2201,17 @@ def main():
     p.add_argument("--ds-price-in", type=float, default=None, help="DeepSeek native USD per 1M input tokens")
     p.add_argument("--ds-price-out", type=float, default=None, help="DeepSeek native USD per 1M output tokens")
     p.add_argument("--ds-price-cache", type=float, default=None, help="DeepSeek native USD per 1M cached input tokens")
+    p.add_argument("--host-stats", action="append", default=[], metavar="PATH",
+                   help="another run's tools.jsonl used for host steering in harvest (repeatable)")
     args = p.parse_args()
     args.writers = [w.strip() for w in args.writers.split(",") if w.strip()]
     bad = [w for w in args.writers if w not in WRITERS]
     if bad or not args.writers:
         p.error(f"unknown writers {bad}; choose from {list(WRITERS)}")
+    missing = [h for h in args.host_stats if not os.path.isfile(h)]
+    if missing:
+        p.error(f"--host-stats file(s) not found: {missing}")
+    args.host_stats = [os.path.abspath(h) for h in args.host_stats]
     setup(args)
     note = ""
     try:
