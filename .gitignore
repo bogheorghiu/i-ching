@@ -1,0 +1,19 @@
+
+# PII denylist — personal terms, must NEVER be committed (see .githooks/)
+pii-denylist.local
+pii-denylist.txt
+.pii-denylist.synced
+
+# Key material and personal agent config: a careless `git add -A` would push these, and
+# gitleaks only reports after the push, when they are already on the remote.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+CLAUDE.local.md
+.claude/settings.local.json

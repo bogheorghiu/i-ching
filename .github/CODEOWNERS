@@ -1,0 +1,102 @@
+# Owner-gated paths. Anything not listed here merges on the agent's own say-so once checks
+# pass, provided the ruleset on main requires code-owner review (AGENTS.md, "Owner checklist":
+# a repo made from this template starts without that ruleset). GitHub reads this file from the
+# base branch; the last matching line wins; a line with no owner un-gates its paths; an invalid
+# line is skipped silently (the codeowners-guard workflow reads GitHub's error list).
+# Patterns follow gitignore rules: a leading "/" anchors to the repo root; a bare name or "dir/"
+# matches at any depth. Why a path is here, and when to add one: AGENTS.md.
+# .github/scripts/codeowners_guard.py fails when a file that runs or loads unread is not owned.
+
+# The gate itself, CI and the guard: workflows are code on GitHub's runners.
+/.github/ @bogheorghiu
+
+# Files agent harnesses load without being asked, at any depth: hooks, permissions, plugins,
+# MCP servers, instructions read before any user turn. Claude Code, Codex, Gemini, Cursor,
+# Windsurf, Cline, Roo, Continue, Kiro, Junie, Amazon Q, opencode, Goose, Aider.
+.claude/ @bogheorghiu
+.claude-plugin/ @bogheorghiu
+.mcp.json @bogheorghiu
+mcp.json @bogheorghiu
+CLAUDE.md @bogheorghiu
+CLAUDE.local.md @bogheorghiu
+AGENTS.md @bogheorghiu
+AGENTS.override.md @bogheorghiu
+GEMINI.md @bogheorghiu
+.gemini/ @bogheorghiu
+.codex/ @bogheorghiu
+.cursor/ @bogheorghiu
+.cursorrules @bogheorghiu
+.windsurf/ @bogheorghiu
+.windsurfrules @bogheorghiu
+.clinerules @bogheorghiu
+.roo/ @bogheorghiu
+.roomodes @bogheorghiu
+.continue/ @bogheorghiu
+.kiro/ @bogheorghiu
+.junie/ @bogheorghiu
+.amazonq/ @bogheorghiu
+.opencode/ @bogheorghiu
+opencode.json @bogheorghiu
+.goosehints @bogheorghiu
+.aider.conf.yml @bogheorghiu
+
+# Code that runs on commit, push, checkout, folder-open or environment entry without a
+# reader, or that changes what git fetches or how it shows a diff to the hooks.
+.githooks/ @bogheorghiu
+.husky/ @bogheorghiu
+.pre-commit-config.yaml @bogheorghiu
+.devcontainer/ @bogheorghiu
+.devcontainer.json @bogheorghiu
+.vscode/ @bogheorghiu
+.idea/ @bogheorghiu
+.envrc @bogheorghiu
+.tool-versions @bogheorghiu
+.mise.toml @bogheorghiu
+mise.toml @bogheorghiu
+.gitmodules @bogheorghiu
+.gitattributes @bogheorghiu
+.lfsconfig @bogheorghiu
+
+# Dependency manifests, lockfiles and package-manager config, at any depth: third-party code
+# in the process that holds a key; install scripts and registry settings run code at install.
+package.json @bogheorghiu
+package-lock.json @bogheorghiu
+npm-shrinkwrap.json @bogheorghiu
+yarn.lock @bogheorghiu
+.yarnrc @bogheorghiu
+.yarnrc.yml @bogheorghiu
+pnpm-lock.yaml @bogheorghiu
+pnpm-workspace.yaml @bogheorghiu
+.pnpmfile.cjs @bogheorghiu
+bun.lock @bogheorghiu
+bun.lockb @bogheorghiu
+bunfig.toml @bogheorghiu
+.npmrc @bogheorghiu
+.yarn/ @bogheorghiu
+.cargo/ @bogheorghiu
+requirements*.txt @bogheorghiu
+pyproject.toml @bogheorghiu
+setup.py @bogheorghiu
+setup.cfg @bogheorghiu
+uv.lock @bogheorghiu
+poetry.lock @bogheorghiu
+Pipfile @bogheorghiu
+Pipfile.lock @bogheorghiu
+pip.conf @bogheorghiu
+Cargo.toml @bogheorghiu
+Cargo.lock @bogheorghiu
+go.mod @bogheorghiu
+go.sum @bogheorghiu
+Gemfile @bogheorghiu
+Gemfile.lock @bogheorghiu
+
+# Exclusions that keep key material and the PII denylist out of history: dropping a line lets
+# a later `git add -A` commit it, permanently. Nested .gitignore files can re-include. And the
+# secret scanner's allowlists, with which an agent could allowlist its own leaked key.
+.gitignore @bogheorghiu
+.gitleaks.toml @bogheorghiu
+.gitleaksignore @bogheorghiu
+
+# Project-specific lines go below (AGENTS.md, "When a path gets an owner"): e.g. the file that
+# reads an API key and decides where to send it, and any script, Makefile or justfile an
+# owned file above runs (the guard names it when one is missing).

@@ -1,0 +1,28 @@
+# The CODEOWNERS tripwire (.github/scripts/codeowners_guard.py) on every PR and on main, plus
+# GitHub's own report of CODEOWNERS lines it could not parse (an invalid line is skipped
+# silently, which un-gates its paths). Make the job "codeowners-guard" a required status check
+# in the ruleset, or a red run blocks nothing (AGENTS.md, owner checklist).
+name: codeowners-guard
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  codeowners-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 -I .github/scripts/codeowners_guard.py
+      - name: GitHub parses every CODEOWNERS line
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          errors="$(gh api "repos/${GITHUB_REPOSITORY}/codeowners/errors?ref=${REF}" --jq '.errors | length')"
+          if [ "$errors" != "0" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/codeowners/errors?ref=${REF}" --jq '.errors[] | "::error::line \(.line): \(.message)"'
+            exit 1
+          fi

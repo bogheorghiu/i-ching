@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+# pre-commit PII/secret gate. This file carries NO names or patterns, so it is
+# safe to commit; the sensitive terms live outside the repo (see below).
+#
+# Layers, in order:
+#   1. Chain to the machine's global hooks dir, if one is configured — this repo
+#      sets core.hooksPath to .githooks, which would otherwise silently disable
+#      a global pre-commit (e.g. a gitleaks scan with a personal config).
+#   2. If no global pre-commit exists, run gitleaks directly on the staged
+#      changes (personal config if present, else the built-in rules).
+#   3. Denylist scan of the staged diff. Terms come from the UNION of the
+#      PII_DENYLIST env var ('|'- or newline-separated) and a gitignored
+#      denylist file, named either pii-denylist.local or pii-denylist.txt,
+#      searched in three directories in order — the repo root, the git
+#      common dir, and its parent — taking the first hit. The extra
+#      locations cover committing from a linked worktree and a bare repo.
+#      Union, not precedence: an exported env var used to silently drop
+#      every term in the local file. With neither source present this layer
+#      is inert — the CI denylist gate still applies.
+#
+# The denylist source is normalized by the SAME norm() the pre-push hook and CI
+# use — same separator handling, same CR stripping, same trimming, same comment
+# and blank dropping. That sameness is the point: when this hook normalized
+# differently, one denylist file behaved as two different denylists, and a
+# CRLF-pasted one left every pattern ending in \r so this layer matched NOTHING
+# while the file stayed non-empty and therefore never reported itself inactive.
+#
+# This layer FAILS CLOSED, like pre-push: an unreadable denylist, a failed
+# mktemp, a failed write or a grep that errored blocks the commit rather than
+# passing it. "Could not check" must never read the same as "checked, clean".
+#
+# A matched term is never echoed: grep output is discarded, so the hook
+# reports only THAT a match exists, never the matching line.
+#
+# Activate per clone:  git config core.hooksPath .githooks
+set -uo pipefail
+
+# --- Layer 1/2: gitleaks (via global hook when present) ---
+# --type=path, not --get: core.hooksPath is pathname-typed, so git expands a leading `~` when it
+# resolves it and `--get` returns the raw bytes. With `hooksPath = ~/.githooks` the -x test below
+# is false against the literal "~/...", so the global hook is silently never chained — while the
+# installer, which exempts a global pre-commit precisely because this line chains it, says it did.
+GLOBAL_HOOKS="$(git config --global --type=path --get core.hooksPath || true)"
+# Never chain to OURSELVES. Setting core.hooksPath globally to the RELATIVE value `.githooks` is a
+# real idiom for repos that keep committed hooks, and git runs hooks with the work-tree root as the
+# working directory, so `$GLOBAL_HOOKS/pre-commit` resolves straight back to this file. Without the
+# identity test below each commit re-execs this hook until fork exhaustion, then unwinds through
+# `|| exit 1` and blocks the commit — measured under a 50-process cap. Resolve both sides to
+# absolute paths before comparing, since one is relative by construction. If they are the same
+# file, there is nothing to chain and we fall through to running gitleaks directly.
+CHAIN_PRECOMMIT=""
+if [ -n "$GLOBAL_HOOKS" ] && [ -x "$GLOBAL_HOOKS/pre-commit" ]; then
+  _self="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)/$(basename "${BASH_SOURCE[0]}")"
+  _cand="$(cd "$GLOBAL_HOOKS" 2>/dev/null && pwd || true)/pre-commit"
+  if [ "$_cand" != "/pre-commit" ] && [ "$_cand" != "$_self" ]; then
+    CHAIN_PRECOMMIT="$_cand"
+  fi
+fi
+if [ -n "$CHAIN_PRECOMMIT" ]; then
+  "$CHAIN_PRECOMMIT" || exit 1
+elif command -v gitleaks >/dev/null 2>&1; then
+  CFG="$HOME/.config/gitleaks/config.toml"
+  if [ -f "$CFG" ]; then
+    gitleaks git --pre-commit --staged --redact --config "$CFG" \
+      || { echo "pre-commit BLOCKED: gitleaks findings (see above, redacted)." >&2; exit 1; }
+  else
+    gitleaks git --pre-commit --staged --redact \
+      || { echo "pre-commit BLOCKED: gitleaks findings (see above, redacted)." >&2; exit 1; }
+  fi
+else
+  echo "pre-commit WARNING: no global pre-commit hook and no gitleaks binary — secret scan skipped (CI still scans)." >&2
+fi
+
+# --- Layer 3: PII denylist over the staged diff ---
+CLEANUP=""
+trap '[ -n "$CLEANUP" ] && rm -f "$CLEANUP"' EXIT
+
+norm() {
+  tr '|' '\n' \
+    | tr -d '\r' \
+    | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+    | { grep -v -e '^[[:space:]]*$' -e '^[[:space:]]*#'; gs=$?; [ "$gs" -le 1 ]; }
+}
+
+# Three directories, because "where the repo root is" has three answers: an ordinary clone ($TOP),
+# a BARE repo (the common dir IS the repo), and a LINKED WORKTREE (the file exists only at the main
+# clone's root, the common dir's parent). The common dir is searched BEFORE its parent so the bare
+# case cannot be answered by a stray file one level up. Both filenames are honored because
+# .gitignore has always ignored both while only one was read.
+TOP="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo /nonexistent/_)"
+COMMON_PARENT="$(dirname "$COMMON_DIR")"
+FILE_SRC=""
+for d in "$TOP" "$COMMON_DIR" "$COMMON_PARENT"; do
+  [ -n "$d" ] || continue
+  for n in pii-denylist.local pii-denylist.txt; do
+    if [ -f "$d/$n" ]; then FILE_SRC="$d/$n"; break 2; fi
+  done
+done
+
+DENY="$(mktemp)" || {
+  echo "pre-commit BLOCKED: could not create a temporary file, so this commit cannot be verified." >&2
+  echo "  Check that TMPDIR exists, is writable and has free space, then retry." >&2
+  exit 1
+}
+CLEANUP="$DENY"
+
+# A KIND, never a path: the denylist's path is the one string the gate cannot rely on being able to
+# check against itself on the unreadable branch — PII_DENYLIST is normalized in before that test, so
+# whether terms are loaded there depends on the env var — and a clone living under a directory named
+# after the person would otherwise print the term withheld everywhere else. (An earlier version said
+# that branch by definition has no terms loaded; the union with PII_DENYLIST makes that false.)
+DENY_SRC="none"
+env_armed=""
+if [ -n "${PII_DENYLIST:-}" ]; then
+  if ! printf '%s\n' "${PII_DENYLIST}" | norm > "$DENY"; then
+    echo "pre-commit BLOCKED: the denylist could not be written to a temporary file, so this commit" >&2
+    echo "  cannot be verified. Check that TMPDIR is writable and has free space, then retry." >&2
+    exit 1
+  fi
+  [ -s "$DENY" ] && env_armed=yes
+fi
+if [ -n "$FILE_SRC" ]; then
+  # UNION with the env var, not fallback. When the env var took precedence, exporting
+  # PII_DENYLIST silently dropped every term in the local file — the operator's own denylist,
+  # unmatched, with the gate still reporting itself armed. Both sources are appended into the
+  # same pattern file; a duplicate term is harmless to grep. And because the file's terms now
+  # ALWAYS count, an unreadable file blocks even when the env var is set — those unread terms
+  # would otherwise silently not be scanned for.
+  if [ ! -r "$FILE_SRC" ]; then
+    echo "pre-commit BLOCKED: the denylist file exists but cannot be read, so this commit cannot be verified." >&2
+    echo "  Fix the permissions on your pii-denylist.local (or .txt) — in this repo's root, or the" >&2
+    echo "  main clone's root for a linked worktree — then retry." >&2
+    exit 1
+  fi
+  sz_before="$(wc -c < "$DENY" 2>/dev/null || echo 0)"
+  if ! norm < "$FILE_SRC" >> "$DENY"; then
+    echo "pre-commit BLOCKED: the denylist could not be written to a temporary file, so this commit" >&2
+    echo "  cannot be verified. Check that TMPDIR is writable and has free space, then retry." >&2
+    exit 1
+  fi
+  sz_after="$(wc -c < "$DENY" 2>/dev/null || echo 0)"
+  if [ "$sz_after" -gt "$sz_before" ] 2>/dev/null; then
+    if [ -n "$env_armed" ]; then DENY_SRC="the PII_DENYLIST env var and the local pii-denylist file"
+    else DENY_SRC="the local pii-denylist file"; fi
+  elif [ -n "$env_armed" ]; then
+    DENY_SRC="the PII_DENYLIST env var"
+  fi
+elif [ -n "$env_armed" ]; then
+  DENY_SRC="the PII_DENYLIST env var"
+fi
+if [ ! -s "$DENY" ]; then
+  # Honest inactive: no terms survived normalization. A comments-only file lands here instead of
+  # masquerading as an armed gate that matches nothing.
+  echo "pre-commit: no usable denylist terms — env var and local file are absent, or hold only" >&2
+  echo "  comments/blanks. PII denylist layer INACTIVE (the CI denylist gate still applies)." >&2
+  exit 0
+fi
+
+# -F fixed strings, -i case-insensitive, -a never treat a diff as binary (-I would SKIP a diff that
+# looks binary, i.e. not scan it and report clean), -w whole words only, output discarded so the
+# matched line is never printed. NOT grep -q: an early exit would SIGPIPE git diff, and under
+# pipefail the match would read as a pipeline failure.
+# --text/--no-ext-diff/--no-textconv mirror pre-push's `git log -p` invocation, and each is
+# load-bearing rather than decorative: a `.gitattributes` `-diff` line makes git emit
+# "Binary files ... differ" INSTEAD of the content, an external diff driver replaces the diff
+# wholesale, and a textconv filter rewrites the bytes before anything greps them. In all three the
+# name never enters the stream, so grep is honestly clean about text it was never shown. `grep -a`
+# does not help here — it governs how grep treats its input, not what git chose to emit.
+git diff --cached --no-color -U0 --text --no-ext-diff --no-textconv \
+  | grep -a -i -F -w -f "$DENY" >/dev/null
+pstat=("${PIPESTATUS[@]}")
+gitst="${pstat[0]}"; grepst="${pstat[1]}"
+# grep 0 = matched, 1 = clean, >= 2 = grep's OWN error. A git failure is never "clean". Either way
+# nothing was scanned, so the commit is blocked rather than allowed through unverified.
+if [ "$grepst" -ge 2 ]; then
+  echo "pre-commit BLOCKED: the denylist scan itself failed (grep exit $grepst), so the staged" >&2
+  echo "  changes were NOT verified. Denylist source: $DENY_SRC" >&2
+  exit 1
+fi
+# Checked AFTER grep: if grep errored early it may have SIGPIPEd git, and grep's error is the more
+# informative report. 141 is that SIGPIPE; anything else non-zero is a real git failure.
+if [ "$gitst" -ne 0 ] && [ "$gitst" -ne 141 ]; then
+  echo "pre-commit BLOCKED: git failed (exit $gitst) reading the staged diff, so nothing was scanned." >&2
+  echo "  This commit cannot be verified; do not bypass." >&2
+  exit 1
+fi
+if [ "$grepst" -eq 0 ]; then
+  echo "pre-commit BLOCKED: a denylisted term is in the staged changes." >&2
+  echo "  Remove it from the staged files before committing. Denylist source: $DENY_SRC" >&2
+  exit 1
+fi
+exit 0

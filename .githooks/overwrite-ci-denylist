@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# overwrite-ci-denylist — write the local PII denylist (the source of truth) into the GitHub
+# Actions secret PII_DENYLIST of the `pii-denylist` ENVIRONMENT, so the CI gate scans with the
+# same terms as the local hooks.
+#
+# An environment secret, never a repository one: a repository secret reaches every branch's run,
+# and a branch can push an edited workflow that prints it. So this tool first checks that the
+# environment exists and that its deployment branches are the default branch and nothing else, and
+# it refuses otherwise. Writing the terms into an environment with no branch rule would only move
+# the exposure, not close it.
+# Direction is local → secret BY DESIGN: Actions secrets are write-only (no API returns a
+# secret's value), so the reverse is impossible — and a local file is the easier surface to
+# edit anyway.
+#
+# OPERATOR-RUN ONLY, ON PURPOSE. This used to run automatically from pre-push under the name
+# sync-denylist. But an overwrite of a write-only secret DESTROYS its current value: nobody —
+# no API, no admin — can read it back first, so there is nothing to restore from if the
+# overwrite was wrong. An action that irreversible does not belong to a side effect of pushing.
+# pre-push now only WARNS when the local file's hash differs from the last value written here
+# (marker: .pii-denylist.synced beside the file, gitignored), and updating the secret is a
+# deliberate act with a typed confirmation, below.
+#
+# The terms are never echoed and never pass through anything but gh itself: gh reads the file
+# directly on stdin, and GitHub masks the value everywhere.
+set -uo pipefail
+# The search MIRRORS .githooks/pre-push exactly — same three directories, same two filenames.
+# It must: pre-push decides what to scan with, this decides what CI gets, and a narrower search
+# here would write a different denylist than the hooks enforce. Concretely, the bare-repo case
+# pre-push documents as a bug it fixed ($TOP empty, the denylist in the common dir) was once
+# still live in this file.
+TOP="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo /nonexistent/_)"
+COMMON_PARENT="$(dirname "$COMMON_DIR")"
+FILE=""
+for d in "$TOP" "$COMMON_DIR" "$COMMON_PARENT"; do
+  [ -n "$d" ] || continue
+  for n in pii-denylist.local pii-denylist.txt; do
+    if [ -f "$d/$n" ]; then FILE="$d/$n"; break 2; fi
+  done
+done
+if [ -z "$FILE" ]; then
+  echo "overwrite-ci-denylist: no local denylist file found (pii-denylist.local or .txt) — nothing to write." >&2
+  exit 1
+fi
+# PATHS ARE NEVER ECHOED, including by the tools called here. sha256sum, cat and a failed
+# redirection all report trouble by printing the offending PATH — and the denylist's path is
+# exactly what must not appear: a clone living under a directory named after the person would
+# otherwise leak the term through a permissions error. Every such channel is silenced and
+# replaced with a path-free message.
+MARKER="$(dirname "$FILE")/.pii-denylist.synced"
+HASH="$(sha256sum "$FILE" 2>/dev/null | cut -d' ' -f1)"
+if [ -z "$HASH" ]; then
+  echo "overwrite-ci-denylist: the denylist file could not be read — the CI secret was NOT changed (path withheld)." >&2
+  exit 1
+fi
+if ! command -v gh >/dev/null 2>&1; then
+  echo "overwrite-ci-denylist: gh not found — the CI secret was NOT changed." >&2
+  exit 1
+fi
+ENV_NAME=pii-denylist
+# Checked BEFORE the prompt, so a refusal costs nothing. The rule: custom deployment branch
+# policies, exactly one of them, naming the default branch. "Protected branches" is refused too:
+# which branches count as protected can change in the repo settings later, without anyone
+# looking at this environment again.
+DEFAULT_BRANCH="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null)"
+if [ -z "$DEFAULT_BRANCH" ]; then
+  echo "overwrite-ci-denylist: could not read this repo's default branch with gh (auth? no GitHub remote?) — the CI secret was NOT changed." >&2
+  exit 1
+fi
+POLICY="$(gh api "repos/{owner}/{repo}/environments/$ENV_NAME" \
+  --jq '.deployment_branch_policy | if . == null then "none" else "protected=\(.protected_branches) custom=\(.custom_branch_policies)" end' 2>/dev/null)"
+BRANCHES="$(gh api "repos/{owner}/{repo}/environments/$ENV_NAME/deployment-branch-policies" \
+  --jq '[.branch_policies[] | "\(.type // "branch"):\(.name)"] | join(",")' 2>/dev/null)"
+if [ "$POLICY" != "protected=false custom=true" ] || [ "$BRANCHES" != "branch:$DEFAULT_BRANCH" ]; then
+  echo "overwrite-ci-denylist: REFUSING — the '$ENV_NAME' environment is missing, or not limited to '$DEFAULT_BRANCH'." >&2
+  echo "  Found: policy='${POLICY:-unreadable/absent}' branches='${BRANCHES:-none}'." >&2
+  echo "  Needed: Settings → Environments → $ENV_NAME → Deployment branches and tags →" >&2
+  echo "  'Selected branches and tags' with exactly one rule: branch '$DEFAULT_BRANCH'. Without that" >&2
+  echo "  rule, any branch can read the secret, which is the exposure this environment is for." >&2
+  echo "  The CI secret was NOT changed." >&2
+  exit 1
+fi
+if [ -f "$MARKER" ] && [ "$(cat "$MARKER" 2>/dev/null)" = "$HASH" ]; then
+  echo "Note: the sync marker says this exact content was already written to the secret once."
+  echo "Continuing will overwrite it again (harmless if nothing else changed the secret meanwhile)."
+fi
+# The typed confirmation is the point of this tool: the overwrite must be a decision someone
+# makes at a keyboard, not a step a script glides through. Read from the controlling terminal
+# when stdin is not one — a hook or pipeline feeding "Yes" on stdin would otherwise re-create
+# the automatic overwrite this file exists to prevent.
+echo "This will OVERWRITE the secret PII_DENYLIST of the '$ENV_NAME' environment with the contents"
+echo "of your local denylist file. The secret's CURRENT value cannot be read back by anyone —"
+echo "not by any API, not by an admin — so once overwritten it cannot be restored."
+printf 'Type Yes (exactly) to proceed: '
+if [ -t 0 ]; then
+  IFS= read -r reply || reply=""
+elif [ -r /dev/tty ]; then
+  IFS= read -r reply < /dev/tty || reply=""
+else
+  echo ""
+  echo "overwrite-ci-denylist: no terminal to confirm from — aborted, the CI secret was NOT changed." >&2
+  exit 1
+fi
+if [ "$reply" != "Yes" ]; then
+  echo "overwrite-ci-denylist: aborted — the CI secret was NOT changed." >&2
+  exit 1
+fi
+# Redirections apply LEFT TO RIGHT, so `< "$FILE"` must come AFTER 2>&1: with the input redirect
+# first, a failed open is reported by bash while fd 2 is still the terminal, and that message
+# carries the full path — the one thing this file's header promises never happens. Reachable as
+# a TOCTOU: sha256sum proved the file readable before the typed prompt, which leaves a
+# human-length window for it to move or lose permissions. The marker write below already
+# states this rule; this line did not follow it.
+if gh secret set PII_DENYLIST --env "$ENV_NAME" >/dev/null 2>&1 < "$FILE"; then
+  # Group-level 2>/dev/null so a FAILED REDIRECTION is caught too: bash reports that by printing
+  # the path, and it prints it before the command runs, so a redirect placed after > would be
+  # too late to suppress it.
+  { printf '%s\n' "$HASH" > "$MARKER"; } 2>/dev/null \
+    || echo "overwrite-ci-denylist: the sync marker could not be written (path withheld) — the secret WAS updated; pre-push will keep warning about drift until the marker can be written." >&2
+  # Names the file ACTUALLY used, not a hard-coded one — the two filenames are fixed strings, so
+  # a basename is safe to print where the full path never is.
+  echo "overwrite-ci-denylist: PII_DENYLIST secret of the '$ENV_NAME' environment updated from $(basename "$FILE")." >&2
+  # An older install wrote a REPOSITORY secret of the same name. While it exists, every branch can
+  # still read it. Reported, never deleted here: deleting a write-only secret is as irreversible as
+  # overwriting one, so it is the operator's call.
+  if gh secret list --app actions --json name --jq '.[].name' 2>/dev/null | grep -qx PII_DENYLIST; then
+    echo "overwrite-ci-denylist: a REPOSITORY-level PII_DENYLIST still exists, and every branch can read it." >&2
+    echo "  Delete it once the environment secret is in place: gh secret delete PII_DENYLIST --app actions" >&2
+  fi
+  exit 0
+else
+  echo "overwrite-ci-denylist: gh secret set FAILED — the CI secret was NOT changed (gh auth / token permissions?)." >&2
+  exit 1
+fi

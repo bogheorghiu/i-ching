@@ -1,0 +1,10 @@
+{
+  "extraKnownMarketplaces": {
+    "claude-rules": { "source": { "source": "github", "repo": "bogheorghiu/shared-rules" } },
+    "prompt-design": { "source": { "source": "github", "repo": "bogheorghiu/prompt-design" } }
+  },
+  "enabledPlugins": {
+    "shared-rules@claude-rules": true,
+    "prompt-design@prompt-design": true
+  }
+}
