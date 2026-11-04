@@ -77,7 +77,10 @@ EM_DASH_CODE_POINT = 0x2014
 # leave the file unreadable to a person checking it against a printed or online copy,
 # which is how this file gets verified. No manifest tool rewrites it.
 # The folder, not the file, is named: the bundled text is the only JSON file in it.
-EXCLUDED_PREFIXES = ("plugins/i-ching-reading/skills/i-ching-reading/references/",)
+# research/ holds recorded API requests and responses: evidence kept byte for byte as the
+# API returned it, much of it Chinese. Escaping it would alter the record; nothing loads,
+# modifies and re-dumps these files, so the failure this guard prevents cannot reach them.
+EXCLUDED_PREFIXES = ("plugins/i-ching-reading/skills/i-ching-reading/references/", "research/")
 
 # An escaped non-ASCII character is pure ASCII on disk, so the non-ASCII scan below
 # cannot see it - but it is precisely what the bad round trip *produces*, so it is
