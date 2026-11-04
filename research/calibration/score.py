@@ -75,14 +75,15 @@ def score(row, log):
 
 
 def main():
-    rows = json.loads((HERE / "results/raw.json").read_text(encoding="utf-8"))
+    name = sys.argv[1] if len(sys.argv) > 1 else "raw.json"
+    rows = json.loads((HERE / "results" / name).read_text(encoding="utf-8"))
     log, table = [], {}
     for row in rows:
         verdict, rec = score(row, log)
         row["verdict"], row["parsed"] = verdict, rec
         table.setdefault(row["arm"], []).append((row["q"], verdict))
-    (HERE / "results/scored.json").write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
-    (HERE / "results/search-log.json").write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
+    (HERE / "results" / name.replace("raw", "scored")).write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+    (HERE / "results" / name.replace("raw", "search-log")).write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
     for arm, vs in table.items():
         given = [v for _, v in vs if v not in ("dont-know", "void")]
         n = len(given)

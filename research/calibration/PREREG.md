@@ -65,3 +65,13 @@ N = 5 per arm. It can show a gross failure (an arm that invents records) or a cl
 ## Deviations
 
 (none yet)
+
+### Run 1b (added 2026-11-04, before its run): three more arms, same questions, keys and rule
+
+Owner's request. Arms, through OpenRouter with ZDR, same prompt and scoring as above:
+
+4. `xiaomi/mimo-v2.6-flash:exacto`, `reasoning: {"effort": "max"}`
+5. `xiaomi/mimo-v2.6-pro:exacto`, no reasoning parameter (owner's instruction)
+6. `z-ai/glm-5.3:exacto` (the newest GLM listed on OpenRouter on this date), `reasoning: {"effort": "max"}`
+
+Scored with the keys exactly as written above, including the Q5 key found wrong after run 1 (see RESULTS.md, "Key audit"), so the six arms are comparable; the corrected-key rescoring is reported beside it, labelled.
