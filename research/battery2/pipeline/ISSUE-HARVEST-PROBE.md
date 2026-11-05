@@ -12,4 +12,7 @@ Owner chose "harvest whole issues" (2026-11-05) after tests 4-6 gave 1 accepted 
 
 ## Open, for the owner
 - **Classes.** napstic is classed `aggregator` (CLASS_RULES), so for an article it can be record A but not both records. iwr.cass.cn fits no existing class: it is neither the journal, an aggregator, a library nor a publisher. Under design A.1 a compiled TOC on an institute portal is not obviously a primary record. Decision needed: does such a TOC listing count as record B?
-- **Independence. UNRESOLVED, from model memory, not checked:** napstic (国家哲学社会科学文献中心) is believed to be built by the CASS Library, and iwr.cass.cn belongs to CASS's Institute of World Religions. If both sit under CASS, deviation 1 (two institutions count as independent) may not cover them.
+- **Independence.**
+  - **GROUNDED** (CASS Library's own news page, `lib.cssn.cn/zx_107813/gzdt/202605/t20260514_5989835.shtml`, found by DeepSeek search 2026-11-05; snippet read, page not fetched): "国家哲学社会科学文献中心具体承建单位为中国社会科学院图书馆". Its site is ncpssd.org.
+  - **UNRESOLVED:** whether `search.napstic.cn` is that same centre. The fetched page names no operator; its per-article links go to NETL, NSTL and 万方数据. If it is CASS-built, napstic and iwr.cass.cn share a parent (CASS), and deviation 1 may not make them independent.
+- **Data quality, a signal for the code check.** The napstic 2024-06 page gives the author of an article on 清初关中学者 as "李颗". From model memory (UNRESOLVED), that scholar is 李颙, which would make this a character error in napstic's data. Exact code comparison against a second record would drop such an item, as intended. But it shows napstic text is not error-free.
