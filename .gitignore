@@ -1,4 +1,3 @@
-
 # PII denylist — personal terms, must NEVER be committed (see .githooks/)
 pii-denylist.local
 pii-denylist.txt
@@ -17,3 +16,4 @@ id_rsa*
 id_ed25519*
 CLAUDE.local.md
 .claude/settings.local.json
+# gate test (throwaway PR, do not merge)
