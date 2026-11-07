@@ -8,17 +8,17 @@ The template's owner checklist says agent environments must arm the PII hooks be
 
 ```bash
 #!/usr/bin/env bash
-# Arm the template's git hooks in every repository cloned into the session.
-# Whether the script runs before or after the clone is UNRESOLVED; set it globally so
-# both orders work: every repo with a .githooks/ folder uses it.
+# Arm the template's git hooks only in this trusted repository (not globally).
+# Run after cloning the target repository, and replace /path/to/this/repo accordingly.
+# This avoids executing hooks from unrelated/untrusted repositories in the same session.
 set -euo pipefail
-git config --global core.hooksPath .githooks
+git -C /path/to/this/repo config core.hooksPath .githooks
 # The denylist the hooks read. Without terms they block every commit (fail closed).
 # The terms are personal, so they are not in this script: put them in the environment
 # variable PII_DENYLIST (one term per line, or separated by |), which the hooks read.
 ```
 
-A global `core.hooksPath` of `.githooks` also applies to repositories without that folder; git then finds no hooks there, which is the same as having none.
+Configure `core.hooksPath` per repository (for trusted repos only). Do not set a global relative hooks path, because that can execute hooks from any cloned repository that ships a `.githooks/` folder.
 
 ## Environment variables and credentials
 
