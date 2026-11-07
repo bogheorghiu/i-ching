@@ -1,0 +1,10 @@
+{
+ "kind": "fetch",
+ "url": "https://zyjy.chinajournal.net.cn/WKA/WebPublication/index.aspx?mid=zyjy",
+ "route": "probe7",
+ "date": "2026-11-04T08:22:17Z",
+ "raw": {
+  "content": "请填写验证码\n验证码:\n本系统中国知网提供技术支持\n使用帮助\n技术支持：\ncb@cnki.net\n；\nhttps://cb.cnki.net",
+  "title": ""
+ }
+}

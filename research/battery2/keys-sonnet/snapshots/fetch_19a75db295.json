@@ -1,0 +1,10 @@
+{
+ "kind": "fetch",
+ "url": "https://api.crossref.org/journals/0362-5028/works?sample=4&select=DOI,title,author,issued,volume,issue,page,is-referenced-by-count,type",
+ "route": "probe6",
+ "date": "2026-11-04T07:45:19Z",
+ "raw": {
+  "content": "{\"status\":\"ok\",\"message-type\":\"work-list\",\"message-version\":\"1.0.0\",\"message\":{\"facets\":{},\"total-results\":915,\"items\":[{\"DOI\":\"10.1017\\/s0362502800005927\",\"title\":[\"A T'ang Taoist Mirror\"],\"author\":[{\"given\":\"Edward H.\",\"family\":\"Schafer\",\"sequence\":\"first\",\"affiliation\":[],\"role\":[{\"role\":\"author\",\"vocabulary\":\"crossref\"}]}],\"issued\":{\"date-parts\":[[1978]]},\"volume\":\"4\",\"page\":\"56-59\",\"is-referenced-by-count\":1,\"type\":\"journal-article\"},{\"DOI\":\"10.1017\\/s0362502800007215\",\"title\":[\"Contributors\"],\"issued\":{\"date-parts\":[[2001]]},\"volume\":\"26\",\"page\":\"iii-iii\",\"is-referenced-by-count\":0,\"type\":\"journal-article\"},{\"DOI\":\"10.1017\\/s0362502800007021\",\"title\":[\"Advertisements\"],\"issued\":{\"date-parts\":[[1975]]},\"volume\":\"1\",\"issue\":\"1\",\"page\":\"75-80\",\"is-referenced-by-count\":0,\"type\":\"journal-article\"},{\"DOI\":\"10.1017\\/s0362502800006544\",\"title\":[\"EAC volume 3 Cover and Front matter\"],\"issued\":{\"date-parts\":[[1977]]},\"volume\":\"3\",\"page\":\"f1-f2\",\"is-referenced-by-count\":0,\"type\":\"journal-article\"}],\"items-per-page\":20,\"query\":{\"start-index\":0,\"search-terms\":null}}}",
+  "title": ""
+ }
+}

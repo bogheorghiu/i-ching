@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://www.loc.gov/books/?q=Zhouyi+commentary&fo=json&c=3",
+ "route": "probe7",
+ "date": "2026-11-04T08:22:32Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: e2a5225f-325a-403b-9546-943e94dbc93d)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}

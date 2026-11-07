@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://cqvip.com/journal/42632/42632/2002",
+ "route": "probe3",
+ "date": "2026-11-04T07:40:23Z",
+ "raw": {
+  "error": {
+   "status": 502,
+   "body": "upstream request failed"
+  }
+ }
+}

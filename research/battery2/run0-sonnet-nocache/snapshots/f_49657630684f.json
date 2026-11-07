@@ -1,0 +1,1 @@
+{"url": "https://www.jstor.org/stable/23354379", "route": "explore", "date": "2026-11-04", "response": {"error": {"status": 404, "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: 957793e9-fbd0-45ee-8eb5-3b464453c154)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"}}}

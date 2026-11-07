@@ -1,0 +1,9 @@
+{
+  "name": "keybuilder-agent",
+  "type": "module",
+  "private": true,
+  "bin": { "keybuilder-agent": "src/cli.ts" },
+  "scripts": { "start": "bun run src/cli.ts", "build": "tsc --noEmit" },
+  "dependencies": { "@openrouter/agent": "latest", "zod": "latest" },
+  "devDependencies": { "@types/bun": "latest", "typescript": "latest" }
+}

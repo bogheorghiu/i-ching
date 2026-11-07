@@ -1,0 +1,48 @@
+name: Skills CI
+
+# What this gate catches:
+# - check_skills.py: the Agent Skills spec plus the checks `gh skill publish` runs, so a
+#   broken skill fails here rather than at publish time or, worse, silently in a
+#   stranger's agent (a dangling file reference is a failed run nobody reports).
+# - sync_manifests.py --check: each .claude-plugin/plugin.json and SKILL.md metadata.version
+#   is written from plugins/<plugin>/plugin.json; a hand edit to a copy fails here.
+# - tests/: the skill's script and data checked against the bundled Zhouyi text.
+# - the test suites: the linters and the PII hooks, including cases that must fail.
+# Triggers: every pull request (from this repository or a fork) and every push to main,
+# once each. main is where pull requests land in this repository (releases go to a
+# separate repository, so there is no dev branch), so its merge result is checked too. A job-level skip for same-repo PRs was tried
+# and dropped: a skipped job still posts a passing check of the same name, which could hide
+# a failed push run.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  skills:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Skill structure (spec + gh skill publish checks)
+        run: python3 .github/scripts/check_skills.py
+      - name: Derived plugin files match plugins/<plugin>/plugin.json
+        run: python3 .github/scripts/sync_manifests.py --check
+      - name: Manifest sync tests
+        run: python3 .github/scripts/test_sync_manifests.py
+      - name: Linter tests
+        run: python3 .github/scripts/test_check_skills.py
+      - name: JSON files are ASCII-only (ported from ex-cog-dev; a json round trip re-escapes non-ASCII silently)
+        run: python3 .github/scripts/check_json_ascii.py
+      - name: JSON ASCII check tests
+        run: python3 .github/scripts/test_check_json_ascii.py
+      - name: Version-bump guard tests (the guard itself runs in version-bump-guard.yml)
+        run: python3 .github/scripts/test_check_version_bump.py
+      - name: Skill tests (script and data against the bundled text)
+        run: for t in tests/test_*.py; do python3 "$t" || exit 1; done
+      - name: PII hook tests (the hooks are copied from ex-cog-dev; this keeps them honest here)
+        run: bash .githooks/pre-push.test.sh
+

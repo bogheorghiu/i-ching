@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://www.cqvip.com/journal/3004/index.html",
+ "route": "probe2",
+ "date": "2026-11-04T07:38:15Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: 3fe1cae5-6329-444c-838a-15ca87aed36e)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}

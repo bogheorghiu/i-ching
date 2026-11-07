@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://brill.com/view/journals/tpao/109/1-2/tpao.109.issue-1-2.xml",
+ "route": "probe3",
+ "date": "2026-11-04T07:39:33Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: cb872b85-3cf4-4ec6-91c6-20ab6786c236)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}
