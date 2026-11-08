@@ -332,8 +332,8 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
             raise MemoryError("candidate value too long")
         return out
 
-    budget = [100000]   # node visits; past it, the whole file falls back to the text scan
-    memo = {}
+    budget = [300000]   # node visits; past it, the whole file falls back to the text scan
+    vals = {}   # name -> values it may hold, filled by resolve_names() before any lookup
 
     def strings(node, seen):
         """Values a node may hold: its own string, a joined path, or a resolved name's values."""
@@ -343,17 +343,7 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return {node.value}
         if isinstance(node, ast.Name):
-            if node.id in seen:
-                return {"$"}
-            if len(seen) > 50:   # past this, the whole file falls back to the text scan
-                raise RecursionError("name chain too deep")
-            if node.id in memo:
-                return memo[node.id]
-            out = set()
-            for v in bound.get(node.id, []):
-                out |= deep(v, seen | {node.id})
-            memo[node.id] = out = out or {"$"}   # unknown value: candidates() drops a "$" prefix
-            return out
+            return vals.get(node.id) or {"$"}   # unknown value: candidates() drops a "$" prefix
         if isinstance(node, ast.JoinedStr):
             return product([(strings(v.value, seen) if isinstance(v, ast.FormattedValue)
                              else strings(v, seen)) or {"$"} for v in node.values], "")
@@ -372,7 +362,7 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
         out = set()
         for sub in ast.walk(node):
             out |= strings(sub, seen)
-            if len(out) > 4096:
+            if len(out) > 16384:
                 raise MemoryError("too many candidate values")
         return out
 
@@ -387,6 +377,34 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
             return out
         return set()
 
+    def resolve_names():
+        """Every name's values, to a fixed point, so no answer depends on the order of lookups (a
+        recursive walk with a cache did: a value computed while a cycle was cut short got cached).
+        A name is re-evaluated when a name its bindings use changes; each may change at most 8
+        times (a string built in a loop grows forever), so the loop ends."""
+        users = {}
+        for n, vs in bound.items():
+            for v in vs:
+                for m in {x.id for x in ast.walk(v) if isinstance(x, ast.Name)}:
+                    users.setdefault(m, set()).add(n)
+        work, queued, changes = list(bound), set(bound), {}
+        while work:
+            n = work.pop(0)
+            queued.discard(n)
+            if changes.get(n, 0) >= 8:
+                continue
+            new = set()
+            for v in bound[n]:
+                new |= deep(v, frozenset())
+            if new != vals.get(n, set()):
+                vals[n] = new
+                changes[n] = changes.get(n, 0) + 1
+                for m in users.get(n, ()):
+                    if m not in queued:
+                        work.append(m)
+                        queued.add(m)
+
+    resolve_names()
     found = set()
     for call in ast.walk(tree):
         if not (isinstance(call, ast.Call) and is_exec(call)):
@@ -519,6 +537,12 @@ def self_test():
         ("noxfile.py", 'import subprocess\nS = ["scripts/x.sh"]\nfor p in S:\n    subprocess.run(p)\n', {"scripts/x.sh"}, set()),
         ("noxfile.py", 'import subprocess\na0 = "x"\n' + "".join(f"a{i} = a{i-1} + a{i-1}\n" for i in range(1, 36))
          + 'subprocess.run(a35)\nsubprocess.run("scripts/x.sh")\n', {"scripts/x.sh"}, set()),
+        # Values must not depend on which call is analysed first: d holds "scripts" after the swap.
+        ("noxfile.py", 'import subprocess\nd = "docs"\ne = "scripts"\nd, e = e, d\nsubprocess.run(["echo", e])\n'
+         'subprocess.run(["bash", d + "/x.sh"])\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import subprocess\nd = "docs"\ne = "scripts"\nd, e = e, d\nsubprocess.run(["bash", e, d + "/x.sh"])\n',
+         {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import subprocess\nb = a + "/x.sh"\na = "scripts"\nsubprocess.run(["bash", b])\n', {"scripts/x.sh"}, set()),
     ]
     for path, text, want_in, want_out in kept:
         got = refs_in_text(path, text, fx)
