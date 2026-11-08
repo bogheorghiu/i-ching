@@ -28,5 +28,5 @@ __pycache__/
 node_modules/
 agent-log.jsonl
 
-# board-pattern exports board rows here (BOARD.md); never committed.
+# Board rows exported by tools/board/board.py; local cache, never committed.
 .board-cache/
