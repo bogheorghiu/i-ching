@@ -264,7 +264,7 @@ def py_exec_refs(text: str, here: str, files: set):
     argument is then read like a shell line, so `npm run x` and `make` are followed."""
     try:
         tree = ast.parse(text)
-    except (SyntaxError, ValueError):
+    except (SyntaxError, ValueError, RecursionError, MemoryError):   # a very long expression
         return set(), True
     found, scan = set(), False
     try:
@@ -342,6 +342,10 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
         total = 1
         for p in parts:
             total *= len(p)
+        size = 1 + sum(max(map(len, p), default=0) for p in parts) // 256
+        budget[0] -= total * size   # combinations cost time with their length, not only nodes
+        if budget[0] < 0:
+            raise MemoryError("analysis budget spent")
         if total > 16384:
             raise MemoryError("too many combinations")
         out = {sep.join(c) for c in itertools.product(*parts)}
@@ -422,7 +426,8 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
                 for n, vs in bound.items()}
         roots = {x.id for a in exec_args for x in ast.walk(a) if isinstance(x, ast.Name)} & bound.keys()
         index, low, stack, on, groups, counter = {}, {}, [], set(), [], [0]
-        for root in roots:   # Tarjan, iterative; groups come out dependencies first
+        for root in sorted(roots):   # Tarjan, iterative; groups come out dependencies first, in an
+            # order that depends only on the source (a set's order varies with the hash seed)
             if root in index:
                 continue
             todo = [(root, iter(sorted(deps[root])))]
@@ -470,6 +475,9 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
     found = set()
     for arg in exec_args:
         for ln in deep(arg, frozenset()) | argv_lines(arg, frozenset()):
+            budget[0] -= 1 + len(ln) // 8   # reading a line costs about one unit per token
+            if budget[0] < 0:
+                raise MemoryError("analysis budget spent")
             found |= line_refs(ln, here, "", files)
     return found
 
@@ -720,6 +728,9 @@ def self_test():
         ("noxfile.py", 'import subprocess\nd = "docs"\ne = "scripts"\nd, e = e, d\nsubprocess.run(["bash", e, d + "/x.sh"])\n',
          {"scripts/x.sh"}, set()),
         ("noxfile.py", 'import subprocess\nb = a + "/x.sh"\na = "scripts"\nsubprocess.run(["bash", b])\n', {"scripts/x.sh"}, set()),
+        # An expression too deep to parse falls back to the text scan, as before, not a crash.
+        ("noxfile.py", 'import subprocess\nsubprocess.run(["bash", "scripts/x.sh"])\nX = "p"' + ' + "p"' * 10000 + '\n',
+         {"scripts/x.sh"}, set()),
         # A limit hit by a name no exec call uses must not cost the file its analysis.
         ("noxfile.py", 'import subprocess\nTOP = "scripts"\nn = "x"\nT = f"' + "a" * 5000 + '{n}"\n'
          'subprocess.run(["bash", TOP + "/x.sh"])\n', {"scripts/x.sh"}, set()),
