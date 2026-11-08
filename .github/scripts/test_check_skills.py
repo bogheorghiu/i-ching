@@ -110,7 +110,7 @@ PLUGIN_CASES = [
     ("plugin name must match folder", {"manifest": {**MANIFEST, "name": "other"}}, 1, "does not match folder"),
     ("non-semver version rejected", {"manifest": {**MANIFEST, "version": "1.0"}}, 1, "is not x.y.z"),
     ("missing licence rejected", {"manifest": {k: v for k, v in MANIFEST.items() if k != "license"}}, 1, "no licence"),
-    ("missing README rejected", {"readme": None}, 1, "missing README.md"),
+    ("missing README rejected", {"readme": None}, 1, "missing README"),
     ("short README rejected; code blocks do not count", {"readme": "# Demo\n\nshort\n```\n" + "w " * 60 + "\n```\n"}, 1, "fewer than 40 words"),
     ("top-level bin/ rejected", {"extra_dirs": ("bin",)}, 1, "bin/"),
     ("skill version out of step with plugin rejected", {"skill_version": '"1.1"'}, 1, "does not match demo metadata.version"),
