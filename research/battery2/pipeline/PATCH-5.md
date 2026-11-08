@@ -22,7 +22,12 @@ Run: `python3 -I pipeline/build_keys.py --workdir <dir> --seed-file pipeline/kim
   the cost per item at scale is not measured by this test (Gap).
 - Parser checks: each parser was run on a corrupted copy of its page (heading title changed; title absent)
   and refused the record (`field_unverified`, `toc_entry_absent`).
-- Not covered: a TOC whose author field has a page range or unusual separators; a CNKI page whose
-  similar-works list does not start with the article itself (the parser then refuses, so it fails safe).
+- Blind review (2026-11-08) blocking findings, fixed: seeds now take record A from CNKI only; `cnki_entry`
+  takes only the first 相似文献 line and checks its year and issue against the URL's CNKI id (mutations:
+  own line not first, later same-title line, wrong URL issue: all refused); deviation 3's heading now
+  says tests 7-8 ran the same day.
+- Not covered: a TOC whose author field has a page range or unusual separators; Latin-script names in a
+  TOC (split on spaces); a translator marked 译 in the TOC matches CNKI without the mark (review
+  findings 5-9, non-blocking, left as they are).
 - Test 8 reused test 7's states with verification fields reset by hand; a stale `key_flagged` marker from
   that reset first dropped all four, which was the reset's fault, not the pipeline's.

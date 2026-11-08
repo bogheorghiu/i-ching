@@ -903,6 +903,7 @@ def toc_entry(url, title):
     return entry, rec, None
 
 
+CNKI_ID = re.compile(r"CJFDTotal-[A-Z]+(\d{4})(\d{2})\d+")
 CNKI_SELF = re.compile(r"^([^\[\]\n|]+?)\[J\];([^;\n]+);(\d{4})年(\d{1,2})期", re.M)
 
 
@@ -917,14 +918,16 @@ def cnki_entry(url):
     if not h1:
         return None, None, "field_unverified"
     title = h1.group(1).strip()
-    own = []
-    for m in CNKI_SELF.finditer(F["text"].replace("|", "\n")):
-        parts = [x.strip() for x in m.group(1).split(";") if x.strip()]
-        if len(parts) >= 2 and norm(parts[-1]) == norm(title):
-            own.append((parts[:-1], m))
-    if len(own) != 1:
-        return None, None, "field_unverified" if not own else "listing_page"
-    authors, m = own[0]
+    uid = CNKI_ID.search(url)
+    sim = F["text"].find("相似文献")
+    if not uid or sim < 0:
+        return None, None, "field_unverified"
+    m = CNKI_SELF.search(F["text"][sim:].replace("|", "\n"))       # only the first catalogue line counts
+    parts = [x.strip() for x in m.group(1).split(";") if x.strip()] if m else []
+    if len(parts) < 2 or norm(parts[-1]) != norm(title) \
+            or (int(m.group(3)), int(m.group(4))) != (int(uid.group(1)), int(uid.group(2))):
+        return None, None, "field_unverified"
+    authors = parts[:-1]
     ab = re.search(r"【摘要】[:：]\s*(.+)", F["text"])
     entry = {"title": title, "author": "；".join(authors), "venue": m.group(2).strip(), "year": int(m.group(3)),
              "volume_issue": f"{m.group(3)}年{m.group(4)}期"}
@@ -942,8 +945,7 @@ def stage_s(args):
     added = 0
     for row in read_jsonl(args.seed_file):
         srcs = [x["url"] for x in row.get("sources", []) if (x.get("fields_seen") or {}).get("title")]
-        a = [u for u in srcs if classify(u) in ("aggregator", "journal_own") and not is_listing_url(u)]
-        a.sort(key=lambda u: host_of(u) not in CNKI_HOSTS)
+        a = [u for u in srcs if host_of(u) in CNKI_HOSTS and CNKI_ID.search(u)]   # deviation 3 covers CNKI only
         b = [u for u in srcs if host_of(u) in TOC_HOSTS]
         why = None if a and b else ("no_record_a_url" if not a else "no_institute_toc_url")
         if why or a[0] in seen:
