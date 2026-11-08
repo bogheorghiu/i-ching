@@ -863,6 +863,101 @@ def harvest_hit(r, idx, sfile, q, cell, meta, rank, offset, allowed, seen, seed_
 
 
 
+# ----------------------------------------------------------------------------- seeded intake (PREREG deviations 2-3)
+# Candidates come from a seed JSONL (one paper per line, with candidate source URLs) instead of search. Record A is an
+# item page fetched and extracted as usual; record B is a complete issue table of contents on a research institute's
+# portal, parsed in code: the entry line must match record A's title exactly (after norm), so nothing is repaired.
+TOC_HOSTS = ("iwr.cass.cn", "iwr.cssn.cn")
+TOC_HEAD = re.compile(r"《([^》]{2,30})》\s*(\d{4})\s*年")
+
+
+def toc_entry(url, title):
+    """Record B from an institute TOC: (entry, record, None) or (None, None, reason)."""
+    F = ds_fetch(url, "seed: institute toc")
+    if not F["ok"]:
+        return None, None, "unfetchable_source"
+    head = TOC_HEAD.search(F["text"][:600])
+    if not head:
+        return None, None, "toc_header_absent"
+    lines = [ln.strip() for ln in F["text"].splitlines() if ln.strip()]
+    hits = []
+    for i, ln in enumerate(lines):
+        if "//" not in ln:
+            continue
+        t, _, rest = ln.partition("//")
+        if i and re.match(r"^[-—–]{2,}", t):          # subtitle wrapped onto its own line
+            t = lines[i - 1] + t
+        if norm(t) == norm(title):
+            hits.append((t.strip(), rest, ln))
+    if len(hits) != 1:
+        return None, None, "toc_entry_absent" if not hits else "toc_entry_ambiguous"
+    t, rest, raw = hits[0]
+    m = re.match(r"^\s*(.+?)\s*[（(]\s*[\d+,，\s]+[)）]\s*$", rest)
+    if not m:
+        return None, None, "toc_author_unparsed"
+    authors = "；".join(m.group(1).split())       # the TOC separates authors by spaces only
+    entry = {"title": t, "author": authors, "venue": head.group(1), "year": int(head.group(2))}
+    rec = {"url": url, "snapshot_file": F["file"], "snapshot_kind": "fetch", "route": "seed: institute toc",
+           "date": today(), "toc_line": raw, "toc_header": head.group(0)}
+    return entry, rec, None
+
+
+CNKI_SELF = re.compile(r"^([^\[\]\n|]+?)\[J\];([^;\n]+);(\d{4})年(\d{1,2})期", re.M)
+
+
+def cnki_entry(url):
+    """Record A from a cnki.com.cn article page, parsed in code. The fetched text carries the title (H1) and abstract;
+    author, venue and issue appear only in CNKI's own catalogue line for the article ("authors;title[J];venue;
+    YYYY年NN期"), listed under 相似文献. That line is accepted only if its title equals the H1 title (after norm)."""
+    F = ds_fetch(url, "seed: cnki article page")
+    if not F["ok"]:
+        return None, None, "unfetchable_source"
+    h1 = re.search(r"^#\s+(.+)$", F["text"], re.M)
+    if not h1:
+        return None, None, "field_unverified"
+    title = h1.group(1).strip()
+    own = []
+    for m in CNKI_SELF.finditer(F["text"].replace("|", "\n")):
+        parts = [x.strip() for x in m.group(1).split(";") if x.strip()]
+        if len(parts) >= 2 and norm(parts[-1]) == norm(title):
+            own.append((parts[:-1], m))
+    if len(own) != 1:
+        return None, None, "field_unverified" if not own else "listing_page"
+    authors, m = own[0]
+    ab = re.search(r"【摘要】[:：]\s*(.+)", F["text"])
+    entry = {"title": title, "author": "；".join(authors), "venue": m.group(2).strip(), "year": int(m.group(3)),
+             "volume_issue": f"{m.group(3)}年{m.group(4)}期"}
+    if ab:
+        entry["abstract"] = ab.group(1).strip()
+    rec = {"url": url, "snapshot_file": F["file"], "snapshot_kind": "fetch", "route": "seed: cnki article page",
+           "date": today(), "catalogue_line": m.group(0)}
+    return entry, rec, None
+
+
+def stage_s(args):
+    cands = read_jsonl(cand_path())
+    seen = {c["url"] for c in cands}
+    fields = {j["name"]: j["field"] for j in JOURNALS_ZH}
+    added = 0
+    for row in read_jsonl(args.seed_file):
+        srcs = [x["url"] for x in row.get("sources", []) if (x.get("fields_seen") or {}).get("title")]
+        a = [u for u in srcs if classify(u) in ("aggregator", "journal_own") and not is_listing_url(u)]
+        a.sort(key=lambda u: "cnki.com.cn" not in u)
+        b = [u for u in srcs if host_of(u) in TOC_HOSTS]
+        why = None if a and b else ("no_record_a_url" if not a else "no_institute_toc_url")
+        if why or a[0] in seen:
+            jlog(os.path.join(W, "seed_skips.jsonl"), {"title": row.get("title"), "reason": why or "duplicate_url",
+                                                         "seed_file": args.seed_file, "date": today()})
+            continue
+        c = {"cid": "s" + sha(a[0], 10), "url": a[0], "hint_title": row.get("title", ""),
+             "query": "seed: " + os.path.basename(args.seed_file), "search_snapshot": None, "hit_index": None,
+             "cell": ["article", "zh"], "meta": {"field": fields.get(row.get("journal"))}, "rank": None,
+             "offset": None, "seed_from": args.seed_file, "seed_b_url": b[0], "date": today()}
+        jlog(cand_path(), c)
+        seen.add(a[0])
+        added += 1
+    print(f"[s] seeded candidates added: {added}")
+
 
 def stage_a(args):
     cands = read_jsonl(cand_path())
@@ -1330,10 +1425,13 @@ def stage_b(st, args):
     if "entryA" not in st:
         if is_listing_url(c["url"]):
             return drop(st, "listing_page", "b", "record A URL is a listing: " + c["url"])
-        idx, hit = cand_hit(c)
-        route = f"harvest search: {c['query']}"
         diag = {}
-        entry, rec, why = record_from_hit(hit, idx, c["search_snapshot"], c["query"], route, c["url"], "A", diag=diag)
+        if c.get("seed_b_url") and host_of(c["url"]).endswith("cnki.com.cn"):
+            entry, rec, why = cnki_entry(c["url"])
+        else:
+            idx, hit = cand_hit(c)
+            route = f"harvest search: {c['query']}"
+            entry, rec, why = record_from_hit(hit, idx, c["search_snapshot"], c["query"], route, c["url"], "A", diag=diag)
         if entry is None:
             return drop(st, why, "b" if why in ("unfetchable_source", "listing_page") else "c",
                         "record A: " + json.dumps(diag, ensure_ascii=False)[:1500])
@@ -1342,6 +1440,15 @@ def stage_b(st, args):
         st["extract_files"] = {"A": rec["snapshot_file"]}
         save_state(st)
     entry = st["entryA"]
+    if c.get("seed_b_url"):
+        e, rec, why = toc_entry(c["seed_b_url"], entry["title"])
+        if e is None:
+            return drop(st, why, "b", "record B (institute toc): " + c["seed_b_url"])
+        st["recB"] = dict(rec, custodian_class="institute_toc", pairing="aggregator_plus_institute_toc",
+                          prereg_deviation="PREREG deviations 2-3: institute issue TOC as record B",
+                          institutions=[reg_domain(host_of(c["url"])), reg_domain(host_of(c["seed_b_url"]))])
+        st["entryB"] = e
+        return
     a_cls = st["recA"]["custodian_class"]
     a_dom = reg_domain(host_of(c["url"]))
     a_text = verify_source(st["recA"]["snapshot_file"])      # record A's own text only (not our query/URL)
@@ -1798,6 +1905,10 @@ def verify_system():
            "table of contents, search-result page, citing paper, reference list, encyclopedia, blog, shop, forum. "
            "snapshot_kind=search_hit means the excerpt is the search engine's result entry for that URL; it counts as "
            "the item record if the URL is the item's own page and the entry describes only that work.")
+    new += ("\n- Exception (owner's PREREG deviations 2-3): a record with custodian_class=institute_toc is a complete issue "
+            "table of contents on a research institute's portal; it counts as an item record, and you judge only whether "
+            "its entry line for this work supports the key. A record routed 'seed: cnki article page' is the article's "
+            "own CNKI page; the first line under 相似文献 is CNKI's own catalogue record of that article.")
     return VERIFY_SYSTEM.replace(old, new) if old in VERIFY_SYSTEM else VERIFY_SYSTEM + "\n" + new
 
 
@@ -2190,7 +2301,9 @@ def main():
     p = argparse.ArgumentParser(description="Build verified answer keys for Battery 2.")
     p.add_argument("--target", type=int, default=300, help="items to keep")
     p.add_argument("--max-usd", type=float, default=None, help="cumulative model-cost cap (all runs in workdir)")
-    p.add_argument("--stage", default="all", choices=["a", "b", "c", "d", "e", "f", "g", "report", "all"])
+    p.add_argument("--stage", default="all", choices=["s", "a", "b", "c", "d", "e", "f", "g", "report", "all"])
+    p.add_argument("--seed-file", default=None, metavar="JSONL",
+                   help="seeded intake (stage s) instead of search harvest (stage a)")
     p.add_argument("--writers", default="sonnet,opus,deepseek", help="subset of sonnet,opus,deepseek")
     p.add_argument("--workdir", default=".")
     p.add_argument("--seed", default="battery2")
@@ -2212,10 +2325,19 @@ def main():
     if missing:
         p.error(f"--host-stats file(s) not found: {missing}")
     args.host_stats = [os.path.abspath(h) for h in args.host_stats]
+    if args.stage == "s" and not args.seed_file:
+        p.error("--stage s needs --seed-file")
+    if args.seed_file:
+        if not os.path.isfile(args.seed_file):
+            p.error(f"--seed-file not found: {args.seed_file}")
+        args.seed_file = os.path.abspath(args.seed_file)
     setup(args)
     note = ""
     try:
-        if args.stage in ("a", "all"):
+        if args.seed_file and args.stage in ("s", "all"):
+            stage_s(args)
+            load_cands()
+        elif args.stage in ("a", "all"):
             stage_a(args)
             load_cands()
         if args.stage in ("b", "c", "d", "e", "f"):
