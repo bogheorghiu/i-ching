@@ -95,6 +95,7 @@ PATH_TOKEN = re.compile(r"[A-Za-z0-9_.${}()/@+-]+")
 COMMENT = re.compile(r"^\s*(#|//)")
 TRAILING_COMMENT = re.compile(r"\s+(#|//)\s.*$")
 RUN_SCRIPT = re.compile(r"\b(?:npm|pnpm|yarn|bun)\s+(?:run(?:-script)?\s+)?([A-Za-z0-9:_.-]+)")
+NPM_TAIL = re.compile(r"\b(?:npm|pnpm|yarn|bun)(?:\s+run(?:-script)?)?\s*$")   # argv_lines()
 # Shell existence tests: their operand is checked, not run.
 _OPERAND = r"""(?:"[^"$`]*"|'[^']*'|[^\s;&|<>()`$"']+)"""   # no substitution, stops at ; & |
 EXISTENCE_TEST = re.compile(r"((?:^|[;&|(`]|\b(?:if|then|elif|while|until|do|!)\s)\s*)"
@@ -219,12 +220,12 @@ def refs_in_text(path: str, text: str, files: set) -> set:
         except ValueError:
             scripts = {}
         text = "\n".join(v for k, v in scripts.items() if k in LIFECYCLE and isinstance(v, str))
+    found = set()
     if path.endswith(".py"):
-        found = py_exec_refs(text, here, files)
-        if found is not None:
+        found, scan = py_exec_refs(text, here, files)
+        if not scan:
             return found | py_sibling_imports(text, here, files)
     lines = [TRAILING_COMMENT.sub("", ln) for ln in text.splitlines() if not COMMENT.match(ln)]
-    found = set()
     for ln in lines:
         found |= line_refs(ln, here, name, files)
     if path.endswith(".py"):   # unparsable Python: the text scan above, plus imports
@@ -257,8 +258,8 @@ def py_sibling_imports(text: str, here: str, files: set) -> set:
 
 
 def py_exec_refs(text: str, here: str, files: set):
-    """Tracked files an exec-like call in Python source runs, or None to fall back to the text
-    scan (the source does not parse, or the analysis hits a limit). Exec-like: a call whose last
+    """Tracked files an exec-like call in Python source runs, and whether the text scan must
+    run too (the source does not parse, or the shipped analysis hit a limit, as before). Exec-like: a call whose last
     name is in PY_EXEC_NAMES or contains "exec"/"spawn"; a name imported as an alias of one; a
     function in this file whose body makes one (to a fixpoint, so wrappers count); a call handed
     one as an argument (map(subprocess.run, ...)). Every string anywhere under its arguments
@@ -267,17 +268,22 @@ def py_exec_refs(text: str, here: str, files: set):
     argument is then read like a shell line, so `npm run x` and `make` are followed."""
     try:
         tree = ast.parse(text)
-    except (SyntaxError, ValueError, RecursionError, MemoryError):
-        return None
+    except (SyntaxError, ValueError):
+        return set(), True
+    found, scan = set(), False
+    try:
+        found |= _py_exec_refs_main(tree, here, files)
+    except (RecursionError, MemoryError):
+        scan = True
     # The bindings calls make (_add_call_flows) only add values, so they can push a large file
-    # past a limit it met without them; that file is then analysed without them rather than
-    # dropped to the text scan, which misses joined paths.
+    # past a limit it met without them; that file is then analysed without them.
     for call_flows in (True, False):
         try:
-            return _py_exec_refs(ast.parse(text), here, files, call_flows)
-        except (ValueError, RecursionError, MemoryError):
+            found |= _py_exec_refs(tree, here, files, call_flows)
+            break
+        except (RecursionError, MemoryError):
             continue
-    return None
+    return found, scan
 
 
 def _callee(node) -> str:
@@ -407,12 +413,19 @@ def _py_exec_refs(tree, here: str, files: set, call_flows: bool = True) -> set:
                 changed = True
 
     def product(parts, sep):
-        out = {sep.join(c) for c in itertools.islice(itertools.product(*parts), 64)}
+        """Every combination, never a sample: a sample keeps different combinations for different
+        inputs, so a larger value set could drop one a smaller set kept."""
+        total = 1
+        for p in parts:
+            total *= len(p)
+        if total > 16384:
+            raise MemoryError("too many combinations")
+        out = {sep.join(c) for c in itertools.product(*parts)}
         if any(len(v) > 4096 for v in out):
             raise MemoryError("candidate value too long")
         return out
 
-    budget = [300000]   # node visits; past it, the whole file falls back to the text scan
+    budget = [300000]   # node visits; past it, this analysis adds nothing (py_exec_refs)
     vals = {}   # name -> values it may hold, filled by resolve_names() before any lookup
 
     def strings(node, seen):
@@ -448,70 +461,203 @@ def _py_exec_refs(tree, here: str, files: set, call_flows: bool = True) -> set:
 
     argvs = {}   # name -> command lines it may hold, filled by resolve_names()
 
-    def argv_line(node):
-        return " ".join(min(strings(e, frozenset()) or {"$"}) for e in node.elts)
-
     def argv_lines(node, seen):
-        """A list argument (or a name bound to one) read as one command line, for npm run / make."""
+        """A list argument (or a name bound to one) read as command lines for `npm run x`, the one
+        pattern line_refs() reads across words (each element's own values already go through
+        line_refs(), via deep(), and cover paths and make/just/tox/nox). So only windows of two or
+        three elements starting at an npm-like word, every combination of their values: whole-line
+        combinations exploded, and picking one value per element hid the others."""
         if isinstance(node, (ast.List, ast.Tuple)):
-            return {argv_line(node)}
+            elts = [strings(e, frozenset()) or {"$"} for e in node.elts]
+            out = set()
+            for i, first in enumerate(elts):
+                heads = {v for v in first if NPM_TAIL.search(v)}
+                if not heads:
+                    continue
+                if i + 1 < len(elts):
+                    out |= product([heads, elts[i + 1]], " ")
+                if i + 2 < len(elts):
+                    mids = {v for v in elts[i + 1] if v.strip() in ("", "run", "run-script")}
+                    if mids:
+                        out |= product([heads, mids, elts[i + 2]], " ")
+            return out
         if isinstance(node, ast.Name):
             return argvs.get(node.id, set())
         return set()
 
+    exec_args = [arg for call in ast.walk(tree) if isinstance(call, ast.Call) and is_exec(call)
+                 for arg in call.args + [k.value for k in call.keywords]]
+
     def resolve_names():
-        """Every name's values, to a fixed point, so no answer depends on the order of lookups (a
-        recursive walk with a cache did: a value computed while a cycle was cut short got cached).
-        A name is re-evaluated when a name its bindings use changes; each may change at most 8
-        times (a string built in a loop grows forever), so the loop ends."""
-        users = {}
-        for n, vs in bound.items():
-            for v in vs:
-                for m in {x.id for x in ast.walk(v) if isinstance(x, ast.Name)}:
-                    users.setdefault(m, set()).add(n)
-        work, queued, changes = list(bound), set(bound), {}
-        while work:
-            n = work.pop(0)
-            queued.discard(n)
-            if changes.get(n, 0) >= 8:
+        """Values and command lines of the names an exec call's arguments depend on, and only
+        those: resolving every name let a long string or a big table nobody runs exhaust a limit
+        and drop this analysis for the whole file. Names are resolved one strongly connected
+        group at a time, dependencies first, so a name outside a cycle is computed once from final
+        inputs; inside a cycle (a string built in a loop grows forever) at most 8 rounds."""
+        deps = {n: {x.id for v in vs for x in ast.walk(v) if isinstance(x, ast.Name)} & bound.keys()
+                for n, vs in bound.items()}
+        roots = {x.id for a in exec_args for x in ast.walk(a) if isinstance(x, ast.Name)} & bound.keys()
+        index, low, stack, on, groups, counter = {}, {}, [], set(), [], [0]
+        for root in roots:   # Tarjan, iterative; groups come out dependencies first
+            if root in index:
                 continue
-            new = set()
-            for v in bound[n]:
-                new |= deep(v, frozenset())
-            if new != vals.get(n, set()):
-                vals[n] = new
-                changes[n] = changes.get(n, 0) + 1
-                for m in users.get(n, ()):
-                    if m not in queued:
-                        work.append(m)
-                        queued.add(m)
+            todo = [(root, iter(sorted(deps[root])))]
+            index[root] = low[root] = counter[0]; counter[0] += 1
+            stack.append(root); on.add(root)
+            while todo:
+                n, it = todo[-1]
+                m = next(it, None)
+                if m is not None:
+                    if m not in index:
+                        index[m] = low[m] = counter[0]; counter[0] += 1
+                        stack.append(m); on.add(m)
+                        todo.append((m, iter(sorted(deps[m]))))
+                    elif m in on:
+                        low[n] = min(low[n], index[m])
+                    continue
+                todo.pop()
+                if todo:
+                    low[todo[-1][0]] = min(low[todo[-1][0]], low[n])
+                if low[n] == index[n]:
+                    group = []
+                    while True:
+                        m = stack.pop(); on.discard(m); group.append(m)
+                        if m == n:
+                            break
+                    groups.append(group)
+        for group in groups:
+            cyclic = len(group) > 1 or group[0] in deps[group[0]]
+            for _ in range(8 if cyclic else 1):
+                changed = False
+                for n in group:
+                    new_v, new_l = set(), set()
+                    for v in bound[n]:
+                        new_v |= deep(v, frozenset())
+                        new_l |= argv_lines(v, frozenset())
+                    if len(new_l) > 16384:
+                        raise MemoryError("too many command lines")
+                    if new_v != vals.get(n, set()) or new_l != argvs.get(n, set()):
+                        vals[n], argvs[n] = new_v, new_l
+                        changed = True
+                if not changed:
+                    break
 
     resolve_names()
-    # Command lines through names, to a fixed point too: a recursive walk over the names followed
-    # every path through them (exponential once names link to each other), with no budget.
-    line_users = {}
-    for n, vs in bound.items():
-        for v in vs:
-            if isinstance(v, ast.Name):
-                line_users.setdefault(v.id, set()).add(n)
-    work, queued, changes = list(bound), set(bound), {}
-    while work:
-        n = work.pop(0)
-        queued.discard(n)
-        if changes.get(n, 0) >= 8:
-            continue
-        new = set()
-        for v in bound[n]:
-            new |= argv_lines(v, frozenset())
-        if len(new) > 16384:
-            raise MemoryError("too many command lines")
-        if new != argvs.get(n, set()):
-            argvs[n] = new
-            changes[n] = changes.get(n, 0) + 1
-            for m in line_users.get(n, ()):
-                if m not in queued:
-                    work.append(m)
-                    queued.add(m)
+    found = set()
+    for arg in exec_args:
+        for ln in deep(arg, frozenset()) | argv_lines(arg, frozenset()):
+            found |= line_refs(ln, here, "", files)
+    return found
+
+
+def _py_exec_refs_main(tree, here: str, files: set) -> set:
+    """The analysis as it shipped before the fixed point, kept verbatim and always run, so the
+    guard never reports less than it did: the fixed point reports more where it completes, but
+    its flow- and scope-insensitive value sets outgrow its limits on large files."""
+    bound = {}   # name -> value nodes it may hold
+    exec_names = set()
+    for node in ast.walk(tree):
+        pairs = []
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) and node.value is not None:
+            pairs = [(t, node.value) for t in (node.targets if isinstance(node, ast.Assign) else [node.target])]
+        elif isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)):
+            pairs = [(node.target, node.iter)]
+        elif isinstance(node, ast.withitem) and node.optional_vars is not None:
+            pairs = [(node.optional_vars, node.context_expr)]
+        elif isinstance(node, ast.arguments):
+            pos = node.posonlyargs + node.args
+            pairs = list(zip(pos[len(pos) - len(node.defaults):], node.defaults))
+            pairs += [(a, d) for a, d in zip(node.kwonlyargs, node.kw_defaults) if d is not None]
+        elif isinstance(node, ast.ImportFrom):
+            exec_names |= {al.asname for al in node.names if al.asname and _is_exec_name(al.name)}
+        for target, value in pairs:   # launch = subprocess.run makes `launch` exec-like
+            if isinstance(value, (ast.Name, ast.Attribute)) and isinstance(target, ast.Name) and \
+                    _is_exec_name(_callee(value).split(".")[-1]):
+                exec_names.add(target.id)
+            names = [target.arg] if isinstance(target, ast.arg) else \
+                [n.id for n in ast.walk(target) if isinstance(n, ast.Name)]
+            for n in names:
+                bound.setdefault(n, []).append(value)
+
+    def is_exec(call) -> bool:
+        last = _callee(call.func).split(".")[-1]
+        if _is_exec_name(last) or last in exec_names:
+            return True
+        return any(isinstance(a, (ast.Name, ast.Attribute)) and
+                   (_is_exec_name(_callee(a).split(".")[-1]) or _callee(a).split(".")[-1] in exec_names)
+                   for a in call.args + [k.value for k in call.keywords])
+
+    funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    changed = True
+    while changed:   # wrappers: a function that makes an exec-like call is exec-like
+        changed = False
+        for f in funcs:
+            if f.name not in exec_names and \
+                    any(isinstance(n, ast.Call) and is_exec(n) for n in ast.walk(f)):
+                exec_names.add(f.name)
+                changed = True
+
+    def product(parts, sep):
+        out = {sep.join(c) for c in itertools.islice(itertools.product(*parts), 64)}
+        if any(len(v) > 4096 for v in out):
+            raise MemoryError("candidate value too long")
+        return out
+
+    budget = [100000]   # node visits; past it, the whole file falls back to the text scan
+    memo = {}
+
+    def strings(node, seen):
+        """Values a node may hold: its own string, a joined path, or a resolved name's values."""
+        budget[0] -= 1
+        if budget[0] < 0:
+            raise MemoryError("analysis budget spent")
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return {node.value}
+        if isinstance(node, ast.Name):
+            if node.id in seen:
+                return {"$"}
+            if len(seen) > 50:   # past this, the whole file falls back to the text scan
+                raise RecursionError("name chain too deep")
+            if node.id in memo:
+                return memo[node.id]
+            out = set()
+            for v in bound.get(node.id, []):
+                out |= deep(v, seen | {node.id})
+            memo[node.id] = out = out or {"$"}   # unknown value: candidates() drops a "$" prefix
+            return out
+        if isinstance(node, ast.JoinedStr):
+            return product([(strings(v.value, seen) if isinstance(v, ast.FormattedValue)
+                             else strings(v, seen)) or {"$"} for v in node.values], "")
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Div, ast.Add)):
+            return product([strings(node.left, seen) or {"$"}, strings(node.right, seen) or {"$"}],
+                           "/" if isinstance(node.op, ast.Div) else "")
+        if isinstance(node, ast.Call):
+            last = _callee(node.func).split(".")[-1]
+            if last in ("Path", "PurePath", "PosixPath", "join") and node.args:
+                return product([strings(a, seen) or {"$"} for a in node.args], "/")
+            if last in ("str", "fspath", "abspath", "realpath", "resolve") and node.args:
+                return strings(node.args[0], seen)
+        return set()
+
+    def deep(node, seen):
+        out = set()
+        for sub in ast.walk(node):
+            out |= strings(sub, seen)
+            if len(out) > 4096:
+                raise MemoryError("too many candidate values")
+        return out
+
+    def argv_lines(node, seen):
+        """A list argument (or a name bound to one) read as one command line, for npm run / make."""
+        if isinstance(node, (ast.List, ast.Tuple)):
+            return {" ".join(sorted(strings(e, seen) or {"$"})[0] for e in node.elts)}
+        if isinstance(node, ast.Name) and node.id not in seen:
+            out = set()
+            for v in bound.get(node.id, []):
+                out |= argv_lines(v, seen | {node.id})
+            return out
+        return set()
+
     found = set()
     for call in ast.walk(tree):
         if not (isinstance(call, ast.Call) and is_exec(call)):
@@ -663,6 +809,12 @@ def self_test():
          'for n, c in CASES:\n    subprocess.run(["bash", c])\n', {"scripts/x.sh"}, set()),
         ("scripts/check.py", 'import subprocess\nx = "docs"\nnames = []\nnames.append("README.md")\nsubprocess.run(["echo", x])\n',
          set(), {"README.md"}),
+        # A limit hit by a name no exec call uses must not cost the file its analysis.
+        ("noxfile.py", 'import subprocess\nTOP = "scripts"\nn = "x"\nT = f"' + "a" * 5000 + '{n}"\n'
+         'subprocess.run(["bash", TOP + "/x.sh"])\n', {"scripts/x.sh"}, set()),
+        # Values a call adds must not crowd out a default: joins enumerate, never sample.
+        ("scripts/check.py", 'import subprocess\ndef run(sub="scr", leaf="ipts/x.sh"):\n    subprocess.run(["bash", f"{sub}{leaf}"])\n'
+         'run()\n' + "".join(f'run("v{i}", "w{i}")\n' for i in range(12)), {"scripts/x.sh"}, set()),
     ]
     for path, text, want_in, want_out in kept:
         got = refs_in_text(path, text, fx)
