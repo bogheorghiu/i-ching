@@ -13,7 +13,8 @@ The template's owner checklist says agent environments must arm the PII hooks be
 # that holds the checkouts (Claude Code environment tool docs, read 2026-11-07).
 set -euo pipefail
 for repo in i-ching; do   # list each trusted repo by its checkout folder name
-  if [ -d "$repo/.githooks" ]; then git -C "$repo" config core.hooksPath .githooks; fi
+  if [ -d "$repo/.githooks" ]; then git -C "$repo" config core.hooksPath .githooks
+  else echo "WARNING: $repo/.githooks not found: PII hooks NOT armed for $repo" >&2; fi
 done
 # The denylist the hooks read. Without terms they block every commit (fail closed).
 # The terms are personal, so they are not in this script: put them in the environment

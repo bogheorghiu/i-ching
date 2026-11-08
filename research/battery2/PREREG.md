@@ -19,7 +19,7 @@ The simulation of section E ("Rule validation") runs before any model is asked; 
 
 2. **2026-11-05, before any item was built from it (the owner's decision, conditional): a complete issue table of contents on a research institute's portal counts as record B for an article, if the record-A platform has a different parent institution.**
    - **The case.** Record A comes from a napstic issue page (`search.napstic.cn/literature/oaj/<journal>?activeYear=&activeIssue=`), classed `aggregator`. Record B comes from the yearly TOC on 中国宗教学术网 (`iwr.cass.cn/qknj/...`), a CASS institute portal.
-   - **The condition** (the owner, 2026-11-05: "Only if not CASS-linked") is **met**. NAPSTIC (国家科研论文和科技信息高端交流平台) is operated by ISTIC (中国科学技术信息研究所), a unit of the Ministry of Science and Technology:
+   - **The condition** (the owner, 2026-11-05: "Only if not CASS-linked") is **met**. NAPSTIC (国家科研论文和科技信息高端交流平台) is operated by a unit directly under the Ministry of Science and Technology, not by CASS; its contact address is on `istic.ac.cn`, the domain of ISTIC (中国科学技术信息研究所):
      - `opaj.napstic.cn/files/国家科技期刊作品开放获取和中国首发协议.docx` says "甲方作为中国科学技术部直属事业单位，是NAPSTIC平台的运营服务方";
      - the napstic page `search.napstic.cn/literature/oaj/gwjckj?...` gives "Email: napstic@istic.ac.cn".
 
