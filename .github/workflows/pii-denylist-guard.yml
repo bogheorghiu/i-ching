@@ -236,8 +236,16 @@ jobs:
           set -euo pipefail
           V=8.30.1
           SHA=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
-          curl -sSL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_linux_x64.tar.gz"
-          echo "${SHA}  gitleaks.tgz" | sha256sum -c -
+          # -f: an HTTP error fails here as a download error instead of reading as a checksum
+          # mismatch; --retry: the download fails now and then on runners (2026-11-08).
+          curl -fsSL --retry 3 --retry-all-errors -o gitleaks.tgz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_linux_x64.tar.gz"
+          if ! echo "${SHA}  gitleaks.tgz" | sha256sum -c -; then
+            # A complete download that is not the pinned file: show what arrived, never run it.
+            echo "::error::gitleaks.tgz is $(stat -c %s gitleaks.tgz) bytes, sha256 $(sha256sum gitleaks.tgz | cut -d' ' -f1); expected ${SHA}"
+            head -c 256 gitleaks.tgz | od -c | head -n 8
+            exit 1
+          fi
           tar -xzf gitleaks.tgz gitleaks
       - name: Scan full git history for secrets
         # Two ways the scanned repo could otherwise loosen its own scan, both closed here:
