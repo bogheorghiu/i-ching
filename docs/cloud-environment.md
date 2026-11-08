@@ -8,17 +8,20 @@ The template's owner checklist says agent environments must arm the PII hooks be
 
 ```bash
 #!/usr/bin/env bash
-# Arm the template's git hooks only in this trusted repository (not globally).
-# Run after cloning the target repository, and replace /path/to/this/repo accordingly.
-# This avoids executing hooks from unrelated/untrusted repositories in the same session.
+# Arm the template's git hooks, per repository, only in repositories named here.
+# The setup script runs after the session's repositories are cloned, starting in the directory
+# that holds the checkouts (Claude Code environment tool docs, read 2026-11-07).
 set -euo pipefail
-git -C /path/to/this/repo config core.hooksPath .githooks
+for repo in i-ching; do   # list each trusted repo by its checkout folder name
+  if [ -d "$repo/.githooks" ]; then git -C "$repo" config core.hooksPath .githooks
+  else echo "WARNING: $repo/.githooks not found: PII hooks NOT armed for $repo" >&2; fi
+done
 # The denylist the hooks read. Without terms they block every commit (fail closed).
 # The terms are personal, so they are not in this script: put them in the environment
 # variable PII_DENYLIST (one term per line, or separated by |), which the hooks read.
 ```
 
-Configure `core.hooksPath` per repository (for trusted repos only). Do not set a global relative hooks path, because that can execute hooks from any cloned repository that ships a `.githooks/` folder.
+Why per repository and never `git config --global core.hooksPath .githooks`: a global, relative hooks path makes git run the `.githooks/` of any repository cloned later in the session (a dependency, a fork, research material) with the session's environment, keys included. Git otherwise never runs hooks that arrive with a clone. (Raised by GitHub Advanced Security on PR #1, 2026-11-07.)
 
 ## Environment variables and credentials
 
