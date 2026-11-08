@@ -197,6 +197,7 @@ To propose a plugin: a PR to `.claude/settings.json` stating what the project ne
 - Never: a secret in the tree; a workflow action not pinned to a full commit SHA; a dependency
   change without its lockfile; a hook, MCP server or permission outside an owner-gated PR.
 - Coordination across sessions, if the project needs it: `bogheorghiu/board-pattern`.
+  This repo has a board: see `BOARD.md`.
 
 ## 8. This project: the `i-ching-reading` skill
 

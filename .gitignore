@@ -27,3 +27,6 @@ __pycache__/
 /.claude/worktrees/
 node_modules/
 agent-log.jsonl
+
+# Board rows exported by tools/board/board.py; local cache, never committed.
+.board-cache/

@@ -100,3 +100,10 @@ Gemfile.lock @bogheorghiu
 # Project-specific lines go below (AGENTS.md, "When a path gets an owner"): e.g. the file that
 # reads an API key and decides where to send it, and any script, Makefile or justfile an
 # owned file above runs (the guard names it when one is missing).
+
+# The board kit: the SessionStart hook in .claude/settings.json runs tools/board/board.py
+# unread in every session, and board.py imports messages.py and reads defaults.json (the
+# meta-board address it registers boards on). board.py reads BOARD.md and the hook prints its
+# board address into every session: an ungated edit could point sessions at another board.
+/tools/board/ @bogheorghiu
+/BOARD.md @bogheorghiu
