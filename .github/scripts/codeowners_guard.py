@@ -26,9 +26,8 @@ What counts as running a file: executing, sourcing or importing it, not checking
 or using its name as test data. Python is parsed (ast): a name counts only inside the arguments
 of an exec-like call (subprocess.*, os.system/exec*/spawn*, exec, eval, runpy, importlib; matched
 by the call's last name, so session.run in a noxfile counts too; aliases and wrapper functions
-in the same file count), with variables bound anywhere in the file resolved (`a, b = x, y` and a
-loop over a literal list bind each name to its own slot, so an expected-error string beside the
-kwargs a test helper receives is not one of its arguments), or as a sibling import. A file that does not parse, or whose analysis hits a size limit, is scanned as text.
+in the same file count), with variables bound anywhere in the file resolved, or as a sibling
+import. A file that does not parse, or whose analysis hits a size limit, is scanned as text.
 Not seen in Python: a callable reached through getattr, a dict, or another module's wrapper.
 Shell-like text (hooks, workflows, git hooks, Makefiles, JSON commands) still counts every token
 except the operand of an existence test (`test -f x`, `[ -e x ]`, `[[ -d x ]]`). Other script
@@ -283,58 +282,15 @@ def _is_exec_name(last: str) -> bool:
     return last in PY_EXEC_NAMES or "exec" in last.lower() or "spawn" in last.lower()
 
 
-def _unpack(target, value):
-    """(target, value) pairs for `a, b = x, y`: by position when both sides are literal sequences
-    of one length with no starred item (recursively), else the whole value for the whole target."""
-    seq = (ast.Tuple, ast.List)
-    if isinstance(target, seq) and isinstance(value, seq) and len(target.elts) == len(value.elts) and \
-            not any(isinstance(e, ast.Starred) for e in target.elts + value.elts):
-        return [p for t, v in zip(target.elts, value.elts) for p in _unpack(t, v)]
-    return [(target, value)]
-
-
-def _literal_lists(tree) -> dict:
-    """Names bound once, by a plain `NAME = [..]` or `NAME = (..)`, and otherwise only read as the
-    iterable of a for loop or comprehension or as len(NAME): their items are exactly the literal's.
-    Any other use (rebinding, mutation, passing it on, `global`) leaves the name out."""
-    seq, assigned, ok_loads, loads, other = (ast.Tuple, ast.List), {}, set(), {}, set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) \
-                and isinstance(node.value, seq) and not any(isinstance(e, ast.Starred) for e in node.value.elts):
-            n = node.targets[0].id
-            (other.add(n) if n in assigned else assigned.__setitem__(n, node.value))
-            ok_loads.add(id(node.targets[0]))
-        elif isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)) and isinstance(node.iter, ast.Name):
-            ok_loads.add(id(node.iter))
-        elif isinstance(node, ast.Call) and _callee(node.func) == "len" and len(node.args) == 1 \
-                and isinstance(node.args[0], ast.Name) and not node.keywords:
-            ok_loads.add(id(node.args[0]))
-        elif isinstance(node, (ast.Global, ast.Nonlocal)):
-            other.update(node.names)
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Name) and id(node) not in ok_loads:
-            other.add(node.id)
-        elif isinstance(node, ast.arg):
-            other.add(node.arg)
-    return {k: v for k, v in assigned.items() if k not in other}
-
-
 def _py_exec_refs(tree, here: str, files: set) -> set:
     bound = {}   # name -> value nodes it may hold
     exec_names = set()
-    literal = _literal_lists(tree)
     for node in ast.walk(tree):
         pairs = []
-        if isinstance(node, ast.Assign):
-            pairs = [p for t in node.targets for p in _unpack(t, node.value)]
-        elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) and node.value is not None:
-            pairs = [(node.target, node.value)]
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) and node.value is not None:
+            pairs = [(t, node.value) for t in (node.targets if isinstance(node, ast.Assign) else [node.target])]
         elif isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)):
-            it = literal.get(node.iter.id, node.iter) if isinstance(node.iter, ast.Name) else node.iter
-            if isinstance(it, (ast.Tuple, ast.List)) and not any(isinstance(e, ast.Starred) for e in it.elts):
-                pairs = [p for e in it.elts for p in _unpack(node.target, e)]   # one binding per item
-            else:
-                pairs = [(node.target, node.iter)]
+            pairs = [(node.target, node.iter)]
         elif isinstance(node, ast.withitem) and node.optional_vars is not None:
             pairs = [(node.optional_vars, node.context_expr)]
         elif isinstance(node, ast.arguments):
@@ -563,24 +519,6 @@ def self_test():
         ("noxfile.py", 'import subprocess\nS = ["scripts/x.sh"]\nfor p in S:\n    subprocess.run(p)\n', {"scripts/x.sh"}, set()),
         ("noxfile.py", 'import subprocess\na0 = "x"\n' + "".join(f"a{i} = a{i-1} + a{i-1}\n" for i in range(1, 36))
          + 'subprocess.run(a35)\nsubprocess.run("scripts/x.sh")\n', {"scripts/x.sh"}, set()),
-        # A loop over a literal list binds each name to its own slot: the expected-error string
-        # beside the kwargs a test wrapper receives is not one of its arguments.
-        ("scripts/test_x.py", 'import subprocess, sys\n'
-         'def run_plugin(readme="# Demo", expect=""):\n'
-         '    subprocess.run([sys.executable, "scripts/x.sh", "tmp"])\n'
-         'CASES = [("missing README rejected", {"readme": None}, 1, "missing README.md")]\n'
-         'for label, kwargs, rc, err in CASES:\n    run_plugin(**kwargs)\nprint(len(CASES))\n',
-         {"scripts/x.sh"}, {"README.md"}),
-        ("scripts/test_x.py", 'import subprocess\nfor name, cmd in [("a", "scripts/x.sh")]:\n    subprocess.run(["bash", cmd])\n',
-         {"scripts/x.sh"}, set()),
-        ("scripts/test_x.py", 'import subprocess\nCASES = [("a", "README.md")]\nCASES = [("b", "scripts/x.sh")]\n'
-         'for name, cmd in CASES:\n    subprocess.run(["bash", cmd])\n', {"scripts/x.sh"}, set()),
-        ("scripts/test_x.py", 'import subprocess\nfor name, *cmd in [("a", "bash", "scripts/x.sh")]:\n    subprocess.run(cmd)\n',
-         {"scripts/x.sh"}, set()),
-        ("scripts/test_x.py", 'import subprocess\nfor name, cmd in [("a", "x"), ("scripts/x.sh",)]:\n    subprocess.run(["bash", name])\n',
-         {"scripts/x.sh"}, set()),
-        ("scripts/test_x.py", 'import subprocess\nname, cmd = "README.md", "scripts/x.sh"\nsubprocess.run(["bash", cmd])\n',
-         {"scripts/x.sh"}, {"README.md"}),
     ]
     for path, text, want_in, want_out in kept:
         got = refs_in_text(path, text, fx)
