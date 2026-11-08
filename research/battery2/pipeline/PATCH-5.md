@@ -3,7 +3,7 @@
 Why: tests 4-6 kept 1 item from 105 search-harvested candidates. Deviation 2 (PREREG) allows a
 research institute's complete issue TOC as record B; deviation 3 extends it to a CNKI article page
 as record A, both parsed in code. The code is `stage_s`, `cnki_entry` and `toc_entry` in
-`build_keys.py`; `build_keys.v5pre.py` is the version before it.
+`build_keys.py`; the version before it is `git show origin/main:research/battery2/pipeline/build_keys.py`.
 
 Run: `python3 -I pipeline/build_keys.py --workdir <dir> --seed-file pipeline/kimi/papers-2026-11-08-final.jsonl --target N`
 (`--stage s` registers seeds only). Seeds: one paper per line with candidate source URLs
