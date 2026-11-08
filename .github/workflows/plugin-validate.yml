@@ -1,0 +1,42 @@
+name: Plugin manifest validate
+
+# Runs Anthropic's own validator over the marketplace and, through it, every plugin
+# whose source is a local path. It catches what check_skills.py does not: manifest
+# schema errors and misspelled or leftover fields (a "keywordz" key fails here and
+# passes check_skills.py, checked 2026-09-28), which the Claude Directory also rejects.
+# Ported from bogheorghiu/ex-cog-dev. No login, key or network beyond the npm install.
+#
+# The CLI version is pinned: an unpinned validator can start failing CI from an
+# upstream change at any time. The cost is the other direction: a pinned validator
+# will not know a manifest field added upstream later, and --strict flags it. Raise
+# the pin deliberately when that happens.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  plugin-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+
+      - name: Install Claude Code (pinned)
+        # Install scripts run here on purpose: this package fetches its own native
+        # binary on install, so --ignore-scripts would leave it non-functional. The
+        # exact-version pin is the integrity lever for a first-party package.
+        run: npm install -g @anthropic-ai/claude-code@2.1.284
+
+      - name: Validate marketplace + every plugin manifest
+        run: |
+          set -euo pipefail
+          claude plugin validate . --strict

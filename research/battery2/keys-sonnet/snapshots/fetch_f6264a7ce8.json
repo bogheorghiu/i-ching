@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://lccn.loc.gov/2002066577",
+ "route": "probe3",
+ "date": "2026-11-04T07:39:48Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: fa5d7437-5474-4da7-b3fe-c6c4bfad967a)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}

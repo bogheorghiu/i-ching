@@ -1,0 +1,20 @@
+{
+  "name": "i-ching-reading",
+  "displayName": "I Ching Reading",
+  "version": "0.2.2",
+  "description": "I Ching (Book of Changes) readings with structural-relational interpretation, not fortune-cookie glosses. Yarrow/coin casting, King Wen + nuclear + complementary hexagrams, and Chinese-first source reading from the complete Zhouyi, all 64 hexagrams (guaci, yaoci and daxiang) validated against ctext.org. Optional bitwise/Walsh-function and trajectory layers.",
+  "author": {
+    "name": "bogheorghiu",
+    "url": "https://github.com/bogheorghiu"
+  },
+  "repository": "https://github.com/bogheorghiu/i-ching",
+  "license": "MIT",
+  "keywords": [
+    "i-ching",
+    "yijing",
+    "zhouyi",
+    "divination",
+    "hexagram",
+    "yarrow"
+  ]
+}

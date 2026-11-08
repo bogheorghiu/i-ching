@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "https://www.guji.com.cn/",
+ "route": "probe7",
+ "date": "2026-11-04T08:22:54Z",
+ "raw": {
+  "error": {
+   "status": 502,
+   "body": "upstream request failed"
+  }
+ }
+}

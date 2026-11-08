@@ -1,0 +1,108 @@
+{
+ "kind": "search",
+ "query": "出土文献 中西书局 辑刊 目录 2020年第1期",
+ "count": 8,
+ "need_content": false,
+ "route": "probe2",
+ "date": "2026-11-04T07:37:50Z",
+ "raw": {
+  "results": [
+   {
+    "title": "出土文献 2020年01期",
+    "site_name": "知网空间",
+    "site_icon": "https://cdn.deepseek.com/site-icons/cnki.com.cn",
+    "authority": 3,
+    "rerank_score": 1.125,
+    "date": null,
+    "url": "https://www.cnki.com.cn/Journal/F-F4-CUWX-2020-01.htm",
+    "summary": "| 出土文献 \n\nExcavated Documents \n主办： 上海中西书局有限公司;清华大学 \n周期： 季刊 \n出版地：上海市 \n语种： 中文; \n开本： 16开 \n\nISSN 2096-7365 \nCN 31-2170/K \n\n创刊年：2010 \nASPT来源刊 \nCSSCI 中文社会科学引文索引来源期刊(2021-2022) \nAMI新刊核心 \n中国期刊网来源刊",
+    "snippet": "出土文献 Excavated Documents 主办： 上海中西书局有限公司;清华大学 周期： 季刊 出版地：上海市 ... 2010 ASPT来源刊 CSSCI 中文社会科学引文索引来源期刊(2021-2022)",
+    "content": ""
+   },
+   {
+    "title": "中西書局 - 三民網路書店",
+    "site_name": "三民網路書店",
+    "site_icon": "https://cdn.deepseek.com/site-icons/sanmin.com.tw",
+    "authority": 3,
+    "rerank_score": 1.069399118423462,
+    "date": null,
+    "url": "https://www.sanmin.com.tw/search?pu=%e4%b8%ad%e8%a5%bf%e6%9b%b8%e5%b1%80&fa=%e4%b8%ad%e5%9c%8b%e6%96%87%e5%8c%96%e9%81%ba%e7%94%a2%e7%a0%94%e7%a9%b6%e9%99%a2%e3%80%80%e7%b7%a8%e8%91%97&fp=%e4%b8%ad%e8%a5%bf%e6%9b%b8%e5%b1%80&dt=9y",
+    "summary": "出版日：2020/12/01 作者：中國文化遺產研究院 編著 出版社：中西書局 裝訂：平裝\n\n《出土文獻研究》創辦於1985年，為國內最早的以出土文獻為研究物件的專業輯刊。本輯共收錄論文35篇，內容涉及戰國秦漢三國簡牘及銅器、墓誌等多種出土資料，包括新近刊佈的荊州夏家臺M106戰國楚簡《日書》等，研究既有文字學上的探討，又有文獻學、史學等方面的考察，由此可以一見出土文獻研究的新進展。",
+    "snippet": "出版日：2020/12/01 作者：中國文化遺產研究院 編著 出版社：中西書局 裝訂：平裝 《出土文獻研究》創辦於1985年，為國內最早的以出土文獻為研究物件的專業輯刊。本輯共收錄論文35篇，內容涉及戰國秦漢三國簡牘及銅器、墓誌等多種出土資料，包括新近刊佈的荊州夏家臺M106戰國楚簡《日書》等，研究既有文字學上的探討，又有文獻學、史學等方面的考察，由此可以一見出土文獻研究的新進展。",
+    "content": ""
+   },
+   {
+    "title": "CiNii Books 著者 - 清華大學出土文獻研究與保護中心",
+    "site_name": "CiNii",
+    "site_icon": "https://cdn.deepseek.com/site-icons/nii.ac.jp",
+    "authority": 4,
+    "rerank_score": 0.9093302488327026,
+    "date": null,
+    "url": "https://ci.nii.ac.jp/author/DA18395157?p=3&l=ja",
+    "summary": "# 清華大學出土文獻研究與保護中心 セイカ ダイガク シュツド ブンケン ケンキュウ ヨ ホゴ チュウシン qing hua da xue chu tu wen xian yan jiu yu bao hu zhong xin\n...\n清华大学出土文献研究与保护中心（セイカ ダイガク シュツド ブンケン ケンキュウ ヨ ホゴ チュウシン）\n\n- 長沙五一廣場東漢簡牘\n\n長沙市文物考古研究所 [ほか] 編\n\n中西書局 2020.12\n...\n- 清華大學藏戰國竹簡\n\n黄徳寛主编 ; 清華大學出土文獻研究與保護中心编\n\n中西書局 2020.11\n\n10 下册\n\n所蔵館28館\n...\n10 上册\n\n所蔵館29館",
+    "snippet": "中西書局 2020.12 ... - 清華大學藏戰國竹簡 黄徳寛主编 ; 清華大學出土文獻研究與保護中心编 中西書局 2020.11",
+    "content": ""
+   },
+   {
+    "title": "",
+    "site_name": "敦煌研究院",
+    "site_icon": "https://cdn.deepseek.com/site-icons/dha.ac.cn",
+    "authority": 4,
+    "rerank_score": 0.8936753869056702,
+    "date": null,
+    "url": "https://lib.dha.ac.cn/opac/search;jsessionid=FF0DF2B99C4431D5411F1A9D1770220B?q=%E4%B8%AD%E8%A5%BF%E4%B9%A6%E5%B1%80&searchType=standard&isFacet=true&view=standard&searchWay=publisher&rows=10&sortWay=score&sortOrder=desc&f_curlibcode=DHYJY&f_subject=%E5%87%BA%E5%9C%9F%E6%96%87%E7%89%A9+-+%E6%96%87%E7%8C%AE+-+%E7%A0%94%E7%A9%B6+-+%E4%B8%AD%E5%9B%BD&f_lang=chi&f_class1=k&searchWay0=marc&logical0=AND",
+    "summary": "- 中国文化遗产研究院编.出土文献研究(第十九辑).中西书局,2020.12.",
+    "snippet": "中国文化遗产研究院编.出土文献研究(第二十辑).中西书局,2021.12. 复制引文到剪贴板 ... - 中国文化遗产研究院编.出土文献研究(第十九辑).中西书局,2020.12. 复制引文到剪贴板",
+    "content": ""
+   },
+   {
+    "title": "遺產 - 三民網路書店 - TOP",
+    "site_name": "三民網路書店",
+    "site_icon": "https://cdn.deepseek.com/site-icons/sanmin.com.tw",
+    "authority": 3,
+    "rerank_score": 0.851311981678009,
+    "date": null,
+    "url": "https://www.sanmin.com.tw/search?k=%e9%81%ba%e7%94%a2&pk=0&fa=%e4%b8%ad%e5%9c%8b%e6%96%87%e5%8c%96%e9%81%ba%e7%94%a2%e7%a0%94%e7%a9%b6%e9%99%a2%e3%80%80%e7%b7%a8%e8%91%97&pt=s#1",
+    "summary": "出版日：2020/12/01 作者：中國文化遺產研究院 編著 出版社：中西書局 裝訂：平裝\n\n《出土文獻研究》創辦於1985年，為國內最早的以出土文獻為研究物件的專業輯刊。本輯共收錄論文35篇，內容涉及戰國秦漢三國簡牘及銅器、墓誌等多種出土資料，包括新近刊佈的荊州夏家臺M106戰國楚簡《日書》等，研究既有文字學上的探討，又有文獻學、史學等方面的考察，由此可以一見出土文獻研究的新進展。\n...\n本書爲中國文化遺産研究院編《出土文獻研究》輯刊，本輯共收録論文三十四篇，內容涉及甲骨、金石、戰國秦漢三國簡帛等多種出土資料，包括新近刊布的荊州胡家草場西漢墓M12出土的簡牘等，研究既有文字學上的探討，又有文獻學、史學及哲學等方面的考察，由此可以一見出土文獻研究的新進展。\n...\n本書爲中國文化遺産研究院編《出土文獻研究》輯刊，本輯共收録論文三十篇，內容涉及甲骨、金石、戰國秦漢三國簡帛等多種出土資料，包括新近刊布的《清華大學藏戰國竹簡（捌）》《長沙五一廣場東漢簡牘》等，研究既有文字學上的探討，又有文獻學、史學及哲學等方面的考察，由此可以一見出土文獻研究的新進展。\n...\n本書為中國文化遺產研究院編《出土文獻研究》輯刊，本輯共收錄論文三十五篇，內容涉及金文、戰國秦漢三國簡牘以及黑水城文書等多種出土文獻資料，既有文字學的探討，又有文獻學、史學及哲學等方面的研究，由此可以一見出土文獻研究的新進展。此外，本輯插頁收錄了成都天回鎮老官山漢墓醫簡八枚，其中藥方目錄簡四枚，藥方內容簡四枚。\n...\n《出土文獻研究》是中國文化遺產研究院主編的系列學術集刊，主要收錄出土文獻相關研究領域的學者論文，內容包括甲骨、金文、簡帛、璽印等相關領域的研究成果。\n...\n本書為中國文化遺產研究院所編集刊《出土文獻研究》第二十四輯。本輯共收錄論文二十一篇，內容廣泛，涉及甲骨文、金文、戰國至秦漢三國時期的文字、文獻等多種歷史文獻材料。其中有多篇論文使用較新的研究思路及研究材料，具有一定前沿性。本輯收錄了多篇系統整理、詳細辨析出土文獻材料的相關論文，有利於學界對出土文獻材料的進一步研究、利用。集刊既為專業學者提供研究交流平臺，也為廣大研究者和愛好者呈現出土文獻研究的全新進展。通過對各類出土文獻的精細解讀和嚴謹分析，能夠深化對古文字及歷史、哲學等領域的認識，進一步推動古文字學和古文獻學研究的發展。\n...\n本書收錄研究清華簡、上博簡及其他戰國、秦漢簡牘文書，及敦煌文書等論文三十餘篇，反映了當今學術界研究出土文獻的最新成果。",
+    "snippet": "出版日：2020/12/01 作者：中國文化遺產研究院 編著 出版社：中西書局 裝訂：平裝 《出土文獻研究》創辦於1985年，為國內最早的以出土文獻為研究物件的專業輯刊。本輯共收錄論文35篇，內容涉及戰國秦漢三國簡牘及銅器、墓誌等多種出土資料，包括新近刊佈的荊州夏家臺M106戰國楚簡《日書》等，研究既有文字學上的探討，又有文獻學、史學等方面的考察，由此可以一見出土文獻研究的新進展。",
+    "content": ""
+   },
+   {
+    "title": "",
+    "site_name": "敦煌研究院",
+    "site_icon": "https://cdn.deepseek.com/site-icons/dha.ac.cn",
+    "authority": 4,
+    "rerank_score": 0.839436948299408,
+    "date": null,
+    "url": "http://lib.dha.ac.cn/opac/search?q=%E4%B8%AD%E8%A5%BF%E4%B9%A6%E5%B1%80&searchType=standard&isFacet=true&view=standard&searchWay=publisher&rows=10&sortWay=score&sortOrder=desc&searchWay0=marc&logical0=AND&f_subject=%E5%87%BA%E5%9C%9F%E6%96%87%E7%89%A9+-+%E6%96%87%E7%8C%AE+-+%E7%A0%94%E7%A9%B6+-+%E4%B8%AD%E5%9B%BD",
+    "summary": "- 中国文化遗产研究院.出土文献研究(第十九辑).中西书局,2020.12.",
+    "snippet": "中国文化遗产研究院.出土文献研究(第二十辑).中西书局,2021.12. 复制引文到剪贴板 ... - 中国文化遗产研究院.出土文献研究(第十九辑).中西书局,2020.12. 复制引文到剪贴板 ... - 清华大学出土文献研究与保护中心.出土文献(第四辑).中西书局...",
+    "content": ""
+   },
+   {
+    "title": "CiNii Books Author - 清華大學出土文獻研究與保護中心",
+    "site_name": "CiNii",
+    "site_icon": "https://cdn.deepseek.com/site-icons/nii.ac.jp",
+    "authority": 4,
+    "rerank_score": 0.839436948299408,
+    "date": null,
+    "url": "https://ci.nii.ac.jp/author/DA18395157?p=3&l=en",
+    "summary": "# 清華大學出土文獻研究與保護中心 セイカ ダイガク シュツド ブンケン ケンキュウ ヨ ホゴ チュウシン qing hua da xue chu tu wen xian yan jiu yu bao hu zhong xin\n...\n清华大学出土文献研究与保护中心（セイカ ダイガク シュツド ブンケン ケンキュウ ヨ ホゴ チュウシン）\n\n- 長沙五一廣場東漢簡牘\n\n長沙市文物考古研究所 [ほか] 編\n\n中西書局 2020.12\n...\n- 清華大學藏戰國竹簡\n\n黄徳寛主编 ; 清華大學出土文獻研究與保護中心编\n\n中西書局 2020.11\n\n10 下册\n\nAvailable at 28 libraries\n...\n10 上册\n\nAvailable at 29 libraries",
+    "snippet": "長沙五一廣場東漢簡牘 ... 中西書局 2020.12 ... - 清華大學藏戰國竹簡 黄徳寛主编 ; 清華大學出土文獻研究與保護中心编 中西書局 2020.11",
+    "content": ""
+   },
+   {
+    "title": "",
+    "site_name": "四川省图书馆",
+    "site_icon": "https://cdn.deepseek.com/site-icons/sclib.cn",
+    "authority": 3,
+    "rerank_score": 0.6956717371940613,
+    "date": null,
+    "url": "http://opac.sclib.cn:8088/opac/search?q=%E4%B8%AD%E8%A5%BF%E4%B9%A6%E5%B1%80&searchType=standard&isFacet=true&view=standard&searchWay=publisher&rows=10&sortWay=score&sortOrder=desc&searchWay0=marc&logical0=AND&f_subject=%E5%87%BA%E5%9C%9F%E6%96%87%E7%89%A9",
+    "summary": "- 贾连翔.出土数字卦文献辑释.中西书局,2020.\n...\n- 吴良宝.出土文献史地论集.中西书局,2020.\n...\nhttp://opac.sclib.cn:80/opac/book/1041875 复制引文到剪贴板\n...\nhttp://opac.sclib.cn:80/opac/book/1043190 复制引文到剪贴板",
+    "snippet": "复旦大学.出土文献与中国古代史．第一辑.中西书局 ... - 贾连翔.出土数字卦文献辑释.中西书局,2020. 复制引文到剪贴板 ... - 吴良宝.出土文献史地论集.中西书局,2020. 复制引文到剪贴板",
+    "content": ""
+   }
+  ]
+ }
+}

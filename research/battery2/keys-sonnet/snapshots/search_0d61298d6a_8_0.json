@@ -1,0 +1,108 @@
+{
+ "kind": "search",
+ "query": "上海古籍出版社 官网 周易 新书 出版 ISBN 978-7-5325",
+ "count": 8,
+ "need_content": false,
+ "route": "probe3",
+ "date": "2026-11-04T07:40:27Z",
+ "raw": {
+  "results": [
+   {
+    "title": "周易郑氏学阐微",
+    "site_name": "云书房",
+    "site_icon": "https://cdn.deepseek.com/site-icons/ruc.edu.cn",
+    "authority": 3,
+    "rerank_score": 1.3823730945587158,
+    "date": null,
+    "url": "https://vstudy.ruc.edu.cn/mystudy/search/detail/m59a2de2efa34b90e004b571c80887c27",
+    "summary": "# 周易郑氏学阐微\n\n题名/责任者:周易郑氏学阐微:林忠军著\n\n出版发行项:上海:上海古籍出版社,2019\n\nISBN及定价:978-7-5325-9414-6 精装/CNY78.00\n\n载体形态项:461页:21cm\n\n个人责任者:林忠军 著\n\n学科主题:周易 研究\n\n中图法分类号:B221.5\n\n责任者附注:林忠军，山东大学易学与中国古代哲学研究中心教授，博士生导师。\n\n提要文摘附注:本书上编九章, 分述郑玄易学产生的社会背景及郑氏的人生历程, 详述其易学思想的渊源, 进而分论郑玄易学中的天道观、象数论、象数义理并重且兼顾训诂的易学诠释方法, 最后总论郑玄易学的学术价值。下编为对历代学者所辑出之《周易》郑玄注的“通释”。",
+    "snippet": "周易郑氏学阐微 ... 上海:上海古籍出版社,2019 ISBN及定价:978-7-5325-9414-6 精装/CNY78.00",
+    "content": ""
+   },
+   {
+    "title": "缩小检索范围",
+    "site_name": "202.101.180",
+    "site_icon": null,
+    "authority": 3,
+    "rerank_score": 1.3582656383514404,
+    "date": null,
+    "url": "https://202.101.180.43/ILASOPAC/NTRdrBookRetr.do?SearchType=text&SearchKey=%25E5%2593%25B2%25E5%25AD%25A6&PageNum=10&searchWay=searchWayPrv&ResearchSearchType=null&researchSearchKey=null&LeftSubjectType=subject&LeftSubjectKey=%E5%85%88%E7%A7%A6%E5%93%B2%E5%AD%A6&leftPublishType=publish&leftPublishKey=%E4%B8%8A%E6%B5%B7%E5%8F%A4%E7%B1%8D%E5%87%BA%E7%89%88%E7%A4%BE",
+    "summary": "### 周易译注\n作者：黄寿祺，张善文撰； \n出版社：上海古籍出版社 出版时间：2022 \nISBN/ISSN：978-7-5325-8790-2 丛书名： \n分类号：B221.2 页数：843页 \n价格：CNY69.00 内容简介\n...\n### 周易简明读本\n作者：王郭章著；\n...\nISBN/ISSN：978-7-5325-8165-8 丛书名：\n...\n价格：CNY39.00 内容简介\n...\n### 尔雅译注\n...\nISBN/ISSN：978-7-5325-3744-0 丛书名：\n...\n### 汉上易传\n...\nISBN/ISSN：978-7-5325-9717-8 丛书名：马一浮编选《群经统类》整理丛书\n...\n### 周易全解\n作者：金景芳，吕绍纲著；吕绍纲修订；\n...\nISBN/ISSN：978-7-5325-8486-4 丛书名：\n...\n价格：CNY76.00 内容简介",
+    "snippet": "周易译注 作者：黄寿祺，张善文撰； 出版社：上海古籍出版社 出版时间：2022 ISBN/ISSN：978-7-5325-8790-2 丛书名 ... 978-7-5325-8165-8 丛书名...",
+    "content": ""
+   },
+   {
+    "title": "周易：附周易略例",
+    "site_name": "Hbnu",
+    "site_icon": "https://cdn.deepseek.com/site-icons/hbnu.edu.cn",
+    "authority": 3,
+    "rerank_score": 1.274011731147766,
+    "date": null,
+    "url": "https://opac.hbnu.edu.cn/ILASOPAC/NTRdrBookRetr.do?SearchType=publish&SearchKey=%25E4%25B8%258A%25E6%25B5%25B7%25E5%258F%25A4%25E7%25B1%258D%25E5%2587%25BA%25E7%2589%2588%25E7%25A4%25BE&PageNum=10&searchWay=searchWayPrv&ResearchSearchType=null&researchSearchKey=null&LeftTypeType=type&LeftTypeKey=0&leftPublishType=publish&leftPublishKey=%E4%B8%8A%E6%B5%B7%E5%8F%A4%E7%B1%8D%E5%87%BA%E7%89%88%E7%A4%BE&leftAuthorType=author&leftAuthorKey=%28%E4%B8%89%E5%9C%8B%29+%E7%8E%8B%E5%BC%BC%2C+%28%E6%9D%B1%E6%99%89%29+%E9%9F%93%E5%BA%B7%E4%BC%AF%E6%B3%A8&LeftLanguageType=language&LeftLanguageKey=CNMARC",
+    "summary": "### 周易：附周易略例\n作者：(三國) 王弼, (東晉) 韓康伯注 \n出版社：上海古籍出版社 出版时间：2015 \nISBN/ISSN：978-7-5325-7525-1 丛书名： \n分类号：B221.2 页数：1函2册 \n价格：CNY298.00 (2册) 内容简介",
+    "snippet": "周易：附周易略例 作者：(三國) 王弼, (東晉) 韓康伯注 出版社：上海古籍出版社 出版时间：2015 ISBN/ISSN：978-7-5325-7525-1 丛书名...",
+    "content": ""
+   },
+   {
+    "title": "《周易》的观念形态论 图书",
+    "site_name": "东北林业大学",
+    "site_icon": "https://cdn.deepseek.com/site-icons/nefu.edu.cn",
+    "authority": 3,
+    "rerank_score": 1.274011731147766,
+    "date": null,
+    "url": "https://metalib.nefu.edu.cn/space/searchDetailLocal/m444702cda39601802dfb2367d6ab5bbf",
+    "summary": "《周易》的观念形态论 图书\n...\n题名/责任者:《周易》的观念形态论/李笑野著\n\n出版发行项:上海:上海古籍出版社,2023.4\n\nISBN及定价:978-7-5325-8317-1/CNY99.00\n\n载体形态项:289页\n\n并列正题名:Study on the ideology based on the book of changes\n\n丛编项:国家社科基金后期资助项目\n\n个人责任者:李笑野, 1955- 著\n\n题名主题:周易-研究\n\n中图法分类号:B221.5\n\n一般附注:2014年度国家社科基金后期资助项目 (14FZW001)\n...\n- 210 __ |a 上海 |c 上海古籍出版社 |d 2023.4\n- 215 __ |a 289页 |d 24cm\n...\n- 314 __ |a 李笑野, 吉林通化人, 1955年生, 毕业于复旦大学, 获文学博士学位。\n...\n- 330 __ |a 本成果对《周易》的思想和丰富的文化含量, 进行了系统的挖掘与整理。揭示了以卜筮的形式独具面貌的经典之中所展示的中华先人对自己认识的思想成果, 这些成果大都作为传统思想、文化的内核而具有着稳定性和持久性, 是我们民族文化构成的本质要素。全书共分十五章。分别论述了《周易》的思维方式、君子政治理想、教育思想、财富观、军事思想、情爱观、审美观等问题。",
+    "snippet": "题名/责任者:《周易》的观念形态论/李笑野著 出版发行项:上海:上海古籍出版社,2023.4 ISBN及定价:978-7-5325-8317-1/CNY99.00",
+    "content": ""
+   },
+   {
+    "title": "《周易》的观念形态论 :李笑野",
+    "site_name": "昆明图书馆",
+    "site_icon": "https://cdn.deepseek.com/site-icons/kmlib.yn.cn",
+    "authority": 3,
+    "rerank_score": 1.235100269317627,
+    "date": null,
+    "url": "http://ilasweb.kmlib.yn.cn/NTRdrBookRetr.aspx?strType=text&strKeyValue=978-7-5325-8317-1",
+    "summary": "978-7-5325-8317-1 共有1条记录\n...\n### 《周易》的观念形态论:李笑野\n作者：李笑野 出版社：上海古籍出版社 出版时间：2016 ISBN：978-7-5325-8317-1 \n索书号：B221.5/4086 分类号：B221.5 页数：289页 价格：68.00\n...\n本书以现代视角，在已有研究成果的基础上，对《周易》的思维方法、观念形态进行了分类梳理，综合研究。侧重择取具有重大影响的诸观念建树和价值准则，以探索中国文化传统中的人生态度、社会理想。",
+    "snippet": "978-7-5325-8317-1 共有1条记录 ... 《周易》的观念形态论:李笑野 作者：李笑野 出版社：上海古籍出版社 出版时间：2016 ISBN：978-7-5325-8317-1",
+    "content": ""
+   },
+   {
+    "title": "《周易》的观念形态论",
+    "site_name": "Hbnu",
+    "site_icon": "https://cdn.deepseek.com/site-icons/hbnu.edu.cn",
+    "authority": 3,
+    "rerank_score": 1.1804428100585938,
+    "date": null,
+    "url": "https://opac.hbnu.edu.cn/ILASOPAC/NTRdrBookRetr.do?SearchType=publish&SearchKey=%25E4%25B8%258A%25E6%25B5%25B7%25E5%258F%25A4%25E7%25B1%258D%25E5%2587%25BA%25E7%2589%2588%25E7%25A4%25BE&PageNum=10&searchWay=searchWayPrv&ResearchSearchType=null&researchSearchKey=null&leftAuthorType=author&leftAuthorKey=%E6%9D%8E%E7%AC%91%E9%87%8E%E8%91%97&LeftSubjectType=subject&LeftSubjectKey=%E5%85%88%E7%A7%A6%E5%93%B2%E5%AD%A6&LeftLanguageType=language&LeftLanguageKey=CNMARC",
+    "summary": "### 《周易》的观念形态论\n作者：李笑野著 \n出版社：上海古籍出版社 出版时间：2016 \nISBN/ISSN：978-7-5325-8317-1 丛书名：国家社科基金后期资助项目 \n分类号：B221.5 页数：289页 \n价格：CNY68.00 内容简介",
+    "snippet": "《周易》的观念形态论 作者：李笑野著 出版社：上海古籍出版社 出版时间：2016 ISBN/ISSN：978-7-5325-8317-1 丛书名：国家社科基金后期资助项目",
+    "content": ""
+   },
+   {
+    "title": "周易答問",
+    "site_name": "云书房",
+    "site_icon": "https://cdn.deepseek.com/site-icons/ruc.edu.cn",
+    "authority": 3,
+    "rerank_score": 1.14116370677948,
+    "date": null,
+    "url": "https://vstudy.ruc.edu.cn/mystudy/searchDetail/mc3fabb206011988d39d7e5127708d319",
+    "summary": "# 周易答問\n\n题名/责任者:周易答問:郑吉雄著\n\n出版发行项:上海:上海古籍出版社,2019\n\nISBN及定价:978-7-5325-9436-8 精装/CNY68.00\n\n载体形态项:402页:图;21cm\n...\n个人责任者:郑吉雄 著\n\n题名主题:《周易》 通俗读物\n\n学科主题:先秦哲学\n\n中图法分类号:B221.2\n\n提要文摘附注:本书是关于《周易》的普及导读著作。作者长期从事《周易》研究和教学，以深厚的学术功底和对《周易》及易学的深刻理解，对读者在学习过程中遇到的问题进行有针对性的解答。全书以答问形式，提出100条问题，涉及《周易》的方方面面，每一问题提供篇幅1-2页(含附图)的答案，务求简明扼要，适合初学者和社会一般人士，具有更强的普及性。",
+    "snippet": "周易答問:郑吉雄著 出版发行项:上海:上海古籍出版社,2019 ISBN及定价:978-7-5325-9436-8 精装/CNY68.00",
+    "content": ""
+   },
+   {
+    "title": "周易答问[专著] / 郑吉雄著",
+    "site_name": "佛山市图书馆",
+    "site_icon": "https://cdn.deepseek.com/site-icons/fslib.com.cn",
+    "authority": 3,
+    "rerank_score": 1.0613691806793213,
+    "date": null,
+    "url": "https://opac.fslib.com.cn/ILASOPAC/NTRdrBookRetrInfo.do;jsessionid=C87694D79C291FF415AEF149C6330757?recno=3195433&random=-1986972922&libid=",
+    "summary": "### 周易答问[专著]/郑吉雄著\n...\n- 出版社：上海古籍出版社\n- 出版日期：2019\n- 出版地：上海\n- 尺寸：21cm\n- ISBN/ISSN：978-7-5325-9436-8\n- 分类号：B221.5-49\n- 主题词：《周易》\n...\n- 页码：402页\n- 价格：CNY68.00\n...\n本书题名《周易答问》,旨在回答关于《周易》一书各方面的问题。全书共六十四问,应六十四卦之数。作者试着将复杂的问题,深入浅出地讲解,希望能揭开《周易》的神秘面纱,让更多读者分享中国古代经典中的智慧。",
+    "snippet": "周易答问[专著]/郑吉雄著 ... - 出版社：上海古籍出版社 - 出版日期：2019 ... - ISBN/ISSN：978-7-5325-9436-8",
+    "content": ""
+   }
+  ]
+ }
+}

@@ -1,0 +1,108 @@
+{
+ "kind": "search",
+ "query": "上海古籍出版社 图书 易学 出版时间 guji.com.cn 周易 新著 2019",
+ "count": 8,
+ "need_content": false,
+ "route": "probe7",
+ "date": "2026-11-04T08:22:55Z",
+ "raw": {
+  "results": [
+   {
+    "title": "上海视觉艺术学院图书馆书目检索系统 Online Public Access Catalogue",
+    "site_name": "siva.edu.cn",
+    "site_icon": "https://cdn.deepseek.com/site-icons/siva.edu.cn",
+    "authority": 3,
+    "rerank_score": 0.7614221572875977,
+    "date": null,
+    "url": "https://library.siva.edu.cn/opac/openlink.php?coden=B221.5&count=140&displaypg=20&doctype=ALL&lang_code=ALL&location=ALL&match_flag=forward&onlylendable=no&orderby=DESC&page=2&showmode=list&sort=CATA_DATE&with_ebook=off",
+    "summary": "### 中文图书25.乾坤衍 B221.5/X645\n...\n上海古籍出版社 2019\n...\n### 中文图书30.周易郑氏学阐微 B221.5/L542\n...\n可借复本：1 林忠军著",
+    "snippet": "馆藏复本：1 可借复本：1 (明) 郭子章著 ... (0) 馆藏 ... 上海古籍出版社 2019 ... 中文图书30.周易郑氏学阐微 B221.5/L542 ... 1 林忠军著",
+    "content": ""
+   },
+   {
+    "title": "吉林师范大学图书馆书目检索系统 Online Public Access Catalogue",
+    "site_name": "吉林师范大学",
+    "site_icon": "https://cdn.deepseek.com/site-icons/jlnu.edu.cn",
+    "authority": 3,
+    "rerank_score": 0.745339572429657,
+    "date": null,
+    "url": "http://opac.jlnu.edu.cn:8081/opac/openlink.php?location=070++&coden=B221.2&doctype=ALL&lang_code=ALL&match_flag=forward&displaypg=20&showmode=list&orderby=DESC&sort=CATA_DATE&onlylendable=no&count=69&with_ebook=off&page=2",
+    "summary": "### 中文图书21.周易答问 B221.2/26=精\n...\n可借复本：2 郑吉雄著\n上海古籍出版社 2019",
+    "snippet": "中文图书21.周易答问 B221.2/26=精 馆藏复本：2 可借复本：2 郑吉雄著 上海古籍出版社 2019 ... 中文图书26.周易溯源与早期易学考论 B221.2/20",
+    "content": ""
+   },
+   {
+    "title": "中国劳动关系学院图书馆书目检索系统 Online Public Access Catalogue",
+    "site_name": "culr.edu.cn",
+    "site_icon": "https://cdn.deepseek.com/site-icons/culr.edu.cn",
+    "authority": 3,
+    "rerank_score": 0.6599414944648743,
+    "date": null,
+    "url": "https://ilib.culr.edu.cn/opac/openlink.php?author=%E5%BC%A0&subject=%E5%91%A8%E6%98%93&doctype=01&lang_code=ALL&match_flag=forward&displaypg=20&showmode=list&orderby=DESC&sort=CATA_DATE&onlylendable=yes&with_ebook=off&location=&location=&location=&location=SK01",
+    "summary": "检索到 28 条 责任者=张 主题=周易 馆藏地=北京校区书库（老馆） 文献类型=中文图书 的结果\n\n### 中文图书1.易餘:外一種.修订版 B221.5/112-2\n...\n可借复本：4 (明) 方以智著\n上海古籍出版社 2024\n...\n### 中文图书2.周易入门 B221/7\n...\n上海古籍出版社 2021.08\n...\n### 中文图书3.周易譯註.修订本 B221.4/4-2\n...\n上海古籍出版社 2018.06\n...\n### 中文图书4.王弼易学研究:以体用论为中心 B235.25/3\n...\n巴蜀书社 2019.12\n...\n### 中文图书6.易餘:外一種 B221.5/112\n...\n### 中文图书8.周易表解 B221.5/110\n...\n上海古籍出版社 2017.06\n...\n### 中文图书9.易学史发微 B221.5/107\n...\n### 中文图书10.易学史入门 论吾国文化中包含的自然科学理论 B221.5/106\n...\n### 中文图书11.易学史丛论 B221.5/104\n...\n### 中文图书12.周易虞氏易象释 B221.5/108\n...\n### 中文图书14.读易提要 B221.5/102\n...\n### 中文图书15.易与佛教 易与老庄 B221.5/103\n...\n### 中文图书20.《周易》选评 B221.5/72\n...\n上海古籍出版社 2011.12",
+    "snippet": "中文图书1.易餘:外一種.修订版 B221.5/112-2 馆藏复本：4 可借复本：4 (明) 方以智著 ... 中文图书4.王弼易学研究:以体用论为中心 B235.25/3 ... 巴蜀书社 2019.12",
+    "content": ""
+   },
+   {
+    "title": "",
+    "site_name": "豆瓣",
+    "site_icon": "https://cdn.deepseek.com/site-icons/douban.com",
+    "authority": 2,
+    "rerank_score": 0.6280026435852051,
+    "date": null,
+    "url": "https://www.douban.com/doulist/41093170/",
+    "summary": "# 易学书目\n\n来自：豆瓣读书\n\n作者:\n...\n出版社: 上海古籍出版社\n\n出版年:\n...\n郑吉雄\n...\n2019-12\n...\n2018-12",
+    "snippet": "易学书目 来自：豆瓣读书 作者: [美]夏含夷 出版社: 上海古籍出版社 出版年: 2022-11 来自：豆瓣读书 作者: 郑吉雄 ... 2019-12 ... 2018-12",
+    "content": ""
+   },
+   {
+    "title": "浙江中医药大学图书馆书目检索系统 Online Public Access Catalogue",
+    "site_name": "zcmu.edu.cn",
+    "site_icon": "https://cdn.deepseek.com/site-icons/zcmu.edu.cn",
+    "authority": 3,
+    "rerank_score": 0.5984085202217102,
+    "date": null,
+    "url": "http://opac.zcmu.edu.cn/opac/openlink.php?location=ALL&author=%E5%BC%A0%3F&subject=%E5%91%A8%E6%98%93&doctype=ALL&lang_code=ALL&match_flag=forward&displaypg=20&showmode=list&orderby=DESC&sort=CATA_DATE&onlylendable=no&count=38&with_ebook=off&page=2",
+    "summary": "### 中文图书21.易学研究新视野:从综合百家到融通三教 B221.5/1230\n...\n社会科学文献出版社·人文分社 2019.05\n...\n### 中文图书22.易老与养生 R212/3211\n...\n上海古籍出版社 2017.06\n...\n### 中文图书23.易余:外一种 B221.5/0028\n...\n可借复本：4 (明)方以智著\n上海古籍出版社 2018.04\n...\n### 中文图书26.童溪易傳 B221.5/1032\n...\n上海古籍出版社 2017.12\n...\n### 中文图书34.周易:玄妙的天书 B221-49/1280\n...\n上海古籍出版社 2008.07",
+    "snippet": "中文图书21.易学研究新视野:从综合百家到融通三教 B221.5/1230 ... 社会科学文献出版社·人文分社 2019.05 ... 上海古籍出版社 2017.06",
+    "content": ""
+   },
+   {
+    "title": "图书馆书目检索系统 Online Public Access Catalogue",
+    "site_name": "内蒙古科技大学包头师范学院图书馆书目检索系统 Online Public Access Catalogue",
+    "site_icon": "https://cdn.deepseek.com/site-icons/bttc.edu.cn",
+    "authority": 2,
+    "rerank_score": 0.5816672444343567,
+    "date": null,
+    "url": "https://opac.bttc.edu.cn/opac/openlink.php?location=ALL&keyword=%E5%91%A8%E6%98%93&doctype=ALL&lang_code=ALL&match_flag=forward&displaypg=20&showmode=list&orderby=DESC&sort=CATA_DATE&onlylendable=no&count=500&with_ebook=off&page=2",
+    "summary": "### 中文图书27.易余:外一种.修订版 B221.5/125=2\n...\n可借复本：2 (明)方以智著\n上海古籍出版社 2024",
+    "snippet": "3 可借复本 ... 中文图书27.易余:外一种.修订版 B221.5/125=2 ... 2 (明)方以智著 上海古籍出版社 2024",
+    "content": ""
+   },
+   {
+    "title": "上海古籍出版社 - Wikiwand",
+    "site_name": "Wikiwand",
+    "site_icon": "https://cdn.deepseek.com/site-icons/wikiwand.com",
+    "authority": 2,
+    "rerank_score": 0.48241105675697327,
+    "date": "2013-02-25T16:00:00+00:00",
+    "url": "https://www.wikiwand.com/zh-cn/articles/%E4%B8%8A%E6%B5%B7%E5%8F%A4%E7%B1%8D%E5%87%BA%E7%89%88%E7%A4%BE",
+    "summary": "# 上海古籍出版社\n\n位于中国上海市的出版社 来自维基百科，自由的百科全书\n...\n上海古籍出版社，前身为古典文学出版社，成立于1956年11月，1958年6月改组为中华书局上海编辑所，1978年1月改为现名。\n...\n公司前身 | 古典文学出版社 \n成立 | 1956年11月 \n代表人物 | 赵昌平（现任总编辑） \n总部 | 中华人民共和国 上海市黄浦区瑞金二路272号 \n网站 | http://www.guji.com.cn/ \nISBN代码 | 978-7-5325\n...\n上海古籍出版社以出版并整理中国古典文学、哲学、历史等的古籍和学术研究著作为主，同时也出版普及传统文化的书刊。其中重版书占了相当大的比例。[1]\n\n上海古籍出版社第一任社长为李俊民，在文化大革命中他一度被红卫兵列入上海第一批要打倒的对象中，并被撤职；文革结束后，李俊民获得平反，重新主持上海古籍出版社。\n\n## 沿革\n\n- 上海古籍出版社的前身是古典文学出版社，1956年11月成立，1958年6月与中华书局上海办事处一起改组为中华书局上海编辑所。[1][2]\n\n## 著名出版物\n\n- 《续修四库全书》:共1800册，是国家重点出版工程，1994年启动，2002年完工。[3]2006年，上海图书公司一套续修四库全书以人民币42万元被拍下，刷新了当时上海图书的单笔交易最高纪录。[4]\n- 《中华学术丛书》\n- 《海外汉学丛书》\n- 《中国古典文学丛书》：现已出版100多种，涉及从唐朝至清朝的各类中国古典文学。[5]\n- 《中国文学批评通史》：由王运熙和顾易生主编，共七卷，360万字。",
+    "snippet": "上海古籍出版社，前身为古典文学出版社，成立于1956年11月，1958年6月改组为中华书局上海编辑所 ... 上海古籍出版社以出版并整理中国古典文学、哲学、历史等的古籍和学术研究著作为主，同时也出版普及传统文化的书刊。其中重版书占了相当大的比例。",
+    "content": ""
+   },
+   {
+    "title": "潘然-当当网 - 新窗口打开无障碍说明页面,按Ctrl加波浪键打开导盲模式",
+    "site_name": "Dangdang",
+    "site_icon": "https://cdn.deepseek.com/site-icons/dangdang.com",
+    "authority": 3,
+    "rerank_score": 0.47430986166000366,
+    "date": null,
+    "url": "https://search.dangdang.com/?key=%E6%BD%98%E7%84%B6&city=111&att=s8589934592%3A8589934767&filter=0%7C0%7C1%7C0%7C0%7C0%7C0%7C0%7C0%7C0%7C0%7C0%7C0%7C0%7C0&sort_type=sort_pubdate_desc#J_tab#1",
+    "summary": "潘吉星 译注 /2025-11-01 /上海古籍出版社\n...\n潘雨廷 著；张文江 整理 /2017-06-01 /上海古籍出版社\n\n潘雨廷为近代研究传统文化为数不多的，真正有传承、有体验、有创新的人物之一，其学问力求贯通儒释道、和会中西，至少当得上成一家之言，特别在易学领域，必将成为后来者绕不过去的人物。近年来，他的价值日益为学界所认识和重视。 对于想全面了解中国传统文化者，读潘雨廷的著作是一个很好的途径；对于欲精研易学，会通中西者，潘雨廷先生是绕不过的人物。\n...\n本书是丛书“潘雨廷著作集”中的一种。该丛书是潘雨廷著作的首次集中出版，历经数年，对此前出版过的内容作了全面修订，并增加了几种新整理的内容。经重新组合，共分十三册，每册内容简介如下： 第一册《周易表解》：本书用表解形式阐释《周易》经传，共分四卷百表，每表辅以解说。卷一：《说卦》、《序卦》、《杂卦》；卷二：上经（《彖》上、《象》上）；卷三：下经（《彖》下、《象》下）；卷四：《系辞》、《文言》。本书可以作为理解《周易》经传的入门，是基础读本。 第二册《易学史发微》：《易学史发微》是作者撰写《易学史》中的主题论文汇编。本书从历史的角度综述了从先秦至近代易学典籍和人物的核心思想，勾勒了中华易学象数发展的主要线索，是简明的易学史纲要。 第三册《易学史丛论》：《易学史丛论》收入了从上古至清的",
+    "snippet": "潘吉星 译注 /2025-11-01 /上海古籍出版社 ... 本书是丛书“潘雨廷著作集”中的一种 ... 第一册《周易表解》：本书用表解形式阐释《周易》经传 ... 第二册《易学史发微》：《易学史发微》是作者撰写《易学史》中的主题论文汇编 ... 第三册《易学史丛论》：《易学史丛论》收入了从上古至清的",
+    "content": ""
+   }
+  ]
+ }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "i-ching-reading",
+  "description": "The i-ching-reading Agent Skill as a Claude plugin marketplace, so installs update with each release.",
+  "owner": { "name": "bogheorghiu" },
+  "plugins": [
+    {
+      "name": "i-ching-reading",
+      "source": "./plugins/i-ching-reading",
+      "description": "I Ching readings: yarrow or coin casting and structural reading of the hexagram from the bundled Chinese Zhouyi text."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+ "kind": "fetch",
+ "url": "https://c.wanfangdata.com.cn/magazine/zhouyyj?tabId=article&publishYear=2015&issueNum=1&page=1&isSync=0",
+ "route": "probe2",
+ "date": "2026-11-04T07:38:23Z",
+ "raw": {
+  "content": "学术导航\n\n绑定机构\n\n扫描成功 请在APP上操作\n打开万方数据APP，点击右上角\"扫一扫\"，扫描二维码即可将您登录的个人账号与机构账号绑定，绑定后您可在APP上享有机构权限，如需更换机构账号，可到个人中心解绑。 \n简 繁",
+  "title": "万方数据知识服务平台"
+ }
+}

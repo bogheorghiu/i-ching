@@ -1,0 +1,12 @@
+{
+ "kind": "fetch",
+ "url": "http://search.cnki.com.cn/cjfd/Detail/Navi/CUWX",
+ "route": "probe8",
+ "date": "2026-11-04T08:23:49Z",
+ "raw": {
+  "error": {
+   "status": 404,
+   "body": "{\"error\":{\"message\":\"failed to fetch URL (request_id: 48a27cbc-ccba-4ca8-a94f-4e7e9e132ce5)\",\"type\":\"not_found_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+  }
+ }
+}

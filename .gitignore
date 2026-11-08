@@ -17,3 +17,13 @@ id_rsa*
 id_ed25519*
 CLAUDE.local.md
 .claude/settings.local.json
+
+# Python, editors and Claude Code runtime (from bogheorghiu/afk-ease)
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store
+*.swp
+/.claude/worktrees/
+node_modules/
+agent-log.jsonl

@@ -1,0 +1,16 @@
+You are helping design an evaluation. Give your own proposal; you may disagree with any framing here.
+
+GOAL. A research pipeline asks LLMs, from memory and without tools, for bibliographic records of Chinese-language scholarship (pre-modern Chinese texts, excavated manuscripts, Yijing / Zhouyi studies; journal articles and books in Chinese, some in English). The answer is only a lead: a later step searches databases (CNKI-like records, library catalogues, publisher pages) to retrieve the real record. We must decide which models to keep in that lead step.
+
+WHAT MATTERS (the decision-maker's values). An invented record (confident, specific, not real) is worse than a refusal ("I don't know"), because it wastes retrieval effort and can contaminate the ledger. Exceptions: a near-miss that does not change meaning (title slightly off, everything else right, still retrievable) is tolerable. A model that answers rarely but is accurate when it answers may be better than one that answers often with some inventions, but only if its answer rate is not so low that it contributes almost nothing. So we need to estimate, per model: answer (non-abstention) rate, accuracy among answers, invention rate among answers, and the quality of errors (near-miss vs harmful).
+
+WHAT A PILOT SHOWED (5 questions, 6 models). Answer rates ranged from 1/5 to 5/5. One model answered 5/5 with 4 correct and 1 invented; four models answered 1 or 2 of 5 and invented nothing. Two flaws in the pilot: one answer key was wrong (a book's year, taken from a secondary note), and one question misdescribed the work it meant. N=5 per model is too small to tell a selective-but-accurate model from luck.
+
+CONSTRAINTS. Cheap models (cents per call); total budget a few dollars. Ground-truth keys must come from the record itself (library catalogue, the journal's own table of contents, publisher page) and be verified before the run. Items are asked cold, no hints. Retrieval tools available: a web search API that returns Chinese database records, and a fetch tool.
+
+QUESTIONS FOR YOU (answer each, numbered, under 600 words total):
+1. Item set: how many items, and how to build them so keys are verified cheaply and items are not all famous (memorisation of famous works overstates usefulness)? How to stratify (famous / mid / obscure; journal / book; Chinese / English; old / recent)? How to include items where the honest answer is "I don't know" (e.g. plausible but nonexistent works) without being unfair?
+2. Question wording: how to describe a work without leaking its answer and without misdescribing it?
+3. Scoring: define answered / correct / near-miss / wrong / invented precisely and mechanically where possible. Which field(s) decide correctness? How is "invented" established (failure to retrieve is not proof of non-existence)?
+4. Decision rule: a rule, written before the run, that admits a selective-but-accurate model and rejects a prolific inventor, and handles the "answers too rarely to matter" case. Give thresholds and the sample-size reasoning (confidence intervals) behind them.
+5. Threats to validity you would guard against (contamination, prompt sensitivity, sampling temperature, judge bias if an LLM judges, etc.) and the cheapest guard for each.
