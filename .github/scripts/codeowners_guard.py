@@ -22,10 +22,25 @@ bodies under .claude/ are not read. `npm run x` is followed one level into scrip
 imports of sibling modules are followed; other languages' imports are not. Markdown is read
 only for `@path` imports; package.json only for its install-time lifecycle scripts.
 
+What counts as running a file: executing, sourcing or importing it, not checking that it exists
+or using its name as test data. Python is parsed (ast): a name counts only inside the arguments
+of an exec-like call (subprocess.*, os.system/exec*/spawn*, exec, eval, runpy, importlib; matched
+by the call's last name, so session.run in a noxfile counts too; aliases and wrapper functions
+in the same file count, and at a wrapper's call site only the arguments bound to a parameter
+that reaches the wrapper's own exec call), with variables bound anywhere in the file resolved,
+or as a sibling import. A file that does not parse, or whose analysis hits a size limit, is scanned as text.
+Not seen in Python: a callable reached through getattr, a dict, or another module's wrapper.
+Shell-like text (hooks, workflows, git hooks, Makefiles, JSON commands) still counts every token
+except the operand of an existence test (`test -f x`, `[ -e x ]`, `[[ -d x ]]`). Other script
+languages (.js, .ts, .rb, .pl, .ps1) still count every token: a false positive there is reworded
+or owned.
+
 Usage: python3 .github/scripts/codeowners_guard.py [--self-test]
 Standard library only, so it runs on any runner and needs no install step.
 """
+import ast
 import fnmatch
+import itertools
 import json
 import posixpath
 import re
@@ -81,6 +96,16 @@ PATH_TOKEN = re.compile(r"[A-Za-z0-9_.${}()/@+-]+")
 COMMENT = re.compile(r"^\s*(#|//)")
 TRAILING_COMMENT = re.compile(r"\s+(#|//)\s.*$")
 RUN_SCRIPT = re.compile(r"\b(?:npm|pnpm|yarn|bun)\s+(?:run(?:-script)?\s+)?([A-Za-z0-9:_.-]+)")
+# Shell existence tests: their operand is checked, not run.
+_OPERAND = r"""(?:"[^"$`]*"|'[^']*'|[^\s;&|<>()`$"']+)"""   # no substitution, stops at ; & |
+EXISTENCE_TEST = re.compile(r"((?:^|[;&|(`]|\b(?:if|then|elif|while|until|do|!)\s)\s*)"
+                            r"(?:test\s+-[efdrsxLh]\s+" + _OPERAND + r"(?=$|[\s;&|)])"
+                            r"|\[\[?\s+-[efdrsxLh]\s+" + _OPERAND + r"\s+\]\]?)")
+# Python calls whose arguments run, source or import a file, by the callee's last name.
+PY_EXEC_NAMES = {"run", "call", "check_call", "check_output", "Popen", "system", "popen",
+                 "getoutput", "getstatusoutput", "startfile", "run_path", "run_module", "exec",
+                 "execfile", "import_module", "__import__", "spec_from_file_location",
+                 "SourceFileLoader", "load_source", "eval", "compile", "main"}
 
 
 def tracked():
@@ -173,6 +198,11 @@ def references(path: str, files: set) -> set:
         text = (ROOT / path).read_text(errors="replace")
     except OSError:
         return set()
+    return refs_in_text(path, text, files)
+
+
+def refs_in_text(path: str, text: str, files: set) -> set:
+    """references() on given text, so the self-test can feed it fixtures."""
     here = posixpath.dirname(path)
     name = path.split("/")[-1]
     if name in INSTRUCTION_NAMES:   # instructions: only `@path` imports load another file
@@ -186,24 +216,260 @@ def references(path: str, files: set) -> set:
         except ValueError:
             scripts = {}
         text = "\n".join(v for k, v in scripts.items() if k in LIFECYCLE and isinstance(v, str))
+    if path.endswith(".py"):
+        found = py_exec_refs(text, here, files)
+        if found is not None:
+            return found | py_sibling_imports(text, here, files)
     lines = [TRAILING_COMMENT.sub("", ln) for ln in text.splitlines() if not COMMENT.match(ln)]
     found = set()
     for ln in lines:
-        for tok in PATH_TOKEN.findall(ln):
-            found |= {c for c in candidates(tok, here) if c in files}
-        for word, targets in TOOL_FILES.items():   # at command position only, not in prose
-            if re.search(r"(?:^|run:|[;&|(`]|&&|\|\||-)\s*" + word + r"(?:\s+[\w./-]+)*\s*$", ln) or \
-                    re.search(r"(?:^|run:|[;&|(`]|&&|\|\||-)\s*" + word + r"\s*(?:[;&|)`]|$)", ln):
-                found |= {t for t in targets if t in files}
-        if name != "package.json" and "package.json" in files:   # `npm run x` runs scripts.x
-            for m in RUN_SCRIPT.finditer(ln):
-                found |= run_script_refs(m.group(1), files)
-    if path.endswith(".py"):
-        for m in re.finditer(r"^\s*(?:from|import)\s+\.?([A-Za-z_][A-Za-z0-9_]*)", text, re.M):
-            cand = posixpath.normpath(posixpath.join(here, m.group(1) + ".py"))
-            if cand in files:
-                found.add(cand)
+        found |= line_refs(ln, here, name, files)
+    if path.endswith(".py"):   # unparsable Python: the text scan above, plus imports
+        found |= py_sibling_imports(text, here, files)
     return found - {path}
+
+
+def line_refs(ln: str, here: str, name: str, files: set) -> set:
+    """Tracked files one shell-like line names (outside existence tests) or runs by command word."""
+    found = set()
+    for tok in PATH_TOKEN.findall(EXISTENCE_TEST.sub(r"\1 ", ln)):
+        found |= {c for c in candidates(tok, here) if c in files}
+    for word, targets in TOOL_FILES.items():   # at command position only, not in prose
+        if re.search(r"(?:^|run:|[;&|(`]|&&|\|\||-)\s*" + word + r"(?:\s+[\w./-]+)*\s*$", ln) or \
+                re.search(r"(?:^|run:|[;&|(`]|&&|\|\||-)\s*" + word + r"\s*(?:[;&|)`]|$)", ln):
+            found |= {t for t in targets if t in files}
+    if name != "package.json" and "package.json" in files:   # `npm run x` runs scripts.x
+        for m in RUN_SCRIPT.finditer(ln):
+            found |= run_script_refs(m.group(1), files)
+    return found
+
+
+def py_sibling_imports(text: str, here: str, files: set) -> set:
+    found = set()
+    for m in re.finditer(r"^\s*(?:from|import)\s+\.?([A-Za-z_][A-Za-z0-9_]*)", text, re.M):
+        cand = posixpath.normpath(posixpath.join(here, m.group(1) + ".py"))
+        if cand in files:
+            found.add(cand)
+    return found
+
+
+def py_exec_refs(text: str, here: str, files: set):
+    """Tracked files an exec-like call in Python source runs, or None to fall back to the text
+    scan (the source does not parse, or the analysis hits a limit). Exec-like: a call whose last
+    name is in PY_EXEC_NAMES or contains "exec"/"spawn"; a name imported as an alias of one; a
+    function in this file whose body makes one (to a fixpoint, so wrappers count); a call handed
+    one as an argument (map(subprocess.run, ...)). Every string anywhere under its arguments
+    counts (for a wrapper, under the arguments that reach its exec call: see call_args), with names resolved through every binding in the file (assignment, with ... as,
+    for, defaults), and Path(a, b), os.path.join, a / b, a + b and f-strings also joined. Each
+    argument is then read like a shell line, so `npm run x` and `make` are followed."""
+    try:
+        tree = ast.parse(text)
+        return _py_exec_refs(tree, here, files)
+    except (SyntaxError, ValueError, RecursionError, MemoryError):
+        return None
+
+
+def _callee(node) -> str:
+    parts = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if isinstance(node, ast.Name):
+        parts.append(node.id)
+    return ".".join(reversed(parts))
+
+
+def _is_exec_name(last: str) -> bool:
+    return last in PY_EXEC_NAMES or "exec" in last.lower() or "spawn" in last.lower()
+
+
+def _py_exec_refs(tree, here: str, files: set) -> set:
+    bound = {}   # name -> value nodes it may hold
+    exec_names = set()
+    for node in ast.walk(tree):
+        pairs = []
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) and node.value is not None:
+            pairs = [(t, node.value) for t in (node.targets if isinstance(node, ast.Assign) else [node.target])]
+        elif isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)):
+            pairs = [(node.target, node.iter)]
+        elif isinstance(node, ast.withitem) and node.optional_vars is not None:
+            pairs = [(node.optional_vars, node.context_expr)]
+        elif isinstance(node, ast.arguments):
+            pos = node.posonlyargs + node.args
+            pairs = list(zip(pos[len(pos) - len(node.defaults):], node.defaults))
+            pairs += [(a, d) for a, d in zip(node.kwonlyargs, node.kw_defaults) if d is not None]
+        elif isinstance(node, ast.ImportFrom):
+            exec_names |= {al.asname for al in node.names if al.asname and _is_exec_name(al.name)}
+        for target, value in pairs:   # launch = subprocess.run makes `launch` exec-like
+            if isinstance(value, (ast.Name, ast.Attribute)) and isinstance(target, ast.Name) and \
+                    _is_exec_name(_callee(value).split(".")[-1]):
+                exec_names.add(target.id)
+            names = [target.arg] if isinstance(target, ast.arg) else \
+                [n.id for n in ast.walk(target) if isinstance(n, ast.Name)]
+            for n in names:
+                bound.setdefault(n, []).append(value)
+
+    def is_exec(call) -> bool:
+        last = _callee(call.func).split(".")[-1]
+        if _is_exec_name(last) or last in exec_names:
+            return True
+        return any(isinstance(a, (ast.Name, ast.Attribute)) and
+                   (_is_exec_name(_callee(a).split(".")[-1]) or _callee(a).split(".")[-1] in exec_names)
+                   for a in call.args + [k.value for k in call.keywords])
+
+    funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    aliases = set(exec_names)
+    changed = True
+    while changed:   # wrappers: a function that makes an exec-like call is exec-like
+        changed = False
+        for f in funcs:
+            if f.name not in exec_names and \
+                    any(isinstance(n, ast.Call) and is_exec(n) for n in ast.walk(f)):
+                exec_names.add(f.name)
+                changed = True
+    wrappers = {name: [f for f in funcs if f.name == name]
+                for name in exec_names - aliases if not _is_exec_name(name)}
+    flows = {id(f): set() for fs in wrappers.values() for f in fs}   # params reaching an exec call
+
+    def names_in(node):
+        return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
+
+    def call_args(call):
+        """The arguments of an exec-like call that can run something. For a call to a wrapper,
+        only those bound to a parameter that reaches the wrapper's own exec call; a * or **
+        argument counts whole unless no parameter reaches it."""
+        every = call.args + [k.value for k in call.keywords]
+        last = _callee(call.func).split(".")[-1]
+        if last not in wrappers or any(isinstance(a, (ast.Name, ast.Attribute)) and
+                                       _callee(a).split(".")[-1] in exec_names for a in every):
+            return every   # an exec call itself, an alias of one, or a handoff (map(f, ...))
+        out = []
+        for f in wrappers[last]:
+            flow, a = flows[id(f)], f.args
+            if not flow:
+                continue
+            if any(isinstance(x, ast.Starred) for x in call.args) or any(k.arg is None for k in call.keywords):
+                return every
+            pos = [p.arg for p in a.posonlyargs + a.args]
+            if isinstance(call.func, ast.Attribute) and pos[:1] in (["self"], ["cls"]):
+                pos = pos[1:]
+            for i, x in enumerate(call.args):
+                if (pos[i] if i < len(pos) else a.vararg and a.vararg.arg) in flow:
+                    out.append(x)
+            named = {p.arg for p in a.args + a.kwonlyargs}
+            for k in call.keywords:
+                if (k.arg if k.arg in named else a.kwarg and a.kwarg.arg) in flow:
+                    out.append(k.value)
+        return out
+
+    def local_pairs(f):
+        pairs = []
+        for node in ast.walk(f):
+            if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) and node.value is not None:
+                pairs += [(t, node.value) for t in (node.targets if isinstance(node, ast.Assign) else [node.target])]
+            elif isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)):
+                pairs.append((node.target, node.iter))
+            elif isinstance(node, ast.withitem) and node.optional_vars is not None:
+                pairs.append((node.optional_vars, node.context_expr))
+            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and \
+                    isinstance(node.func.value, (ast.Name, ast.Attribute)):
+                pairs.append((node.func.value, node))   # cmd.append(extra) feeds extra into cmd
+        return [(names_in(t), names_in(v)) for t, v in pairs]
+
+    pairs_of = {id(f): local_pairs(f) for fs in wrappers.values() for f in fs}
+    changed = True
+    while changed:   # which parameters reach an exec call, through local names and inner wrappers
+        changed = False
+        for fs in wrappers.values():
+            for f in fs:
+                need = set()
+                for n in ast.walk(f):
+                    if isinstance(n, ast.Call) and is_exec(n):
+                        for x in call_args(n):
+                            need |= names_in(x)
+                grew = True
+                while grew:
+                    grew = False
+                    for targets, values in pairs_of[id(f)]:
+                        if targets & need and not values <= need:
+                            need |= values
+                            grew = True
+                a = f.args
+                params = {p.arg for p in a.posonlyargs + a.args + a.kwonlyargs + [a.vararg, a.kwarg] if p}
+                if not need & params <= flows[id(f)]:
+                    flows[id(f)] |= need & params
+                    changed = True
+
+    def product(parts, sep):
+        out = {sep.join(c) for c in itertools.islice(itertools.product(*parts), 64)}
+        if any(len(v) > 4096 for v in out):
+            raise MemoryError("candidate value too long")
+        return out
+
+    budget = [100000]   # node visits; past it, the whole file falls back to the text scan
+    memo = {}
+
+    def strings(node, seen):
+        """Values a node may hold: its own string, a joined path, or a resolved name's values."""
+        budget[0] -= 1
+        if budget[0] < 0:
+            raise MemoryError("analysis budget spent")
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return {node.value}
+        if isinstance(node, ast.Name):
+            if node.id in seen:
+                return {"$"}
+            if len(seen) > 50:   # past this, the whole file falls back to the text scan
+                raise RecursionError("name chain too deep")
+            if node.id in memo:
+                return memo[node.id]
+            out = set()
+            for v in bound.get(node.id, []):
+                out |= deep(v, seen | {node.id})
+            memo[node.id] = out = out or {"$"}   # unknown value: candidates() drops a "$" prefix
+            return out
+        if isinstance(node, ast.JoinedStr):
+            return product([(strings(v.value, seen) if isinstance(v, ast.FormattedValue)
+                             else strings(v, seen)) or {"$"} for v in node.values], "")
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Div, ast.Add)):
+            return product([strings(node.left, seen) or {"$"}, strings(node.right, seen) or {"$"}],
+                           "/" if isinstance(node.op, ast.Div) else "")
+        if isinstance(node, ast.Call):
+            last = _callee(node.func).split(".")[-1]
+            if last in ("Path", "PurePath", "PosixPath", "join") and node.args:
+                return product([strings(a, seen) or {"$"} for a in node.args], "/")
+            if last in ("str", "fspath", "abspath", "realpath", "resolve") and node.args:
+                return strings(node.args[0], seen)
+        return set()
+
+    def deep(node, seen):
+        out = set()
+        for sub in ast.walk(node):
+            out |= strings(sub, seen)
+            if len(out) > 4096:
+                raise MemoryError("too many candidate values")
+        return out
+
+    def argv_lines(node, seen):
+        """A list argument (or a name bound to one) read as one command line, for npm run / make."""
+        if isinstance(node, (ast.List, ast.Tuple)):
+            return {" ".join(sorted(strings(e, seen) or {"$"})[0] for e in node.elts)}
+        if isinstance(node, ast.Name) and node.id not in seen:
+            out = set()
+            for v in bound.get(node.id, []):
+                out |= argv_lines(v, seen | {node.id})
+            return out
+        return set()
+
+    found = set()
+    for call in ast.walk(tree):
+        if not (isinstance(call, ast.Call) and is_exec(call)):
+            continue
+        for arg in call_args(call):
+            lines = deep(arg, frozenset()) | argv_lines(arg, frozenset())
+            for ln in lines:
+                found |= line_refs(ln, here, "", files)
+    return found
 
 
 def run_script_refs(script: str, files: set) -> set:
@@ -288,6 +554,62 @@ def self_test():
         bad.append(("suffix over-match", "index.html", ""))
     if not must_own("docs/claude.md") or must_own("x/.github/y") or not must_own(".github/y"):
         bad.append(("must_own case/anchor", "", ""))
+    fx = {"README.md", "LICENSE", "scripts/x.sh"}
+    exists = 'from pathlib import Path\nd = "plug"\nok = Path(d, "README.md").exists() and Path(d, "LICENSE").is_file()\n'
+    if refs_in_text("scripts/check.py", exists, fx) & {"README.md", "LICENSE"}:
+        bad.append(("existence check counted as running", "README.md/LICENSE", ""))
+    runs = 'import subprocess\nsubprocess.run(["bash", "scripts/x.sh"], check=True)\n'
+    if "scripts/x.sh" not in refs_in_text("scripts/check.py", runs, fx):
+        bad.append(("subprocess.run of a script not counted", "scripts/x.sh", ""))
+    kept = [   # rule changes must not lose these
+        (".githooks/pre-push", '[ -f README.md ] && bash scripts/x.sh\n', {"scripts/x.sh"}, {"README.md"}),
+        ("scripts/check.py", 'import subprocess\nCMD = ["bash", "scripts/x.sh"]\nsubprocess.call(CMD)\n',
+         {"scripts/x.sh"}, set()),
+        ("scripts/check.py", 'import os, subprocess\nfrom pathlib import Path\nROOT = Path(__file__).parent\n'
+         'def main():\n    s = str(ROOT / "scripts/x.sh")\n    subprocess.run(["bash", s])\n', {"scripts/x.sh"}, set()),
+        ("scripts/check.py", 'import os\nos.system(f"{os.getcwd()}/scripts/x.sh --fast")\n', {"scripts/x.sh"}, set()),
+        ("scripts/check.py", 'import runpy\nrunpy.run_path("scripts/x.sh")\nopen("LICENSE").read()\n',
+         {"scripts/x.sh"}, {"LICENSE"}),
+        ("scripts/check.py", 'def broken(:\n  "scripts/x.sh"\n', {"scripts/x.sh"}, set()),
+        (".githooks/pre-push", 'test -f /dev/null;./scripts/x.sh\n', {"scripts/x.sh"}, set()),
+        (".githooks/pre-push", 'test -f "$(./scripts/x.sh)"\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'from subprocess import run as launch\nlaunch(["bash", "scripts/x.sh"])\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import os\nos.posix_spawn("scripts/x.sh", [], os.environ)\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'with open("scripts/x.sh") as f:\n    exec(f.read())\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'eval(compile(open("scripts/x.sh").read(), "p", "exec"))\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import subprocess\ndef sh(cmd):\n    subprocess.run(cmd, shell=True)\nsh("bash scripts/x.sh")\n',
+         {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import subprocess\nfor c in [["bash", "scripts/x.sh"]]:\n    subprocess.run(c)\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import subprocess\nlist(map(subprocess.run, [["bash", "scripts/x.sh"]]))\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import subprocess\nv0 = "scripts/x.sh"\n' + "".join(f"v{i} = v{i-1}\n" for i in range(1, 600))
+         + 'subprocess.run(["bash", v599])\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import subprocess\n' + "".join(f'a = "{i}"\n' for i in range(10))
+         + 'subprocess.run(a + a + a + a + a + a + a + a + " scripts/x.sh")\n', {"scripts/x.sh"}, set()),
+        (".githooks/pre-push", 'set -- test -f scripts/x.sh\n"$3"\n', {"scripts/x.sh"}, set()),
+        (".githooks/pre-push", 'if [ -f README.md ]; then echo ok; fi\n', set(), {"README.md"}),
+        ("noxfile.py", 'import subprocess\nlaunch = subprocess.run\nlaunch(["bash", "scripts/x.sh"])\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import pytest\npytest.main(["scripts/x.sh"])\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import subprocess\nCMD = "scripts/x.sh"\nsubprocess.run(f"bash {CMD}")\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import subprocess\nS = ["scripts/x.sh"]\nfor p in S:\n    subprocess.run(p)\n', {"scripts/x.sh"}, set()),
+        ("noxfile.py", 'import subprocess\na0 = "x"\n' + "".join(f"a{i} = a{i-1} + a{i-1}\n" for i in range(1, 36))
+         + 'subprocess.run(a35)\nsubprocess.run("scripts/x.sh")\n', {"scripts/x.sh"}, set()),
+        # A wrapper's call site counts only the arguments that reach the wrapper's own exec call;
+        # expected-output strings handed to a test wrapper are data.
+        ("scripts/test_x.py", 'import subprocess, sys\nREADME = "# Demo"\n'
+         'def run_plugin(manifest=None, readme=README, expect=""):\n'
+         '    subprocess.run([sys.executable, "scripts/x.sh", "tmp"])\n'
+         'run_plugin(expect="missing README.md")\n'
+         'for kw in [{"readme": None, "expect": "missing README.md"}]:\n    run_plugin(**kw)\n',
+         {"scripts/x.sh"}, {"README.md"}),
+        ("scripts/test_x.py", 'import subprocess\ndef go(script, expect=""):\n    cmd = ["bash", script]\n'
+         '    subprocess.run(cmd)\ngo("scripts/x.sh", expect="missing README.md")\n', {"scripts/x.sh"}, {"README.md"}),
+        ("scripts/test_x.py", 'import subprocess\ndef go(extra):\n    cmd = ["bash"]\n    cmd.append(extra)\n'
+         '    subprocess.run(cmd)\ngo("scripts/x.sh")\n', {"scripts/x.sh"}, set()),
+    ]
+    for path, text, want_in, want_out in kept:
+        got = refs_in_text(path, text, fx)
+        if not want_in <= got or got & want_out:
+            bad.append(("refs_in_text", path, text[:120], sorted(got)))
     for b in bad:
         print("self-test FAILED:", b)
     return not bad
