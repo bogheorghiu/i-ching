@@ -22,13 +22,26 @@ bodies under .claude/ are not read. `npm run x` is followed one level into scrip
 imports of sibling modules are followed; other languages' imports are not. Markdown is read
 only for `@path` imports; package.json only for its install-time lifecycle scripts.
 
-What counts as running a file: executing, sourcing or importing it, not checking that it exists
-or using its name as test data. Python is parsed (ast): a name counts only inside the arguments
-of an exec-like call (subprocess.*, os.system/exec*/spawn*, exec, eval, runpy, importlib; matched
-by the call's last name, so session.run in a noxfile counts too; aliases and wrapper functions
-in the same file count), with variables bound anywhere in the file resolved, or as a sibling
-import. A file that does not parse, or whose analysis hits a size limit, is scanned as text.
-Not seen in Python: a callable reached through getattr, a dict, or another module's wrapper.
+What counts as running a file: executing, sourcing or importing it; checking that it exists
+does not. Python is parsed (ast): a path counts when a string can reach an argument of an
+exec-like call (subprocess.*, os.system/exec*/spawn*, exec, eval, runpy, importlib, pytest.main;
+matched by the call's last name, so session.run in a noxfile counts too), of a name bound to one,
+of such a callable passed as an argument, or of a local function whose body makes one; or as a
+sibling import. Strings reach an argument through this file's bindings, resolved
+flow-insensitively: order, branches, tuple position and container slot are ignored; values put
+in by .append, .extend and the like count, and so do the arguments of plain calls to local
+functions. So data sharing a tuple or a call with a command (an expected error naming a file) is
+reported with it: reword the string or own the file. The guard never narrows this and has no
+exemption mechanism; do not add one keyed on file name, extension or "looks like data" (three
+attempts each missed scripts that really run). Not modelled: other modules (a helper defined
+elsewhere counts only by its name), method calls into a parameter, decorators, match and
+except-as rebinding, globals()/setattr()/vars(), what eval, exec or import_module then load,
+paths built with %, .format, ''.join or slicing, and a callable reached through getattr or a
+dict. Two analyses run and their findings are added: the one this script shipped with first, and
+the one above, which reports more but outgrows its size limits on large files (retried first
+without the call bindings; past a limit it adds nothing). A file that does not parse, or whose
+first analysis hits a limit, is also scanned as text, which finds paths written out, not joined
+ones.
 Shell-like text (hooks, workflows, git hooks, Makefiles, JSON commands) still counts every token
 except the operand of an existence test (`test -f x`, `[ -e x ]`, `[[ -d x ]]`). Other script
 languages (.js, .ts, .rb, .pl, .ps1) still count every token: a false positive there is reworded
