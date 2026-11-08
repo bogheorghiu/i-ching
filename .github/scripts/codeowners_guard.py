@@ -37,8 +37,11 @@ attempts each missed scripts that really run). Not modelled: other modules (a he
 elsewhere counts only by its name), method calls into a parameter, decorators, match and
 except-as rebinding, globals()/setattr()/vars(), what eval, exec or import_module then load,
 paths built with %, .format, ''.join or slicing, and a callable reached through getattr or a
-dict. A file that does not parse, or whose analysis hits a size limit (retried first without
-the call bindings), is scanned as text, which finds paths written out, not joined ones.
+dict. Two analyses run and their findings are added: the one this script shipped with first, and
+the one above, which reports more but outgrows its size limits on large files (retried first
+without the call bindings; past a limit it adds nothing). A file that does not parse, or whose
+first analysis hits a limit, is also scanned as text, which finds paths written out, not joined
+ones.
 Shell-like text (hooks, workflows, git hooks, Makefiles, JSON commands) still counts every token
 except the operand of an existence test (`test -f x`, `[ -e x ]`, `[[ -d x ]]`). Other script
 languages (.js, .ts, .rb, .pl, .ps1) still count every token: a false positive there is reworded
