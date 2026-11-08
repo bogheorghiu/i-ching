@@ -1,0 +1,5 @@
+{
+  "about": "The plugin's own two addresses, kept in this one file so moving the plugin changes one place. repo: where its rules and source live (links, the picture's source links). meta_board: the board that registers every other board (find's registry).",
+  "repo": "bogheorghiu/board-pattern",
+  "meta_board": "https://claude.ai/artifact/JtzWsu2sk74QmCak6n4ffy"
+}
