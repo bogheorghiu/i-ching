@@ -107,6 +107,10 @@ PY_EXEC_NAMES = {"run", "call", "check_call", "check_output", "Popen", "system",
                  "execfile", "import_module", "__import__", "spec_from_file_location",
                  "SourceFileLoader", "load_source", "eval", "compile", "main"}
 
+# Method calls that put their arguments into the container they are called on.
+PY_MUTATORS = {"append", "extend", "insert", "appendleft", "extendleft", "add", "update",
+               "setdefault", "put", "put_nowait", "__setitem__"}
+
 
 def tracked():
     out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"], capture_output=True, check=True).stdout
@@ -271,10 +275,14 @@ def py_exec_refs(text: str, here: str, files: set):
         found |= _py_exec_refs_main(tree, here, files)
     except (RecursionError, MemoryError):
         scan = True
-    try:
-        found |= _py_exec_refs(tree, here, files)
-    except (RecursionError, MemoryError):
-        pass
+    # The bindings calls make (_add_call_flows) only add values, so they can push a large file
+    # past a limit it met without them; that file is then analysed without them.
+    for call_flows in (True, False):
+        try:
+            found |= _py_exec_refs(tree, here, files, call_flows)
+            break
+        except (RecursionError, MemoryError):
+            continue
     return found, scan
 
 
@@ -292,7 +300,72 @@ def _is_exec_name(last: str) -> bool:
     return last in PY_EXEC_NAMES or "exec" in last.lower() or "spawn" in last.lower()
 
 
-def _py_exec_refs(tree, here: str, files: set) -> set:
+def _names(node) -> set:
+    return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
+
+
+def _add_call_flows(tree, bound: dict) -> None:
+    """Bindings that calls make, added to `bound` (only ever added, so nothing reported before
+    stops being reported): a plain call's arguments to the parameters of the one function of
+    that name defined in this file (a method call obj.f(...) is not followed: binding it to every
+    def of that name made value sets explode), and a mutating
+    method call's arguments (CASES.append(x), also through `f = CASES.append` or
+    `map(CASES.append, xs)`) to every name in the receiver and every name it was assigned from."""
+    defs = {}
+    for f in ast.walk(tree):
+        if isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            defs.setdefault(f.name, []).append(f.args)
+    calls = [c for c in ast.walk(tree) if isinstance(c, ast.Call)]
+    for c in calls:
+        if not isinstance(c.func, ast.Name) or len(defs.get(c.func.id, [])) != 1:
+            continue
+        for a in defs[c.func.id]:
+            pos = [p.arg for p in a.posonlyargs + a.args]
+            named = pos + [p.arg for p in a.kwonlyargs]
+            extra = [p.arg for p in (a.vararg, a.kwarg) if p]
+            if any(isinstance(x, ast.Starred) for x in c.args) or any(k.arg is None for k in c.keywords):
+                for x in c.args + [k.value for k in c.keywords]:   # unknown alignment: every parameter
+                    for p in named + extra:
+                        bound.setdefault(p, []).append(x)
+                continue
+            for i, x in enumerate(c.args):
+                for p in ([pos[i]] if i < len(pos) else extra):
+                    bound.setdefault(p, []).append(x)
+            for k in c.keywords:
+                for p in ([k.arg] if k.arg in named else extra):
+                    bound.setdefault(p, []).append(k.value)
+    via = {}   # f = CASES.append: calling f mutates CASES
+    for n, vs in bound.items():
+        for v in vs:
+            if isinstance(v, ast.Attribute) and v.attr in PY_MUTATORS:
+                via.setdefault(n, set()).update(_names(v.value))
+    mutated = []   # (receiver names, value nodes put into it)
+    for c in calls:
+        args = c.args + [k.value for k in c.keywords]
+        if isinstance(c.func, ast.Attribute) and c.func.attr in PY_MUTATORS:
+            mutated.append((_names(c.func.value), args))
+        elif isinstance(c.func, ast.Name) and c.func.id in via:
+            mutated.append((via[c.func.id], args))
+        for a in args:   # map(CASES.append, xs): the other arguments may go in
+            if isinstance(a, ast.Attribute) and a.attr in PY_MUTATORS:
+                mutated.append((_names(a.value), [x for x in args if x is not a]))
+    holders = {}   # x = y = []: both names hold the one value
+    for n, vs in bound.items():
+        for v in vs:
+            holders.setdefault(id(v), []).append(n)
+    sources = {n: [v.id for v in vs if isinstance(v, ast.Name)] + [m for v in vs for m in holders[id(v)]]
+               for n, vs in bound.items()}
+    for names, values in mutated:
+        todo, done = list(names), set()
+        while todo:
+            n = todo.pop()
+            if n not in done:
+                done.add(n)
+                bound.setdefault(n, []).extend(values)
+                todo += sources.get(n, [])
+
+
+def _py_exec_refs(tree, here: str, files: set, call_flows: bool = True) -> set:
     bound = {}   # name -> value nodes it may hold
     exec_names = set()
     for node in ast.walk(tree):
@@ -317,6 +390,9 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
                 [n.id for n in ast.walk(target) if isinstance(n, ast.Name)]
             for n in names:
                 bound.setdefault(n, []).append(value)
+
+    if call_flows:
+        _add_call_flows(tree, bound)
 
     def is_exec(call) -> bool:
         last = _callee(call.func).split(".")[-1]
@@ -728,12 +804,28 @@ def self_test():
         ("noxfile.py", 'import subprocess\nd = "docs"\ne = "scripts"\nd, e = e, d\nsubprocess.run(["bash", e, d + "/x.sh"])\n',
          {"scripts/x.sh"}, set()),
         ("noxfile.py", 'import subprocess\nb = a + "/x.sh"\na = "scripts"\nsubprocess.run(["bash", b])\n', {"scripts/x.sh"}, set()),
+        # Values put into a container by a method call count, through aliases and local helpers.
+        ("scripts/check.py", 'import subprocess\nCASES = [("a", "README.md")]\nCASES.append(("b", "scripts/x.sh"))\n'
+         'for n, c in CASES:\n    subprocess.run(["bash", c])\n', {"scripts/x.sh"}, set()),
+        ("scripts/check.py", 'import subprocess\nCASES = []\nA = CASES\nA.extend([("b", "scripts/x.sh")])\n'
+         'for n, c in CASES:\n    subprocess.run(["bash", c])\n', {"scripts/x.sh"}, set()),
+        ("scripts/check.py", 'import subprocess\nCASES = []\ndef add(lst, item):\n    lst.append(item)\n'
+         'add(CASES, ("b", "scripts/x.sh"))\nfor n, c in CASES:\n    subprocess.run(["bash", c])\n', {"scripts/x.sh"}, set()),
+        ("scripts/check.py", 'import subprocess\nCASES = []\ndef add(item):\n    CASES.append(item)\n'
+         'add(("b", "scripts/x.sh"))\nfor n, c in CASES:\n    subprocess.run(["bash", c])\n', {"scripts/x.sh"}, set()),
+        ("scripts/check.py", 'import subprocess\nCASES = []\nlist(map(CASES.append, [("b", "scripts/x.sh")]))\n'
+         'for n, c in CASES:\n    subprocess.run(["bash", c])\n', {"scripts/x.sh"}, set()),
+        ("scripts/check.py", 'import subprocess\nx = "docs"\nnames = []\nnames.append("README.md")\nsubprocess.run(["echo", x])\n',
+         set(), {"README.md"}),
         # An expression too deep to parse falls back to the text scan, as before, not a crash.
         ("noxfile.py", 'import subprocess\nsubprocess.run(["bash", "scripts/x.sh"])\nX = "p"' + ' + "p"' * 10000 + '\n',
          {"scripts/x.sh"}, set()),
         # A limit hit by a name no exec call uses must not cost the file its analysis.
         ("noxfile.py", 'import subprocess\nTOP = "scripts"\nn = "x"\nT = f"' + "a" * 5000 + '{n}"\n'
          'subprocess.run(["bash", TOP + "/x.sh"])\n', {"scripts/x.sh"}, set()),
+        # Values a call adds must not crowd out a default: joins enumerate, never sample.
+        ("scripts/check.py", 'import subprocess\ndef run(sub="scr", leaf="ipts/x.sh"):\n    subprocess.run(["bash", f"{sub}{leaf}"])\n'
+         'run()\n' + "".join(f'run("v{i}", "w{i}")\n' for i in range(12)), {"scripts/x.sh"}, set()),
     ]
     for path, text, want_in, want_out in kept:
         got = refs_in_text(path, text, fx)
