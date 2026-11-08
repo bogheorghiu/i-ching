@@ -27,3 +27,6 @@ __pycache__/
 /.claude/worktrees/
 node_modules/
 agent-log.jsonl
+
+# board-pattern exports board rows here (BOARD.md); never committed.
+.board-cache/

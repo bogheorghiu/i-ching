@@ -28,6 +28,16 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/board/board.py\" hook 2>/dev/null; exit 0"
+          }
+        ]
+      }
     ]
   }
 }
