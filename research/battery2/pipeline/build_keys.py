@@ -868,6 +868,7 @@ def harvest_hit(r, idx, sfile, q, cell, meta, rank, offset, allowed, seen, seed_
 # item page fetched and extracted as usual; record B is a complete issue table of contents on a research institute's
 # portal, parsed in code: the entry line must match record A's title exactly (after norm), so nothing is repaired.
 TOC_HOSTS = ("iwr.cass.cn", "iwr.cssn.cn")
+CNKI_HOSTS = ("www.cnki.com.cn", "cnki.com.cn")
 TOC_HEAD = re.compile(r"《([^》]{2,30})》\s*(\d{4})\s*年")
 
 
@@ -942,7 +943,7 @@ def stage_s(args):
     for row in read_jsonl(args.seed_file):
         srcs = [x["url"] for x in row.get("sources", []) if (x.get("fields_seen") or {}).get("title")]
         a = [u for u in srcs if classify(u) in ("aggregator", "journal_own") and not is_listing_url(u)]
-        a.sort(key=lambda u: "cnki.com.cn" not in u)
+        a.sort(key=lambda u: host_of(u) not in CNKI_HOSTS)
         b = [u for u in srcs if host_of(u) in TOC_HOSTS]
         why = None if a and b else ("no_record_a_url" if not a else "no_institute_toc_url")
         if why or a[0] in seen:
@@ -1426,7 +1427,7 @@ def stage_b(st, args):
         if is_listing_url(c["url"]):
             return drop(st, "listing_page", "b", "record A URL is a listing: " + c["url"])
         diag = {}
-        if c.get("seed_b_url") and host_of(c["url"]).endswith("cnki.com.cn"):
+        if c.get("seed_b_url") and host_of(c["url"]) in CNKI_HOSTS:
             entry, rec, why = cnki_entry(c["url"])
         else:
             idx, hit = cand_hit(c)
