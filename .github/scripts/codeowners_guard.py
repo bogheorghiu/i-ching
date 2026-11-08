@@ -366,15 +366,17 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
                 raise MemoryError("too many candidate values")
         return out
 
+    argvs = {}   # name -> command lines it may hold, filled by resolve_names()
+
+    def argv_line(node):
+        return " ".join(min(strings(e, frozenset()) or {"$"}) for e in node.elts)
+
     def argv_lines(node, seen):
         """A list argument (or a name bound to one) read as one command line, for npm run / make."""
         if isinstance(node, (ast.List, ast.Tuple)):
-            return {" ".join(sorted(strings(e, seen) or {"$"})[0] for e in node.elts)}
-        if isinstance(node, ast.Name) and node.id not in seen:
-            out = set()
-            for v in bound.get(node.id, []):
-                out |= argv_lines(v, seen | {node.id})
-            return out
+            return {argv_line(node)}
+        if isinstance(node, ast.Name):
+            return argvs.get(node.id, set())
         return set()
 
     def resolve_names():
@@ -405,6 +407,31 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
                         queued.add(m)
 
     resolve_names()
+    # Command lines through names, to a fixed point too: a recursive walk over the names followed
+    # every path through them (exponential once names link to each other), with no budget.
+    line_users = {}
+    for n, vs in bound.items():
+        for v in vs:
+            if isinstance(v, ast.Name):
+                line_users.setdefault(v.id, set()).add(n)
+    work, queued, changes = list(bound), set(bound), {}
+    while work:
+        n = work.pop(0)
+        queued.discard(n)
+        if changes.get(n, 0) >= 8:
+            continue
+        new = set()
+        for v in bound[n]:
+            new |= argv_lines(v, frozenset())
+        if len(new) > 16384:
+            raise MemoryError("too many command lines")
+        if new != argvs.get(n, set()):
+            argvs[n] = new
+            changes[n] = changes.get(n, 0) + 1
+            for m in line_users.get(n, ()):
+                if m not in queued:
+                    work.append(m)
+                    queued.add(m)
     found = set()
     for call in ast.walk(tree):
         if not (isinstance(call, ast.Call) and is_exec(call)):
