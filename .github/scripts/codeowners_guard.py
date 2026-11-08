@@ -26,9 +26,9 @@ What counts as running a file: executing, sourcing or importing it, not checking
 or using its name as test data. Python is parsed (ast): a name counts only inside the arguments
 of an exec-like call (subprocess.*, os.system/exec*/spawn*, exec, eval, runpy, importlib; matched
 by the call's last name, so session.run in a noxfile counts too; aliases and wrapper functions
-in the same file count, and at a wrapper's call site only the arguments bound to a parameter
-that reaches the wrapper's own exec call), with variables bound anywhere in the file resolved,
-or as a sibling import. A file that does not parse, or whose analysis hits a size limit, is scanned as text.
+in the same file count), with variables bound anywhere in the file resolved (`a, b = x, y` and a
+loop over a literal list bind each name to its own slot, so an expected-error string beside the
+kwargs a test helper receives is not one of its arguments), or as a sibling import. A file that does not parse, or whose analysis hits a size limit, is scanned as text.
 Not seen in Python: a callable reached through getattr, a dict, or another module's wrapper.
 Shell-like text (hooks, workflows, git hooks, Makefiles, JSON commands) still counts every token
 except the operand of an existence test (`test -f x`, `[ -e x ]`, `[[ -d x ]]`). Other script
@@ -259,7 +259,7 @@ def py_exec_refs(text: str, here: str, files: set):
     name is in PY_EXEC_NAMES or contains "exec"/"spawn"; a name imported as an alias of one; a
     function in this file whose body makes one (to a fixpoint, so wrappers count); a call handed
     one as an argument (map(subprocess.run, ...)). Every string anywhere under its arguments
-    counts (for a wrapper, under the arguments that reach its exec call: see call_args), with names resolved through every binding in the file (assignment, with ... as,
+    counts, with names resolved through every binding in the file (assignment, with ... as,
     for, defaults), and Path(a, b), os.path.join, a / b, a + b and f-strings also joined. Each
     argument is then read like a shell line, so `npm run x` and `make` are followed."""
     try:
@@ -283,15 +283,58 @@ def _is_exec_name(last: str) -> bool:
     return last in PY_EXEC_NAMES or "exec" in last.lower() or "spawn" in last.lower()
 
 
+def _unpack(target, value):
+    """(target, value) pairs for `a, b = x, y`: by position when both sides are literal sequences
+    of one length with no starred item (recursively), else the whole value for the whole target."""
+    seq = (ast.Tuple, ast.List)
+    if isinstance(target, seq) and isinstance(value, seq) and len(target.elts) == len(value.elts) and \
+            not any(isinstance(e, ast.Starred) for e in target.elts + value.elts):
+        return [p for t, v in zip(target.elts, value.elts) for p in _unpack(t, v)]
+    return [(target, value)]
+
+
+def _literal_lists(tree) -> dict:
+    """Names bound once, by a plain `NAME = [..]` or `NAME = (..)`, and otherwise only read as the
+    iterable of a for loop or comprehension or as len(NAME): their items are exactly the literal's.
+    Any other use (rebinding, mutation, passing it on, `global`) leaves the name out."""
+    seq, assigned, ok_loads, loads, other = (ast.Tuple, ast.List), {}, set(), {}, set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) \
+                and isinstance(node.value, seq) and not any(isinstance(e, ast.Starred) for e in node.value.elts):
+            n = node.targets[0].id
+            (other.add(n) if n in assigned else assigned.__setitem__(n, node.value))
+            ok_loads.add(id(node.targets[0]))
+        elif isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)) and isinstance(node.iter, ast.Name):
+            ok_loads.add(id(node.iter))
+        elif isinstance(node, ast.Call) and _callee(node.func) == "len" and len(node.args) == 1 \
+                and isinstance(node.args[0], ast.Name) and not node.keywords:
+            ok_loads.add(id(node.args[0]))
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            other.update(node.names)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and id(node) not in ok_loads:
+            other.add(node.id)
+        elif isinstance(node, ast.arg):
+            other.add(node.arg)
+    return {k: v for k, v in assigned.items() if k not in other}
+
+
 def _py_exec_refs(tree, here: str, files: set) -> set:
     bound = {}   # name -> value nodes it may hold
     exec_names = set()
+    literal = _literal_lists(tree)
     for node in ast.walk(tree):
         pairs = []
-        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) and node.value is not None:
-            pairs = [(t, node.value) for t in (node.targets if isinstance(node, ast.Assign) else [node.target])]
+        if isinstance(node, ast.Assign):
+            pairs = [p for t in node.targets for p in _unpack(t, node.value)]
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) and node.value is not None:
+            pairs = [(node.target, node.value)]
         elif isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)):
-            pairs = [(node.target, node.iter)]
+            it = literal.get(node.iter.id, node.iter) if isinstance(node.iter, ast.Name) else node.iter
+            if isinstance(it, (ast.Tuple, ast.List)) and not any(isinstance(e, ast.Starred) for e in it.elts):
+                pairs = [p for e in it.elts for p in _unpack(node.target, e)]   # one binding per item
+            else:
+                pairs = [(node.target, node.iter)]
         elif isinstance(node, ast.withitem) and node.optional_vars is not None:
             pairs = [(node.optional_vars, node.context_expr)]
         elif isinstance(node, ast.arguments):
@@ -318,7 +361,6 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
                    for a in call.args + [k.value for k in call.keywords])
 
     funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
-    aliases = set(exec_names)
     changed = True
     while changed:   # wrappers: a function that makes an exec-like call is exec-like
         changed = False
@@ -327,78 +369,6 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
                     any(isinstance(n, ast.Call) and is_exec(n) for n in ast.walk(f)):
                 exec_names.add(f.name)
                 changed = True
-    wrappers = {name: [f for f in funcs if f.name == name]
-                for name in exec_names - aliases if not _is_exec_name(name)}
-    flows = {id(f): set() for fs in wrappers.values() for f in fs}   # params reaching an exec call
-
-    def names_in(node):
-        return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
-
-    def call_args(call):
-        """The arguments of an exec-like call that can run something. For a call to a wrapper,
-        only those bound to a parameter that reaches the wrapper's own exec call; a * or **
-        argument counts whole unless no parameter reaches it."""
-        every = call.args + [k.value for k in call.keywords]
-        last = _callee(call.func).split(".")[-1]
-        if last not in wrappers or any(isinstance(a, (ast.Name, ast.Attribute)) and
-                                       _callee(a).split(".")[-1] in exec_names for a in every):
-            return every   # an exec call itself, an alias of one, or a handoff (map(f, ...))
-        out = []
-        for f in wrappers[last]:
-            flow, a = flows[id(f)], f.args
-            if not flow:
-                continue
-            if any(isinstance(x, ast.Starred) for x in call.args) or any(k.arg is None for k in call.keywords):
-                return every
-            pos = [p.arg for p in a.posonlyargs + a.args]
-            if isinstance(call.func, ast.Attribute) and pos[:1] in (["self"], ["cls"]):
-                pos = pos[1:]
-            for i, x in enumerate(call.args):
-                if (pos[i] if i < len(pos) else a.vararg and a.vararg.arg) in flow:
-                    out.append(x)
-            named = {p.arg for p in a.args + a.kwonlyargs}
-            for k in call.keywords:
-                if (k.arg if k.arg in named else a.kwarg and a.kwarg.arg) in flow:
-                    out.append(k.value)
-        return out
-
-    def local_pairs(f):
-        pairs = []
-        for node in ast.walk(f):
-            if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)) and node.value is not None:
-                pairs += [(t, node.value) for t in (node.targets if isinstance(node, ast.Assign) else [node.target])]
-            elif isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)):
-                pairs.append((node.target, node.iter))
-            elif isinstance(node, ast.withitem) and node.optional_vars is not None:
-                pairs.append((node.optional_vars, node.context_expr))
-            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and \
-                    isinstance(node.func.value, (ast.Name, ast.Attribute)):
-                pairs.append((node.func.value, node))   # cmd.append(extra) feeds extra into cmd
-        return [(names_in(t), names_in(v)) for t, v in pairs]
-
-    pairs_of = {id(f): local_pairs(f) for fs in wrappers.values() for f in fs}
-    changed = True
-    while changed:   # which parameters reach an exec call, through local names and inner wrappers
-        changed = False
-        for fs in wrappers.values():
-            for f in fs:
-                need = set()
-                for n in ast.walk(f):
-                    if isinstance(n, ast.Call) and is_exec(n):
-                        for x in call_args(n):
-                            need |= names_in(x)
-                grew = True
-                while grew:
-                    grew = False
-                    for targets, values in pairs_of[id(f)]:
-                        if targets & need and not values <= need:
-                            need |= values
-                            grew = True
-                a = f.args
-                params = {p.arg for p in a.posonlyargs + a.args + a.kwonlyargs + [a.vararg, a.kwarg] if p}
-                if not need & params <= flows[id(f)]:
-                    flows[id(f)] |= need & params
-                    changed = True
 
     def product(parts, sep):
         out = {sep.join(c) for c in itertools.islice(itertools.product(*parts), 64)}
@@ -465,7 +435,7 @@ def _py_exec_refs(tree, here: str, files: set) -> set:
     for call in ast.walk(tree):
         if not (isinstance(call, ast.Call) and is_exec(call)):
             continue
-        for arg in call_args(call):
+        for arg in call.args + [k.value for k in call.keywords]:
             lines = deep(arg, frozenset()) | argv_lines(arg, frozenset())
             for ln in lines:
                 found |= line_refs(ln, here, "", files)
@@ -593,18 +563,24 @@ def self_test():
         ("noxfile.py", 'import subprocess\nS = ["scripts/x.sh"]\nfor p in S:\n    subprocess.run(p)\n', {"scripts/x.sh"}, set()),
         ("noxfile.py", 'import subprocess\na0 = "x"\n' + "".join(f"a{i} = a{i-1} + a{i-1}\n" for i in range(1, 36))
          + 'subprocess.run(a35)\nsubprocess.run("scripts/x.sh")\n', {"scripts/x.sh"}, set()),
-        # A wrapper's call site counts only the arguments that reach the wrapper's own exec call;
-        # expected-output strings handed to a test wrapper are data.
-        ("scripts/test_x.py", 'import subprocess, sys\nREADME = "# Demo"\n'
-         'def run_plugin(manifest=None, readme=README, expect=""):\n'
+        # A loop over a literal list binds each name to its own slot: the expected-error string
+        # beside the kwargs a test wrapper receives is not one of its arguments.
+        ("scripts/test_x.py", 'import subprocess, sys\n'
+         'def run_plugin(readme="# Demo", expect=""):\n'
          '    subprocess.run([sys.executable, "scripts/x.sh", "tmp"])\n'
-         'run_plugin(expect="missing README.md")\n'
-         'for kw in [{"readme": None, "expect": "missing README.md"}]:\n    run_plugin(**kw)\n',
+         'CASES = [("missing README rejected", {"readme": None}, 1, "missing README.md")]\n'
+         'for label, kwargs, rc, err in CASES:\n    run_plugin(**kwargs)\nprint(len(CASES))\n',
          {"scripts/x.sh"}, {"README.md"}),
-        ("scripts/test_x.py", 'import subprocess\ndef go(script, expect=""):\n    cmd = ["bash", script]\n'
-         '    subprocess.run(cmd)\ngo("scripts/x.sh", expect="missing README.md")\n', {"scripts/x.sh"}, {"README.md"}),
-        ("scripts/test_x.py", 'import subprocess\ndef go(extra):\n    cmd = ["bash"]\n    cmd.append(extra)\n'
-         '    subprocess.run(cmd)\ngo("scripts/x.sh")\n', {"scripts/x.sh"}, set()),
+        ("scripts/test_x.py", 'import subprocess\nfor name, cmd in [("a", "scripts/x.sh")]:\n    subprocess.run(["bash", cmd])\n',
+         {"scripts/x.sh"}, set()),
+        ("scripts/test_x.py", 'import subprocess\nCASES = [("a", "README.md")]\nCASES = [("b", "scripts/x.sh")]\n'
+         'for name, cmd in CASES:\n    subprocess.run(["bash", cmd])\n', {"scripts/x.sh"}, set()),
+        ("scripts/test_x.py", 'import subprocess\nfor name, *cmd in [("a", "bash", "scripts/x.sh")]:\n    subprocess.run(cmd)\n',
+         {"scripts/x.sh"}, set()),
+        ("scripts/test_x.py", 'import subprocess\nfor name, cmd in [("a", "x"), ("scripts/x.sh",)]:\n    subprocess.run(["bash", name])\n',
+         {"scripts/x.sh"}, set()),
+        ("scripts/test_x.py", 'import subprocess\nname, cmd = "README.md", "scripts/x.sh"\nsubprocess.run(["bash", cmd])\n',
+         {"scripts/x.sh"}, {"README.md"}),
     ]
     for path, text, want_in, want_out in kept:
         got = refs_in_text(path, text, fx)
