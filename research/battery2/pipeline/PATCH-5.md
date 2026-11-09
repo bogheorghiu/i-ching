@@ -87,10 +87,11 @@ Run: `python3 -I pipeline/build_keys.py --workdir <dir> --seed-file pipeline/kim
   012mve9X). `--writers deepseek,sonnet --max-usd 6`. **133 items from 277 candidates, $4.34.** Drops: 53 clue
   checks (stage f), 25 author mismatches, 25 clues flagged by the verifier, 24 off topic (pre-screen), 17 CNKI
   records unverified; no `no_verdict` drops. Sonnet: 83 accepted clues for $0.96.
-- **Run 3's author mismatches** look like TOC author fields with no separator between names (TOC gives the
-  names run together, CNKI gives them split by `；`, e.g. 2023/4). Accepting a TOC field that equals the CNKI
-  names joined with no separator would likely recover most of them; not done, because those items fall in
-  the 2016+ article/zh band, which is already over target (below).
+- **Run 3's author mismatches:** 20 of the 25 differ only in separators (the TOC runs the names together,
+  CNKI splits them with `；`), counted by comparing the two fields with `；` removed; the other 5 are
+  translator or editor marks and two one-character differences. Accepting a TOC field that equals the CNKI
+  names joined with no separator would recover the 20; not done, because those items fall in the 2016+
+  article/zh band, which is already over target (below).
 - **Run 4:** `seed_from_toc.py` on the 2012-2016 and 2018 TOCs (ids 5788108-5788112, 5788114) gave 293 rows
   (154 CNKI pages matched no TOC entry). Only the 203 rows from 2012-2015 were run (2016 and 2018 left out:
   that band is over target). **106 items from 203 candidates, $3.54.** Drops: 33 clues flagged by the
