@@ -80,3 +80,39 @@ Run: `python3 -I pipeline/build_keys.py --workdir <dir> --seed-file pipeline/kim
   the $5 cap with 9 candidates still open). **Total 101 items for $8.89.** Most spend is now Opus
   verification (run 1 $3.54, run 2 $1.89, including the $1.43 lost earlier). DeepSeek clue calls record $0
   because no DeepSeek prices were passed (`--ds-price-*`), so their cost is a Gap in these figures.
+
+## Runs 3 and 4 (2026-11-09, observed; workdirs on `battery2-keys`, not committed here)
+
+- **Run 3:** seeds from `seed_from_toc.py` on the 2017 and 2021-2024 TOCs (277 rows, built in session
+  012mve9X). `--writers deepseek,sonnet --max-usd 6`. **133 items from 277 candidates, $4.34.** Drops: 53 clue
+  checks (stage f), 25 author mismatches, 25 clues flagged by the verifier, 24 off topic (pre-screen), 17 CNKI
+  records unverified; no `no_verdict` drops. Sonnet: 83 accepted clues for $0.96.
+- **Run 3's author mismatches:** 20 of the 25 differ only in separators (the TOC runs the names together,
+  CNKI splits them with `；`), counted by comparing the two fields with `；` removed. The other 5: two with
+  translator or editor marks (撰, 译, 整理), one missing co-author, one name cut short, one character
+  substituted. Accepting a TOC field that equals the CNKI names joined with no separator would likely
+  recover the 20 (estimated from that count, not run); not done, because those items fall in the 2016+
+  article/zh band, which is already over target (below).
+- **Run 4:** `seed_from_toc.py` on the 2012-2016 and 2018 TOCs (ids 5788108-5788112, 5788114) gave 293 rows
+  (154 CNKI pages matched no TOC entry). Only the 203 rows from 2012-2015 were run (2016 and 2018 left out:
+  that band is over target). **106 items from 203 candidates, $3.54.** Drops: 33 clues flagged by the
+  verifier, 27 clue checks, 14 off topic, 10 CNKI records unverified, 7 recoverability, 6 author mismatches.
+- **Total after four runs: 340 item rows for $16.78, 333 distinct items** (DeepSeek clue calls still unpriced,
+  so a Gap in the cost). 7 rows are the same article accepted twice: run 1 overlaps run 2 four times (2019)
+  and run 3 three times (2021), because their seeds covered the same issues and runs do not check other
+  workdirs. So the earlier "101 items" for runs 1-2 was a row count; 97 of them are distinct. Two rows count as
+  one item when the key's title, author and year all match; one further pair shares a title but differs in
+  author and year, so it is two items.
+
+## Strata after run 4 (against `design/final-design.md` §B)
+
+The design asks for 300 items: 60% articles / 40% books, 80% zh / 20% en, three date bands, and a
+fame split. The 333 distinct items are **all article/zh, all fame `unknown`**: 227 from 2016 or later,
+106 from 2000-2015. So the article/zh cell (144 of 300) is over target, and several cells have no items:
+
+- books (zh and en), English articles, pre-2000: none. The current intake pairs a CNKI article page with
+  the CASS yearly TOC of 《周易研究》 (2012-2024), so it yields only Chinese journal articles from those years; each needs its own record pair and design (issue #33, step 3).
+- fame: no item carries a citation or holdings count from a primary record, so the fame split cannot be
+  filled with this intake (Gap).
+
+Which 300 to freeze from the article/zh surplus, and whether to build the other cells, is the owner's call.
