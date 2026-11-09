@@ -584,6 +584,9 @@ def ds_fetch(url, route):
     fn = f"f_{sha(url)}.json"
     path = os.path.join(SNAP, fn)
     snap = read_json(path)
+    if snap is not None and snap.get("status") != 200 and host_of(url) in MOONSHOT_FALLBACK_HOSTS \
+            and not snap.get("fallback_tried"):
+        snap = None                               # retry a cached DeepSeek failure through Moonshot once
     if snap is None:
         status, js, raw = http_post(DS_FETCH_URL, {"Authorization": "Bearer " + os.environ.get("DEEPSEEK_API_KEY", "placeholder")},
                                     {"url": url}, timeout=180)
@@ -592,6 +595,15 @@ def ds_fetch(url, route):
             raise InfraError(f"fetch auth/billing status={status}")
         snap = {"kind": "fetch", "url": url, "route": route, "date": today(), "status": status,
                 "response": js if js is not None else raw[:20000]}
+        if status != 200 and host_of(url) in MOONSHOT_FALLBACK_HOSTS:
+            # DeepSeek's fetch cannot open these hosts; Moonshot's can (observed 2026-11-09, PATCH-5.md).
+            m_status, m_js, m_raw = http_post(MOONSHOT_FETCH_URL, {"Authorization": "Bearer " + os.environ.get(
+                "MOONSHOT_API_KEY", "placeholder")}, {"url": url}, timeout=180)
+            jlog(os.path.join(W, "tools.jsonl"), {"ts": nowiso(), "tool": "fetch", "via": "moonshot", "url": url,
+                                                  "cached": False, "status": m_status})
+            snap = {"kind": "fetch", "url": url, "route": route + " (via moonshot after deepseek " + str(status) + ")",
+                    "date": today(), "status": m_status, "fetcher": "moonshot", "fallback_tried": True,
+                    "response": m_js if m_js is not None else m_raw[:20000]}
         write_json(path, snap)
         jlog(os.path.join(SNAP, "index.jsonl"), {"kind": "fetch", "url": url, "route": route, "date": today(), "file": fn, "status": status})
     else:
@@ -868,6 +880,8 @@ def harvest_hit(r, idx, sfile, q, cell, meta, rank, offset, allowed, seen, seed_
 # item page fetched and extracted as usual; record B is a complete issue table of contents on a research institute's
 # portal, parsed in code: the entry line must match record A's title exactly (after norm), so nothing is repaired.
 TOC_HOSTS = ("iwr.cass.cn", "iwr.cssn.cn")
+MOONSHOT_FETCH_URL = "https://api.moonshot.ai/v1/tools/fetch"
+MOONSHOT_FALLBACK_HOSTS = ("iwr.cssn.cn",)
 CNKI_HOSTS = ("www.cnki.com.cn", "cnki.com.cn")
 TOC_HEAD = re.compile(r"《([^》]{2,30})》\s*(\d{4})\s*年")
 
@@ -880,7 +894,8 @@ def toc_entry(url, title):
     head = TOC_HEAD.search(F["text"][:600])
     if not head:
         return None, None, "toc_header_absent"
-    lines = [ln.strip() for ln in F["text"].splitlines() if ln.strip()]
+    text = F["text"].replace("\\|", "|").replace("**", "")     # Moonshot returns markdown
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     hits = []
     for i, ln in enumerate(lines):
         if "/" not in ln:
