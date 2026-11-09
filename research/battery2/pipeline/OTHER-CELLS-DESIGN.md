@@ -87,3 +87,31 @@ counts and identifiers; this session does not re-derive a success from the same 
 parser pass to rescue an arm, no swapping candidates). Any change to this section after the probe starts
 is recorded under "Deviations from the probe plan" with its reason, before the affected arm is scored.
 The owner adjudicates; this session only reports.
+
+### Deviations from the probe plan (each written before the fetches it affects)
+
+1. **2026-11-09, after the three book arms were scored (results in section 4), before any article-arm
+   record was fetched: a second arm of record A for A-en.** The reachability copy of one Cambridge Core
+   page through Moonshot holds the title line and the footnotes, with no author and no year. The arm is
+   run as registered (record A through Moonshot). In addition, record A is fetched through DeepSeek and
+   scored the same way, reported as **A-en/ds**, outside the rule: with it, both records would come
+   through one fetch API, which the coming deviation 4 does not allow.
+
+## 2. Follow-up probe for books (pre-registered 2026-11-09, after the first book arms scored 0 of 8)
+
+**Why a second probe, and why it is not a rescue.** All three book arms failed on one field: K10plus's
+`recordSchema=dc` response has no `dc:publisher` element at all (tags present in a saved response:
+title, contributor, date, description, format, identifier, language, relation, subject, type). So the
+first probe measured the schema this session chose, and its verdict stands: that route is not viable.
+One reachability request for one ISBN showed that `recordSchema=marcxml` carries the publisher (field
+264). This probe tests that different route on **different candidates**, with new fetches.
+
+- **Arms and candidates.** B-zh-new and B-zh-old: entries 9 to 16 of the same eligible lists as in
+  section 1 (the first eight are used up). B-en: the first eight eligible entries of
+  `subject=易経&lang=eng&count=20` (the `clas=123.1` list had only 3 English entries; this enumeration
+  has not been fetched before).
+- **Record B.** K10plus SRU, `recordSchema=marcxml`, by record A's first ISBN, through Moonshot. Fields
+  by regular expression over the saved text: title = 245 `a`; author = 100 `a`, 700 `a` or 245 `c`;
+  publisher = 264 or 260 `b`; year = 264 or 260 `c`. For Chinese books the linked 880 fields
+  (original script) are read the same way and preferred for the agreement count.
+- **Endpoint, rule, voids, obligations:** as in section 1.
