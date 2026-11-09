@@ -68,3 +68,15 @@ Run: `python3 -I pipeline/build_keys.py --workdir <dir> --seed-file pipeline/kim
 - Yearly TOCs of 《周易研究》 2012-2024 sit at consecutive ids 5788108-5788120 on `iwr.cass.cn` (titles read
   2026-11-09), so further years need no new source.
 - Blind review (2026-11-09), no blocking findings. Fixed: a Moonshot 401/402/429 now stops the run (InfraError) instead of caching the page as unfetchable. Left as they are (non-blocking): the TOC parser takes the year from the page header without checking the entry's issue section; failed fetches are cached and not retried; a batch with an empty verdict is paid again on each rerun (cap runs with --max-usd).
+
+## Sonnet as second clue writer (2026-11-09, observed)
+
+- Candidates that had died at the clue stage were reopened and re-run with `--writers deepseek,sonnet`
+  (records and DeepSeek clues reused; an item drops only if every clue fails).
+- Run 2's first 40 reruns used Sonnet at effort "max": 36 clues, 7.5k reasoning tokens and $0.078 each. With
+  the writer's reasoning capped at 3k tokens (max_tokens 8k), run 1's reruns cost $0.19 for their Sonnet
+  clues in total. Whether the cap lowers clue quality is not measured (Gap).
+- Results: run 1 **21 → 28 items** (of 75; $3.74 in total); run 2 **52 → 73 items** (of 138; $5.15, stopped at
+  the $5 cap with 9 candidates still open). **Total 101 items for $8.89.** Most spend is now Opus
+  verification (run 1 $3.54, run 2 $1.89, including the $1.43 lost earlier). DeepSeek clue calls record $0
+  because no DeepSeek prices were passed (`--ds-price-*`), so their cost is a Gap in these figures.
