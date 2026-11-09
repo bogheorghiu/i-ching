@@ -883,9 +883,11 @@ def toc_entry(url, title):
     lines = [ln.strip() for ln in F["text"].splitlines() if ln.strip()]
     hits = []
     for i, ln in enumerate(lines):
-        if "//" not in ln:
+        if "/" not in ln:
             continue
-        t, _, rest = ln.partition("//")
+        # Formats seen on these portals: "title//authors（page）" (2016), "title/authors" (2018),
+        # "title/author|author" (2019). Authors are the text after the last separator.
+        t, _, rest = ln.partition("//") if "//" in ln else ln.rpartition("/")
         if i and re.match(r"^[-—–]{2,}", t):          # subtitle wrapped onto its own line
             t = lines[i - 1] + t
         if norm(t) == norm(title):
@@ -893,10 +895,11 @@ def toc_entry(url, title):
     if len(hits) != 1:
         return None, None, "toc_entry_absent" if not hits else "toc_entry_ambiguous"
     t, rest, raw = hits[0]
-    m = re.match(r"^\s*(.+?)\s*[（(]\s*[\d+,，\s]+[)）]\s*$", rest)
-    if not m:
+    m = re.match(r"^\s*(.+?)\s*(?:[（(]\s*[\d+,，\s]+[)）])?\s*$", rest)
+    names = [x for x in re.split(r"[\s、|，,；;]+", m.group(1)) if x] if m else []
+    if not names or any(len(x) > 12 for x in names):
         return None, None, "toc_author_unparsed"
-    authors = "；".join(m.group(1).split())       # the TOC separates authors by spaces only
+    authors = "；".join(names)                   # separator only; the names are copied as written
     entry = {"title": t, "author": authors, "venue": head.group(1), "year": int(head.group(2))}
     rec = {"url": url, "snapshot_file": F["file"], "snapshot_kind": "fetch", "route": "seed: institute toc",
            "date": today(), "toc_line": raw, "toc_header": head.group(0)}
