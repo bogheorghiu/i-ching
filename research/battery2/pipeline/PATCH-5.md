@@ -31,3 +31,19 @@ Run: `python3 -I pipeline/build_keys.py --workdir <dir> --seed-file pipeline/kim
   findings 5-9, non-blocking, left as they are).
 - Test 8 reused test 7's states with verification fields reset by hand; a stale `key_flagged` marker from
   that reset first dropped all four, which was the reset's fault, not the pipeline's.
+
+## Run 1 (2026-11-09, observed; workdir `keys-pipeline-run1`, not committed)
+
+- Seeds: `kimi/papers-2026-11-09-round2.jsonl` (Kimi round 2: 92 papers; new issues 《周易研究》2018/1-3 with
+  CNKI pages and the `iwr.cass.cn` 2018 TOC). 75 seeded; 17 skipped (no CASS TOC URL, e.g. 中国哲学史 2018/4).
+- First pass found 2 items: 36 candidates failed `toc_entry_absent` because the 2018 TOC writes entries as
+  `title/authors` with `、` between authors and no page number. `toc_entry` now reads three formats:
+  `title//authors（page）` (2016), `title/authors` (2018) and `title/author|author` (2019, as the Kimi app
+  reported the page). Checks: real 2016 and 2018 pages parse; a synthetic 2019 line parses; an absent title
+  gives `toc_entry_absent`; a line whose "author" is prose gives `toc_author_unparsed`.
+- After the fix (only those 36 reprocessed, fetches cached): **10 items from 75 candidates, $1.54 in total**
+  (writers: DeepSeek only). Remaining drops: 25 `unfetchable_source` (the `iwr.cssn.cn` TOCs for 2019/3 and
+  2021/5: DeepSeek fetch fails there, while the Kimi app's fetch opened the page on 2026-11-09), 17 clue
+  checks (stage f), 9 `toc_entry_absent` (6 of them notices or book blurbs with no author, correctly
+  dropped), 5 clues flagged by the verifier, 4 CNKI records unverified (obituaries, notes), 3 recoverability,
+  2 author mismatches.
