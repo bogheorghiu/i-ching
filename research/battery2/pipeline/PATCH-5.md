@@ -47,3 +47,24 @@ Run: `python3 -I pipeline/build_keys.py --workdir <dir> --seed-file pipeline/kim
   checks (stage f), 9 `toc_entry_absent` (6 of them notices or book blurbs with no author, correctly
   dropped), 5 clues flagged by the verifier, 4 CNKI records unverified (obituaries, notes), 3 recoverability,
   2 author mismatches.
+
+## Run 1, continued, and run 2 (2026-11-09, observed; workdirs not committed)
+
+- **Moonshot fallback.** `ds_fetch` retries a failed DeepSeek fetch through `api.moonshot.ai/v1/tools/fetch`
+  for hosts in `MOONSHOT_FALLBACK_HOSTS` (`iwr.cssn.cn`); the snapshot records `fetcher: moonshot`. Both
+  `iwr.cssn.cn` TOCs (2019, 2021) returned 200 through it, so the 25 blocked run-1 candidates reached the
+  later stages; 2 still dropped `unfetchable_source`.
+- **Verifier fault found and fixed.** Two Opus verify batches spent the whole 32k `max_tokens` on reasoning
+  (effort "max") and returned no answer; 12 units were dropped `no_verdict` ($1.43 spent for nothing). The
+  verify call now sets `reasoning.max_tokens` 16000 under `max_tokens` 32000, and a batch with an empty answer
+  stays pending instead of being judged. Re-verified: $0.21, reasoning about 1k tokens per batch. Whether the
+  shorter reasoning makes the verifier less strict is not measured (Gap).
+- **Run 1 final: 21 items from 75 candidates, $3.17** (of which $1.43 was the lost batches).
+- **Run 2 (self-seeded):** `seed_from_toc.py` on the 2019 and 2020 TOCs (`iwr.cass.cn` ids 5788115, 5788116)
+  gave 138 seeds from about 150 entries (48 CNKI pages matched no entry: notices, columns, other issues).
+  Pipeline: **52 items from 138 candidates, $1.14.** Drops: 52 clue checks (stage f), 20 clues flagged
+  by the verifier (9 leaks, 9 misdescribe, 2 other fitting work), 7 off topic (pre-screen), 4 CNKI records
+  unverified, 3 author mismatches. Writers: DeepSeek only; clue loss is now the largest drop.
+- Yearly TOCs of 《周易研究》 2012-2024 sit at consecutive ids 5788108-5788120 on `iwr.cass.cn` (titles read
+  2026-11-09), so further years need no new source.
+- Blind review (2026-11-09), no blocking findings. Fixed: a Moonshot 401/402/429 now stops the run (InfraError) instead of caching the page as unfetchable. Left as they are (non-blocking): the TOC parser takes the year from the page header without checking the entry's issue section; failed fetches are cached and not retried; a batch with an empty verdict is paid again on each rerun (cap runs with --max-usd).

@@ -387,8 +387,11 @@ def or_cost(usage):
     return (c, "usage.cost") if c > 0 else (up, "upstream_inference_cost")
 
 
-def openrouter_chat(model, messages, purpose, anthropic, max_tokens=None):
-    body = {"model": model, "messages": messages, "reasoning": {"effort": "max"}, "usage": {"include": True}}
+def openrouter_chat(model, messages, purpose, anthropic, max_tokens=None, reasoning_tokens=None):
+    # With effort "max", Opus spent the whole 32k max_tokens on reasoning and returned empty content in run 1
+    # (2026-11-09, two verify batches); a reasoning budget below max_tokens leaves room for the answer.
+    reasoning = {"max_tokens": reasoning_tokens} if reasoning_tokens else {"effort": "max"}
+    body = {"model": model, "messages": messages, "reasoning": reasoning, "usage": {"include": True}}
     if anthropic:
         body["provider"] = {"only": ["anthropic"]}
         body["cache_control"] = {"type": "ephemeral"}
@@ -584,6 +587,9 @@ def ds_fetch(url, route):
     fn = f"f_{sha(url)}.json"
     path = os.path.join(SNAP, fn)
     snap = read_json(path)
+    if snap is not None and snap.get("status") != 200 and host_of(url) in MOONSHOT_FALLBACK_HOSTS \
+            and not snap.get("fallback_tried"):
+        snap = None                               # retry a cached DeepSeek failure through Moonshot once
     if snap is None:
         status, js, raw = http_post(DS_FETCH_URL, {"Authorization": "Bearer " + os.environ.get("DEEPSEEK_API_KEY", "placeholder")},
                                     {"url": url}, timeout=180)
@@ -592,6 +598,17 @@ def ds_fetch(url, route):
             raise InfraError(f"fetch auth/billing status={status}")
         snap = {"kind": "fetch", "url": url, "route": route, "date": today(), "status": status,
                 "response": js if js is not None else raw[:20000]}
+        if status != 200 and host_of(url) in MOONSHOT_FALLBACK_HOSTS:
+            # DeepSeek's fetch cannot open these hosts; Moonshot's can (observed 2026-11-09, PATCH-5.md).
+            m_status, m_js, m_raw = http_post(MOONSHOT_FETCH_URL, {"Authorization": "Bearer " + os.environ.get(
+                "MOONSHOT_API_KEY", "placeholder")}, {"url": url}, timeout=180)
+            jlog(os.path.join(W, "tools.jsonl"), {"ts": nowiso(), "tool": "fetch", "via": "moonshot", "url": url,
+                                                  "cached": False, "status": m_status})
+            if m_status in (401, 402, 429):
+                raise InfraError(f"moonshot fetch auth/billing/rate status={m_status}")
+            snap = {"kind": "fetch", "url": url, "route": route + " (via moonshot after deepseek " + str(status) + ")",
+                    "date": today(), "status": m_status, "fetcher": "moonshot", "fallback_tried": True,
+                    "response": m_js if m_js is not None else m_raw[:20000]}
         write_json(path, snap)
         jlog(os.path.join(SNAP, "index.jsonl"), {"kind": "fetch", "url": url, "route": route, "date": today(), "file": fn, "status": status})
     else:
@@ -868,6 +885,8 @@ def harvest_hit(r, idx, sfile, q, cell, meta, rank, offset, allowed, seen, seed_
 # item page fetched and extracted as usual; record B is a complete issue table of contents on a research institute's
 # portal, parsed in code: the entry line must match record A's title exactly (after norm), so nothing is repaired.
 TOC_HOSTS = ("iwr.cass.cn", "iwr.cssn.cn")
+MOONSHOT_FETCH_URL = "https://api.moonshot.ai/v1/tools/fetch"
+MOONSHOT_FALLBACK_HOSTS = ("iwr.cssn.cn",)
 CNKI_HOSTS = ("www.cnki.com.cn", "cnki.com.cn")
 TOC_HEAD = re.compile(r"《([^》]{2,30})》\s*(\d{4})\s*年")
 
@@ -880,7 +899,8 @@ def toc_entry(url, title):
     head = TOC_HEAD.search(F["text"][:600])
     if not head:
         return None, None, "toc_header_absent"
-    lines = [ln.strip() for ln in F["text"].splitlines() if ln.strip()]
+    text = F["text"].replace("\\|", "|").replace("**", "")     # Moonshot returns markdown
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     hits = []
     for i, ln in enumerate(lines):
         if "/" not in ln:
@@ -1937,14 +1957,18 @@ def stage_g(args, states):
         bid = "batch_" + sha("|".join(u[0] for u in batch), 12)
         bpath = os.path.join(VERIFY_DIR, bid + ".json")
         saved = read_json(bpath)
-        if saved is None or "raw_output" not in saved:
+        if saved is None or not saved.get("raw_output"):         # an empty answer is retried, not judged
             blocks = [unit_block(st, w, uid) for uid, st, w in batch]
             user = json.dumps({"units": blocks}, ensure_ascii=False, indent=1)
             txt = openrouter_chat(OPUS, [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                                  purpose="verify", anthropic=True, max_tokens=32000)
+                                  purpose="verify", anthropic=True, max_tokens=32000,
+                                  reasoning_tokens=16000)
             saved = {"batch": bid, "date": today(), "unit_ids": [u[0] for u in batch], "request_units": blocks,
                      "raw_output": txt, "writer_map_private": {uid: w for uid, _, w in batch}}
             write_json(bpath, saved)
+        if not saved.get("raw_output"):
+            print(f"[g] {bid}: verifier returned no answer; units left pending for the next run")
+            continue
         obj = parse_json_obj(saved.get("raw_output"))
         vmap = {}
         if isinstance(obj, dict) and isinstance(obj.get("verdicts"), list):
