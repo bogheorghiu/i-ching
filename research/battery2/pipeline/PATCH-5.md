@@ -140,7 +140,7 @@ Which 300 to freeze from the article/zh surplus, and whether to build the other 
   item; mutation: with the hold removed from `is_good`, the held item counts as good.
 - Known and left: after an equal re-read, `entryB`, `key_forms` and the verifier's verdict still come from the earlier
   snapshot (`replaced_snapshot_file`); a keyed item dropped by the re-read still blocks a later duplicate, as any
-  drop after stage d does; the verifier's excerpt is cut from Moonshot's raw markdown (`**`, `\\|`), while
+  drop after stage d does; the verifier's excerpt is cut from Moonshot's raw markdown (`**`, `\|`), while
   `toc_entry` parses it with those removed.
 - Left as they are, all older than this change: `load_host_stats` and the report's "DeepSeek tool calls" line count
   Moonshot fetches too; a Moonshot auth or rate error stops one item, not the run (`process` catches `InfraError`
