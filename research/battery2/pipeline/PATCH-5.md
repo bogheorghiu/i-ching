@@ -150,3 +150,26 @@ Which 300 to freeze from the article/zh surplus, and whether to build the other 
   in the first 600 characters, which `toc_entry` needs; the real work directories (the re-read has run only on the
   constructed state above); a full pipeline run. `seed_from_toc.py` still reads the table of contents through
   `ds_fetch` with its fallback for `iwr.cssn.cn` only: seeds are candidates, never records.
+
+## Record B read again through Moonshot: result (2026-11-09, after PR 35)
+
+Run on the four stored work directories with `--stage b` (each with its own target and writers), on `main` at
+55db1b0. The outcomes were fixed in PREREG deviation 4 before the run.
+
+| Outcome | Items |
+|---|---|
+| Equal, kept with the Moonshot snapshot | 334 (325 accepted, 9 in progress) |
+| Dropped | 1 (accepted, run 3: `toc_entry_absent`) |
+| Held (`not_rechecked`) | 0 |
+| Record B already through Moonshot, not re-read | 14 (accepted, run 1) |
+
+- 13 table-of-contents pages (2012-2024) were fetched through Moonshot, each with status 200 and a readable header.
+- Accepted items: 340 before, 339 after; distinct by title and author: 332.
+- The dropped item: its title holds a rare character, and Moonshot's conversion breaks the line after it, so the
+  title and the author sit on two lines and `toc_entry` finds no entry. DeepSeek's conversion kept the line whole.
+  The page is the same; the two converters differ. Under the rule fixed in advance an absent entry drops, and the
+  item is not repaired.
+- What this shows about the converters: across 335 entries read through both, the parsed title, author, venue and
+  year agreed on 334, and the one difference is a line break, not a changed character.
+- Not checked: the snapshots were compared through `toc_entry`'s fields only, not page text against page text.
+
