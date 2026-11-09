@@ -2,7 +2,7 @@
 
 Status: **design proposal with a small probe; nothing here is built into the pipeline.** Board item
 `i-b2-other-cells`. Rules it works under: `../PREREG.md` (deviations 1-3; deviation 4, fetcher
-independence, is being written by another session) and `../design/final-design.md` sections A and B.
+independence, was merged while this note was being written) and `../design/final-design.md` sections A and B.
 No answer keys are in this file: probe candidates are named by catalogue identifier, DOI or issue, never
 with a clue.
 
@@ -20,7 +20,7 @@ first, a thin result can be read as promising afterwards (rule `preregister-ship
 
 ### Arms (one per cell), with the fetch API each record is assigned to
 
-Record A and record B go through different fetch APIs (the coming deviation 4). The assignment below is
+Record A and record B go through different fetch APIs (PREREG deviation 4). The assignment below is
 forced by which API opens which host (section 3).
 
 | Arm | Cell | Seed enumeration (no title query) | Record A (fetch API) | Record B (fetch API) | Route to B |
@@ -95,7 +95,7 @@ The owner adjudicates; this session only reports.
    page through Moonshot holds the title line and the footnotes, with no author and no year. The arm is
    run as registered (record A through Moonshot). In addition, record A is fetched through DeepSeek and
    scored the same way, reported as **A-en/ds**, outside the rule: with it, both records would come
-   through one fetch API, which the coming deviation 4 does not allow.
+   through one fetch API, which PREREG deviation 4 does not allow.
 
 ## 2. Follow-up probe for books (pre-registered 2026-11-09, after the first book arms scored 0 of 8)
 
@@ -171,14 +171,20 @@ named below were seen by this session and are in a public file: **keep them out 
 | B-zh-new (K10plus `dc`) | 22 entries, 19 with ISBN | 8 | 8 | 0 | **0 of 8** | not viable |
 | B-zh-old (K10plus `dc`) | 41 entries, 20 of the first 20 with ISBN | 8 | 8 | 0 | **0 of 8** | not viable |
 | B-en (K10plus `dc`) | 3 entries | 3 | 3 | 0 | 0 of 3 | enumeration too thin |
-| B-zh-new/2 (K10plus `marcxml`) | same list, entries 9-16 | 8 | 8 | 2 | **2 of 8** | marginal |
-| B-zh-old/2 (K10plus `marcxml`) | same list, entries 9-16 | 8 | 8 | 8 | **8 of 8** | viable |
+| B-zh-new/2 (K10plus `marcxml`) | same list, entries 9-16 | 8 | 8 | 2 (0) | **2 of 8** (0 of 8) | marginal (not viable) |
+| B-zh-old/2 (K10plus `marcxml`) | same list, entries 9-16 | 8 | 8 | 8 (7) | **8 of 8** (7 of 8) | viable (viable) |
 | B-en/2 (K10plus `marcxml`) | 2 entries | 2 | 2 | 0 | 0 of 2 | enumeration too thin |
 
+- **Two readings of section 2, both reported.** The plan says the original-script 880 fields are
+  "read the same way and preferred for the agreement count"; it does not say whether a field found
+  only in an 880 counts toward the field set. The probe script counted it; the figures in brackets
+  are the strict reading (245, 100/700, 264/260 only), from the blind recount. Three records have
+  their publisher only in an 880. The verdict changes for B-zh-new/2 and not for B-zh-old/2.
 - **First probe, cause of the nulls:** every record B lacked a publisher, because K10plus's `dc` schema
   has no publisher element (section 2). Five of the 19 also had no K10plus record at all.
 - **B-zh-new/2:** six of eight ISBNs have no K10plus record (an empty SRU response, 565 characters).
-  The two found agree with record A on year; one of them on title.
+  The two found agree with record A on year; one of them on title (for BA63316330 K10plus returns a
+  different title under the same ISBN).
 - **B-zh-old/2:** all eight ISBNs have a K10plus record with all four fields; five carry the
   original-script (880) fields. Agreement under the probe's crude normalisation: **title 3 of 8, year
   6 of 8.** The probe does not say why the other titles differ (romanised against original script,
@@ -186,7 +192,9 @@ named below were seen by this session and are in a public file: **keep them out 
   ISBN 7805693730 is shared by a multi-volume reprint series, and K10plus returns another volume of it
   (seen in the reachability pass with the `dc` schema, and again here as BN07534574, which disagrees on
   both title and year). So the pair opens records for old books, and the comparison stage will then
-  drop a share that this probe cannot size: at least the two year disagreements (2 of 8).
+  drop a share that this probe cannot size: at least the two year disagreements (2 of 8). The same
+  kind of mismatch showed in the first probe: for BA81633630 both K10plus and the NDL return the
+  parent set, not the volume CiNii describes.
 - **Second custodian for record B (secondary measurement):** the National Diet Library's own catalogue
   had a full record for 2 of the 19 first-probe candidates (BA81633630, published in Japan, and
   BN14267128), no record for 16, and one 504. It is not a second record B for Chinese books.
@@ -206,7 +214,7 @@ named below were seen by this session and are in a public file: **keep them out 
 | A-zh-old (《周易研究》 1995/1) | 8 ids | 0 of 8 | 0 | **0 of 8** | not viable, and uninformative about the pair (see below) |
 
 - **A-en, enumeration.** The 1990-1995 window gave 12 eligible entries of the first 20 (124 in all);
-  the 2010-2012 window gave **none** of 20, because those Crossref entries lack `author` or `page`. So
+  the 2010-2012 window gave **none** of 20 (all of volume 33), because none of those Crossref entries has an `author`. So
   the arm has four candidates, one short of the five the plan requires for a verdict:
   DOIs 10.1017/s0362502800003862 (the page seen in the reachability pass; the rule returned it first),
   10.1017/s0362502800005009, 10.1017/s0362502800005010, 10.1017/s0362502800005034.
@@ -222,7 +230,9 @@ named below were seen by this session and are in a public file: **keep them out 
   at all (its front page says 1934-1980 and 2001 onwards; the 1981-2000 data sits in an older search
   form).
 - **A-zh-old.** The eight ids were this session's guess that 1995 pages follow the modern CNKI id
-  form. They do not resolve: DeepSeek returns CNKI's 192-character placeholder page, Moonshot 502. And
+  form. They do not resolve: DeepSeek returns the same short CNKI site-shell page for all eight (no title,
+  author or journal), Moonshot 502. (Fetching these through DeepSeek as well was not in the plan; it
+  was done to tell a wrong id from a Moonshot failure, and scores nothing.) And
   the Kyoto entry for 《周易研究》 is empty (the journal does not appear to be indexed there). The
   arm therefore failed at enumeration and says nothing about any record pair.
 
@@ -267,7 +277,7 @@ The owner decides each on a board card; this section is the reasoning behind the
 
 ### Chinese books, 2000 and later: marginal
 
-Same pair, 2 of 8. Six of eight newer books are simply not in K10plus. A different record B is needed:
+Same pair, 2 of 8 (0 of 8 on the strict reading). Six of eight newer books are simply not in K10plus. A different record B is needed:
 the National Library of China's catalogue would be the natural one, and its search page returned 502
 through both APIs. No proposal; recorded as a cell without a pair.
 
@@ -283,7 +293,7 @@ the copied-record problem is also at its worst (see above). No proposal.
 Record A has to be the journal's own page. For *Early China* only DeepSeek returns the author and year;
 for *T'oung Pao* only DeepSeek opens Brill at all. The one independent record B found, the Kyoto
 bibliography, also opens only through DeepSeek. So even with the Kyoto index solved, both records
-would come through one API, which the coming deviation 4 forbids. Three ways out, none tested:
+would come through one API, which PREREG deviation 4 forbids. Three ways out, none tested:
 1. Kyoto publishes the bibliography as a dataset (`corpus.kanji.zinbun.kyoto-u.ac.jp/gitlab/Ruimoku`:
    books and papers from 2001, journals and metadata from 1981, the 1981-2000 text files), and
    Moonshot opens that host. Reading record B from the dataset files would solve both the index and
@@ -294,8 +304,7 @@ would come through one API, which the coming deviation 4 forbids. Three ways out
    (`data.gov.tw/dataset/16384`; fields 篇名, 刊名, 著者, 出版年, 頁次). It would be a library-made
    record B for pre-2000 English articles. Only its description page was fetched; the file was not.
 3. Crossref's record as record A. It opens through both APIs and is clean JSON, but the publisher
-   deposits it, so it is the publisher's record by another door, and for 2010-2012 it lacks authors
-   or pages. Usable as the seed list, as here; as a record it would need the owner's ruling.
+   deposits it, so it is the publisher's record by another door, and for 2010-2012 it lacks authors. Usable as the seed list, as here; as a record it would need the owner's ruling.
 
 A Kyoto volume page as record B would be a **new class** (a bibliography compiled by a university
 institute from the journals it receives), the analogue of deviation 2's institute table of contents.
