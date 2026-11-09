@@ -116,3 +116,60 @@ fame split. The 333 distinct items are **all article/zh, all fame `unknown`**: 2
   filled with this intake (Gap).
 
 Which 300 to freeze from the article/zh surplus, and whether to build the other cells, is the owner's call.
+
+## Two fetch APIs, one per record (PREREG deviation 4, 2026-11-09)
+
+- `toc_entry` now fetches through `moonshot_fetch`; `cnki_entry` still fetches through `ds_fetch`. `stage_b` drops an
+  item `same_fetcher` when both records' snapshots name one fetcher. A Moonshot snapshot is stored as `fm_<hash>.json`;
+  a fallback snapshot Moonshot already made for the same URL is reused. Why: PREREG deviation 4.
+- Checked (2026-11-09, live, one pair: CNKI `ZYJY201602002` with the 2016 table of contents, `iwr.cass.cn` id
+  5788112): record A through DeepSeek, record B through Moonshot, authors equal. Mutation: with
+  `toc_entry` put back on `ds_fetch` and a DeepSeek-shaped snapshot for the table of contents, the item drops
+  `same_fetcher`. An old Moonshot fallback snapshot is reused without a second file.
+- Items resumed from an earlier work directory (same day, state built from the live pair with a DeepSeek-shaped
+  record B): equal entry gives `recB_reread: equal` and the Moonshot snapshot; a stored author changed by one
+  character drops `reread_mismatch:author`; a cached Moonshot 502 gives `not_rechecked` and no drop; a second run
+  changes nothing. Mutation: with the call to `reread_record_b` removed, the changed author is not dropped.
+- A blind review (fresh agent, diff and a checkout of `main`) found that items with a saved record B skipped the rule
+  (fixed by `reread_record_b`), an unlocked first fetch of a page shared by a year's items (now under a lock), and
+  wording stronger than the evidence (corrected in PREREG).
+- A second blind review (the code diff) found that a `not_rechecked` item still went on to be accepted (fixed: `held`
+  stops it in `process`, `is_good` and `finalize`, and the report counts it), that a page Moonshot returns in a form
+  the parser cannot read would have dropped the item (now held), and that the re-read compared more strictly than
+  `stage_d` (now the same comparisons). Checked: a cached 502 and a header pushed past 600 characters both hold the
+  item; mutation: with the hold removed from `is_good`, the held item counts as good.
+- Known and left: after an equal re-read, `entryB`, `key_forms` and the verifier's verdict still come from the earlier
+  snapshot (`replaced_snapshot_file`); a keyed item dropped by the re-read still blocks a later duplicate, as any
+  drop after stage d does; the verifier's excerpt is cut from Moonshot's raw markdown (`**`, `\|`), while
+  `toc_entry` parses it with those removed.
+- Left as they are, all older than this change: `load_host_stats` and the report's "DeepSeek tool calls" line count
+  Moonshot fetches too; a Moonshot auth or rate error stops one item, not the run (`process` catches `InfraError`
+  per item), which the "now stops the run" line above overstates; `MOONSHOT_API_KEY` is not named in the module
+  docstring.
+- Not checked: the tables of contents of the other years through Moonshot, among them whether each keeps its header
+  in the first 600 characters, which `toc_entry` needs; the real work directories (the re-read has run only on the
+  constructed state above); a full pipeline run. `seed_from_toc.py` still reads the table of contents through
+  `ds_fetch` with its fallback for `iwr.cssn.cn` only: seeds are candidates, never records.
+
+## Record B read again through Moonshot: result (2026-11-09, after PR 35)
+
+Run on the four stored work directories with `--stage b` (each with its own target and writers), on `main` at
+55db1b0. The outcomes were fixed in PREREG deviation 4 before the run.
+
+| Outcome | Items |
+|---|---|
+| Equal, kept with the Moonshot snapshot | 334 (325 accepted, 9 in progress) |
+| Dropped | 1 (accepted, run 3: `toc_entry_absent`) |
+| Held (`not_rechecked`) | 0 |
+| Record B already through Moonshot, not re-read | 14 (accepted, run 1) |
+
+- 13 table-of-contents pages (2012-2024) were fetched through Moonshot, each with status 200 and a readable header.
+- Accepted items: 340 before, 339 after; distinct by title and author: 332.
+- The dropped item: its title holds a rare character, and Moonshot's conversion breaks the line after it, so the
+  title and the author sit on two lines and `toc_entry` finds no entry. DeepSeek's conversion kept the line whole.
+  The page is the same; the two converters differ. Under the rule fixed in advance an absent entry drops, and the
+  item is not repaired.
+- What this shows about the converters: across 335 entries read through both, the parsed title, author, venue and
+  year agreed on 334, and the one difference is a line break, not a changed character.
+- Not checked: the snapshots were compared through `toc_entry`'s fields only, not page text against page text.
+
