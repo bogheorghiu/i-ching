@@ -133,6 +133,15 @@ Which 300 to freeze from the article/zh surplus, and whether to build the other 
 - A blind review (fresh agent, diff and a checkout of `main`) found that items with a saved record B skipped the rule
   (fixed by `reread_record_b`), an unlocked first fetch of a page shared by a year's items (now under a lock), and
   wording stronger than the evidence (corrected in PREREG).
+- A second blind review (the code diff) found that a `not_rechecked` item still went on to be accepted (fixed: `held`
+  stops it in `process`, `is_good` and `finalize`, and the report counts it), that a page Moonshot returns in a form
+  the parser cannot read would have dropped the item (now held), and that the re-read compared more strictly than
+  `stage_d` (now the same comparisons). Checked: a cached 502 and a header pushed past 600 characters both hold the
+  item; mutation: with the hold removed from `is_good`, the held item counts as good.
+- Known and left: after an equal re-read, `entryB`, `key_forms` and the verifier's verdict still come from the earlier
+  snapshot (`replaced_snapshot_file`); a keyed item dropped by the re-read still blocks a later duplicate, as any
+  drop after stage d does; the verifier's excerpt is cut from Moonshot's raw markdown (`**`, `\\|`), while
+  `toc_entry` parses it with those removed.
 - Left as they are, all older than this change: `load_host_stats` and the report's "DeepSeek tool calls" line count
   Moonshot fetches too; a Moonshot auth or rate error stops one item, not the run (`process` catches `InfraError`
   per item), which the "now stops the run" line above overstates; `MOONSHOT_API_KEY` is not named in the module

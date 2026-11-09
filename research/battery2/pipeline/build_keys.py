@@ -122,7 +122,7 @@ ARGS = None
 _LOG_LOCK = threading.Lock()
 _DS_PROBE_LOCK = threading.Lock()
 _DUP_LOCK = threading.Lock()
-_MOONSHOT_LOCK = threading.Lock()
+_MOONSHOT_LOCKS = collections.defaultdict(threading.Lock)      # one per URL; setdefault on a dict is atomic
 _DUPS = {}
 
 
@@ -585,7 +585,7 @@ def fetch_text(js):
 def moonshot_fetch(url, route):
     """Fetch through Moonshot as the primary fetcher (PREREG deviation 4). An earlier fallback snapshot of the same
     URL is reused when Moonshot produced it; a DeepSeek snapshot never is."""
-    with _MOONSHOT_LOCK:          # items of one year share one page: one fetch, one snapshot, the text all parse
+    with _MOONSHOT_LOCKS[url]:    # items of one year share one page: one fetch, one snapshot, the text all parse
         old = read_json(os.path.join(SNAP, f"f_{sha(url)}.json"))
         fn = f"f_{sha(url)}.json" if old is not None and old.get("fetcher") == "moonshot" and old.get("status") == 200 \
             else f"fm_{sha(url)}.json"
@@ -1478,26 +1478,36 @@ def loose_title_in(title, text):
 def reread_record_b(st):
     """PREREG deviation 4, for an item whose record B was saved before it: when both records came through one
     fetcher, read record B again through Moonshot and compare it in code with the stored entry. Different or absent:
-    drop. Equal: the Moonshot snapshot replaces the old one. Page not opened: flagged, neither dropped nor passed."""
+    drop. Equal: the Moonshot snapshot replaces the old one (the key, the clues and any verdict were made on the old
+    one, named in replaced_snapshot_file). Page not opened, or not readable by toc_entry as Moonshot returns it: held
+    (see held), neither dropped nor accepted."""
     c, old = st["cand"], st["recB"]
     if not c.get("seed_b_url") or fetcher_of(old.get("snapshot_file")) != fetcher_of(st["recA"].get("snapshot_file")):
         return
     e, rec, why = toc_entry(c["seed_b_url"], st["entryA"]["title"])
-    if why == "unfetchable_source":
+    if why in ("unfetchable_source", "toc_header_absent", "toc_author_unparsed"):    # the page was not read
         st["recB_reread"] = {"status": "not_rechecked", "reason": why, "date": today()}
         return
     if e is None:
         return drop(st, why, "b", "record B read again through Moonshot (PREREG deviation 4): " + c["seed_b_url"])
     b = st["entryB"]
-    diff = [k for k in ("title", "author", "venue", "year") if norm(str(e[k])) != norm(str(b.get(k)))]
+    same = {"title": norm(e["title"]) == norm(b.get("title", "")),            # the comparisons of stage_d
+            "author": author_key(e["author"]) == author_key(b.get("author", "")),
+            "venue": venue_key(e["venue"]) == venue_key(b.get("venue", "")), "year": e["year"] == b.get("year")}
+    diff = [k for k, ok in same.items() if not ok]
     if diff:
         return drop(st, "reread_mismatch:" + ",".join(diff), "b",
                     " | ".join(f"{b.get(k)} -> {e[k]}" for k in diff))
     keep = {k: old[k] for k in ("custodian_class", "pairing", "prereg_deviation", "institutions") if k in old}
-    st["recB"] = dict(rec, **keep, replaced_snapshot_file=old.get("snapshot_file"))
+    st["recB"] = dict(rec, **keep, replaced_snapshot_file=old.get("snapshot_file"), reread="PREREG deviation 4")
     st["recB_reread"] = {"status": "equal", "date": today()}
     if st.get("records"):
         st["records"] = [st["recA"], st["recB"]]
+
+
+def held(st):
+    """An item saved before PREREG deviation 4 whose record B has not been read through Moonshot yet."""
+    return (st.get("recB_reread") or {}).get("status") == "not_rechecked"
 
 
 def stage_b(st, args):
@@ -2070,7 +2080,7 @@ def process(cid, args, stages):
         for s in stages:
             FN[s](st, args)
             save_state(st)
-            if st.get("drop"):
+            if st.get("drop") or held(st):
                 break
     except InfraError as e:
         jlog(os.path.join(W, "errors.jsonl"), {"ts": nowiso(), "cid": cid, "error": str(e)[:500]})
@@ -2080,7 +2090,7 @@ def process(cid, args, stages):
 
 
 def is_good(st):
-    if st.get("drop"):
+    if st.get("drop") or held(st):
         return False
     return bool(st.get("accepted")) or any(c.get("status") in ("passed_f", "accepted")
                                            for c in (st.get("clues") or {}).values())
@@ -2147,7 +2157,8 @@ def write_jsonl(path, rows):
 def finalize(args, note=""):
     load_cands()
     states = all_states()
-    accepted = sorted([s for s in states if s.get("accepted") and not s.get("drop")], key=lambda s: s["cid"])
+    accepted = sorted([s for s in states if s.get("accepted") and not s.get("drop") and not held(s)],
+                      key=lambda s: s["cid"])
     by_cell = collections.defaultdict(list)
     for s in accepted:
         by_cell[(s["stratum"]["type"], s["stratum"]["language"])].append(s)
@@ -2362,6 +2373,9 @@ def write_report(args, states, chosen, rest, dropped, note):
                  "rerun with a larger --harvest-factor to add candidates.")
     L.append("- extra_acceptable_keys is empty: the design's different-family comparison of the clue's top 10 (C3) "
              "is not run here; Opus may only flag `other_fitting_work`, which drops the clue.")
+    n_held = sum(1 for s in states if not s.get("drop") and held(s))
+    L.append(f"- Held, in no output file: {n_held} item(s) whose record B was saved through DeepSeek and could not be "
+             "read again through Moonshot (PREREG deviation 4).")
     L.append("- Negative controls (section B) and the six 50-item blocks are not built by this script.")
     L.append("- Clue-level drops keep the item if another writer's clue was accepted; a key-level flag from Opus drops "
              "the item for every writer.")
