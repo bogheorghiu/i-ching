@@ -1650,7 +1650,7 @@ def call_writer(w, user, purpose):
     kind, model = WRITERS[w]
     if kind == "openrouter":
         return openrouter_chat(model, [{"role": "system", "content": WRITER_SYSTEM}, {"role": "user", "content": user}],
-                               purpose, anthropic=True, max_tokens=32000)
+                               purpose, anthropic=True, max_tokens=8000, reasoning_tokens=3000)
     return ds_native(WRITER_SYSTEM, user, purpose)
 
 
