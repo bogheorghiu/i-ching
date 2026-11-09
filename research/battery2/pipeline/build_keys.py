@@ -122,6 +122,7 @@ ARGS = None
 _LOG_LOCK = threading.Lock()
 _DS_PROBE_LOCK = threading.Lock()
 _DUP_LOCK = threading.Lock()
+_MOONSHOT_LOCK = threading.Lock()
 _DUPS = {}
 
 
@@ -584,25 +585,26 @@ def fetch_text(js):
 def moonshot_fetch(url, route):
     """Fetch through Moonshot as the primary fetcher (PREREG deviation 4). An earlier fallback snapshot of the same
     URL is reused when Moonshot produced it; a DeepSeek snapshot never is."""
-    old = read_json(os.path.join(SNAP, f"f_{sha(url)}.json"))
-    fn = f"f_{sha(url)}.json" if old is not None and old.get("fetcher") == "moonshot" and old.get("status") == 200 \
-        else f"fm_{sha(url)}.json"
-    path = os.path.join(SNAP, fn)
-    snap = read_json(path)
-    if snap is None:
-        status, js, raw = http_post(MOONSHOT_FETCH_URL, {"Authorization": "Bearer " + os.environ.get(
-            "MOONSHOT_API_KEY", "placeholder")}, {"url": url}, timeout=180)
-        jlog(os.path.join(W, "tools.jsonl"), {"ts": nowiso(), "tool": "fetch", "via": "moonshot", "url": url,
-                                              "cached": False, "status": status})
-        if status in (401, 402, 429):
-            raise InfraError(f"moonshot fetch auth/billing/rate status={status}")
-        snap = {"kind": "fetch", "url": url, "route": route, "date": today(), "status": status, "fetcher": "moonshot",
-                "response": js if js is not None else raw[:20000]}
-        write_json(path, snap)
-        jlog(os.path.join(SNAP, "index.jsonl"), {"kind": "fetch", "url": url, "route": route, "date": today(),
-                                                 "file": fn, "status": status, "fetcher": "moonshot"})
-    else:
-        jlog(os.path.join(W, "tools.jsonl"), {"ts": nowiso(), "tool": "fetch", "via": "moonshot", "url": url, "cached": True})
+    with _MOONSHOT_LOCK:          # items of one year share one page: one fetch, one snapshot, the text all parse
+        old = read_json(os.path.join(SNAP, f"f_{sha(url)}.json"))
+        fn = f"f_{sha(url)}.json" if old is not None and old.get("fetcher") == "moonshot" and old.get("status") == 200 \
+            else f"fm_{sha(url)}.json"
+        path = os.path.join(SNAP, fn)
+        snap = read_json(path)
+        if snap is None:
+            status, js, raw = http_post(MOONSHOT_FETCH_URL, {"Authorization": "Bearer " + os.environ.get(
+                "MOONSHOT_API_KEY", "placeholder")}, {"url": url}, timeout=180)
+            jlog(os.path.join(W, "tools.jsonl"), {"ts": nowiso(), "tool": "fetch", "via": "moonshot", "url": url,
+                                                  "cached": False, "status": status})
+            if status in (401, 402, 429):
+                raise InfraError(f"moonshot fetch auth/billing/rate status={status}")
+            snap = {"kind": "fetch", "url": url, "route": route, "date": today(), "status": status, "fetcher": "moonshot",
+                    "response": js if js is not None else raw[:20000]}
+            write_json(path, snap)
+            jlog(os.path.join(SNAP, "index.jsonl"), {"kind": "fetch", "url": url, "route": route, "date": today(),
+                                                     "file": fn, "status": status, "fetcher": "moonshot"})
+        else:
+            jlog(os.path.join(W, "tools.jsonl"), {"ts": nowiso(), "tool": "fetch", "via": "moonshot", "url": url, "cached": True})
     text = fetch_text(snap.get("response"))
     ok = snap.get("status", 200) == 200 and len(norm(text)) > 30
     return {"ok": ok, "file": fn, "text": text, "url": url, "date": snap.get("date")}
@@ -1473,9 +1475,36 @@ def loose_title_in(title, text):
     return bool(p) and p in norm(text)
 
 
-def stage_b(st, args):
-    if st.get("drop") or st.get("recB"):
+def reread_record_b(st):
+    """PREREG deviation 4, for an item whose record B was saved before it: when both records came through one
+    fetcher, read record B again through Moonshot and compare it in code with the stored entry. Different or absent:
+    drop. Equal: the Moonshot snapshot replaces the old one. Page not opened: flagged, neither dropped nor passed."""
+    c, old = st["cand"], st["recB"]
+    if not c.get("seed_b_url") or fetcher_of(old.get("snapshot_file")) != fetcher_of(st["recA"].get("snapshot_file")):
         return
+    e, rec, why = toc_entry(c["seed_b_url"], st["entryA"]["title"])
+    if why == "unfetchable_source":
+        st["recB_reread"] = {"status": "not_rechecked", "reason": why, "date": today()}
+        return
+    if e is None:
+        return drop(st, why, "b", "record B read again through Moonshot (PREREG deviation 4): " + c["seed_b_url"])
+    b = st["entryB"]
+    diff = [k for k in ("title", "author", "venue", "year") if norm(str(e[k])) != norm(str(b.get(k)))]
+    if diff:
+        return drop(st, "reread_mismatch:" + ",".join(diff), "b",
+                    " | ".join(f"{b.get(k)} -> {e[k]}" for k in diff))
+    keep = {k: old[k] for k in ("custodian_class", "pairing", "prereg_deviation", "institutions") if k in old}
+    st["recB"] = dict(rec, **keep, replaced_snapshot_file=old.get("snapshot_file"))
+    st["recB_reread"] = {"status": "equal", "date": today()}
+    if st.get("records"):
+        st["records"] = [st["recA"], st["recB"]]
+
+
+def stage_b(st, args):
+    if st.get("drop"):
+        return
+    if st.get("recB"):
+        return reread_record_b(st)
     c = st["cand"]
     cls = classify(c["url"])
     if not cls:

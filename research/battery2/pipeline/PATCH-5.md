@@ -126,7 +126,18 @@ Which 300 to freeze from the article/zh surplus, and whether to build the other 
   5788112): record A through DeepSeek, record B through Moonshot, authors equal. Mutation: with
   `toc_entry` put back on `ds_fetch` and a DeepSeek-shaped snapshot for the table of contents, the item drops
   `same_fetcher`. An old Moonshot fallback snapshot is reused without a second file.
-- Not checked: the other years' tables of contents through Moonshot; the items accepted before this change (their
-  re-check is fixed in PREREG deviation 4 and not run yet). `seed_from_toc.py` still reads the table of contents
-  through `ds_fetch` with its fallback: seeds are candidates, never records.
-
+- Items resumed from an earlier work directory (same day, state built from the live pair with a DeepSeek-shaped
+  record B): equal entry gives `recB_reread: equal` and the Moonshot snapshot; a stored author changed by one
+  character drops `reread_mismatch:author`; a cached Moonshot 502 gives `not_rechecked` and no drop; a second run
+  changes nothing. Mutation: with the call to `reread_record_b` removed, the changed author is not dropped.
+- A blind review (fresh agent, diff and a checkout of `main`) found that items with a saved record B skipped the rule
+  (fixed by `reread_record_b`), an unlocked first fetch of a page shared by a year's items (now under a lock), and
+  wording stronger than the evidence (corrected in PREREG).
+- Left as they are, all older than this change: `load_host_stats` and the report's "DeepSeek tool calls" line count
+  Moonshot fetches too; a Moonshot auth or rate error stops one item, not the run (`process` catches `InfraError`
+  per item), which the "now stops the run" line above overstates; `MOONSHOT_API_KEY` is not named in the module
+  docstring.
+- Not checked: the tables of contents of the other years through Moonshot, among them whether each keeps its header
+  in the first 600 characters, which `toc_entry` needs; the real work directories (the re-read has run only on the
+  constructed state above); a full pipeline run. `seed_from_toc.py` still reads the table of contents through
+  `ds_fetch` with its fallback for `iwr.cssn.cn` only: seeds are candidates, never records.
