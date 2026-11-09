@@ -581,6 +581,38 @@ def fetch_text(js):
     return "\n".join(parts)
 
 
+def moonshot_fetch(url, route):
+    """Fetch through Moonshot as the primary fetcher (PREREG deviation 4). An earlier fallback snapshot of the same
+    URL is reused when Moonshot produced it; a DeepSeek snapshot never is."""
+    old = read_json(os.path.join(SNAP, f"f_{sha(url)}.json"))
+    fn = f"f_{sha(url)}.json" if old is not None and old.get("fetcher") == "moonshot" and old.get("status") == 200 \
+        else f"fm_{sha(url)}.json"
+    path = os.path.join(SNAP, fn)
+    snap = read_json(path)
+    if snap is None:
+        status, js, raw = http_post(MOONSHOT_FETCH_URL, {"Authorization": "Bearer " + os.environ.get(
+            "MOONSHOT_API_KEY", "placeholder")}, {"url": url}, timeout=180)
+        jlog(os.path.join(W, "tools.jsonl"), {"ts": nowiso(), "tool": "fetch", "via": "moonshot", "url": url,
+                                              "cached": False, "status": status})
+        if status in (401, 402, 429):
+            raise InfraError(f"moonshot fetch auth/billing/rate status={status}")
+        snap = {"kind": "fetch", "url": url, "route": route, "date": today(), "status": status, "fetcher": "moonshot",
+                "response": js if js is not None else raw[:20000]}
+        write_json(path, snap)
+        jlog(os.path.join(SNAP, "index.jsonl"), {"kind": "fetch", "url": url, "route": route, "date": today(),
+                                                 "file": fn, "status": status, "fetcher": "moonshot"})
+    else:
+        jlog(os.path.join(W, "tools.jsonl"), {"ts": nowiso(), "tool": "fetch", "via": "moonshot", "url": url, "cached": True})
+    text = fetch_text(snap.get("response"))
+    ok = snap.get("status", 200) == 200 and len(norm(text)) > 30
+    return {"ok": ok, "file": fn, "text": text, "url": url, "date": snap.get("date")}
+
+
+def fetcher_of(snapfile):
+    """Which fetch API produced a snapshot. Snapshots carry "fetcher" only when it was Moonshot."""
+    return (read_json(os.path.join(SNAP, snapfile or "-"), {}) or {}).get("fetcher", "deepseek")
+
+
 def ds_fetch(url, route):
     if "ctext.org" in url.lower():
         return {"ok": False, "file": None, "text": "", "url": url}
@@ -893,7 +925,7 @@ TOC_HEAD = re.compile(r"《([^》]{2,30})》\s*(\d{4})\s*年")
 
 def toc_entry(url, title):
     """Record B from an institute TOC: (entry, record, None) or (None, None, reason)."""
-    F = ds_fetch(url, "seed: institute toc")
+    F = moonshot_fetch(url, "seed: institute toc")     # record A comes through DeepSeek: PREREG deviation 4
     if not F["ok"]:
         return None, None, "unfetchable_source"
     head = TOC_HEAD.search(F["text"][:600])
@@ -1470,6 +1502,8 @@ def stage_b(st, args):
         e, rec, why = toc_entry(c["seed_b_url"], entry["title"])
         if e is None:
             return drop(st, why, "b", "record B (institute toc): " + c["seed_b_url"])
+        if fetcher_of(rec["snapshot_file"]) == fetcher_of(st["recA"]["snapshot_file"]):
+            return drop(st, "same_fetcher", "b", "records A and B came through one fetch API (PREREG deviation 4)")
         st["recB"] = dict(rec, custodian_class="institute_toc", pairing="aggregator_plus_institute_toc",
                           prereg_deviation="PREREG deviations 2-3: institute issue TOC as record B",
                           institutions=[reg_domain(host_of(c["url"])), reg_domain(host_of(c["seed_b_url"]))])

@@ -116,3 +116,17 @@ fame split. The 333 distinct items are **all article/zh, all fame `unknown`**: 2
   filled with this intake (Gap).
 
 Which 300 to freeze from the article/zh surplus, and whether to build the other cells, is the owner's call.
+
+## Two fetch APIs, one per record (PREREG deviation 4, 2026-11-09)
+
+- `toc_entry` now fetches through `moonshot_fetch`; `cnki_entry` still fetches through `ds_fetch`. `stage_b` drops an
+  item `same_fetcher` when both records' snapshots name one fetcher. A Moonshot snapshot is stored as `fm_<hash>.json`;
+  a fallback snapshot Moonshot already made for the same URL is reused. Why: PREREG deviation 4.
+- Checked (2026-11-09, live, one pair: CNKI `ZYJY201602002` with the 2016 table of contents, `iwr.cass.cn` id
+  5788112): record A through DeepSeek, record B through Moonshot, authors equal. Mutation: with
+  `toc_entry` put back on `ds_fetch` and a DeepSeek-shaped snapshot for the table of contents, the item drops
+  `same_fetcher`. An old Moonshot fallback snapshot is reused without a second file.
+- Not checked: the other years' tables of contents through Moonshot; the items accepted before this change (their
+  re-check is fixed in PREREG deviation 4 and not run yet). `seed_from_toc.py` still reads the table of contents
+  through `ds_fetch` with its fallback: seeds are candidates, never records.
+
