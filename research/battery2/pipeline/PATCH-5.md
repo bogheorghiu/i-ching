@@ -67,3 +67,4 @@ Run: `python3 -I pipeline/build_keys.py --workdir <dir> --seed-file pipeline/kim
   unverified, 3 author mismatches. Writers: DeepSeek only; clue loss is now the largest drop.
 - Yearly TOCs of 《周易研究》 2012-2024 sit at consecutive ids 5788108-5788120 on `iwr.cass.cn` (titles read
   2026-11-09), so further years need no new source.
+- Blind review (2026-11-09), no blocking findings. Fixed: a Moonshot 401/402/429 now stops the run (InfraError) instead of caching the page as unfetchable. Left as they are (non-blocking): the TOC parser takes the year from the page header without checking the entry's issue section; failed fetches are cached and not retried; a batch with an empty verdict is paid again on each rerun (cap runs with --max-usd).

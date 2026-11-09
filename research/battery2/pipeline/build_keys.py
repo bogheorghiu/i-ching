@@ -604,6 +604,8 @@ def ds_fetch(url, route):
                 "MOONSHOT_API_KEY", "placeholder")}, {"url": url}, timeout=180)
             jlog(os.path.join(W, "tools.jsonl"), {"ts": nowiso(), "tool": "fetch", "via": "moonshot", "url": url,
                                                   "cached": False, "status": m_status})
+            if m_status in (401, 402, 429):
+                raise InfraError(f"moonshot fetch auth/billing/rate status={m_status}")
             snap = {"kind": "fetch", "url": url, "route": route + " (via moonshot after deepseek " + str(status) + ")",
                     "date": today(), "status": m_status, "fetcher": "moonshot", "fallback_tried": True,
                     "response": m_js if m_js is not None else m_raw[:20000]}
