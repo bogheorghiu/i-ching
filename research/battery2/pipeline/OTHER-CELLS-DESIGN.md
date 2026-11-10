@@ -371,12 +371,12 @@ The owner wants an intake that can be run again when models change. What this no
 - the probe scripts are in `other-cells-probe/`, as they ran (`f.py` is the fetch wrapper with its
   cache; `probe.py`, `probe2.py` and `probe3.py` are sections 1, 2 and the article arms). Run them from
   an empty working folder outside the repository: they write every response to `snap/` there;
-- **the saved responses of this probe are not kept anywhere durable** (Gap). They are catalogue records
-  of possible items, so they do not belong in this public repository; the private branch `battery2-keys`
-  of `bogheorghiu/delegation-results` is the place for them, and attaching that repository from this
-  session was refused. They sit in this session's scratch folder and go when its container does. The
-  counts in section 4 can then be re-derived only by running the scripts again, on records that may have
-  changed;
+- the saved responses of this probe are on the private branch `battery2-keys` of
+  `bogheorghiu/delegation-results`, folder `other-cells-probe-2026-11-09/` (commit 64f7fc9, pushed
+  2026-11-10, after this note merged): every fetch response, the call log, the scripts with their
+  result files, and the blind recount's scripts. They stay out of this public repository because they
+  are catalogue records of possible items. Not saved: the results of the nine searches, only their
+  queries;
 - a rerun should take fresh candidates (later pages of the same lists), since the ones named in
   section 4 are spent.
 
