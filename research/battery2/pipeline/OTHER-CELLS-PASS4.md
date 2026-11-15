@@ -66,27 +66,40 @@ item set.**
 
 - **Record B.** 56 of 58 `OU` files read (the saved pass-3 responses); `OU030` and `OU058` refused
   again ("security risk", three new tries each). The `420300` blocks hold 54 records with years 1998,
-  2000, 2001, 2003, 2004, 2005, 2007, 2008 and 2010 (first year of each block). Kyoto had exactly one
-  matching record for 3 of the 8 candidates and none for 5, although all 8 fall within those years.
+  2000, 2001, 2003, 2004, 2005, 2007, 2008 and 2010 (first year of each block). The route found exactly
+  one record for 3 of the 8 candidates and none for 5.
 - **Record A.** Cambridge through DeepSeek: 7 of 8 full; 10.1017/s0362502800000985 gave no author line.
   That is the third candidate with a Kyoto record, so "both" is 2.
 - **Agreement (reported, not part of the rule):** both "both" pairs agree on title and year.
+- **Correction from the blind review: the route, not Kyoto, missed three of the five.** Kyoto's
+  `420300` blocks do hold …7094 (`OU023`, 2004), …7264 (`OU011`, 2001-2002) and …1796 (`OU037`, 2007),
+  each with title, author and year. The route missed them because the two titles differ: a misspelling
+  in Crossref's title (…7094), a one-word slip in Kyoto's (…7264), and Chinese characters that Kyoto
+  inserts into an English title and `nrm` keeps (…1796). Checked by this session too (similarity of the
+  normalised titles 0.96, 0.98, and 1.00 with CJK characters removed). The other two misses, …064x and
+  …7045, are **obituaries** (titled "Name (dates)"), which the filter did not catch, and are not in Kyoto
+  under any code. So Kyoto holds all 6 research articles of the 8. The score stays 2 of 8: section 4
+  forbids rescoring.
 - Candidates: DOIs 10.1017/s036250280000064x, 10.1017/s0362502800007094, 10.1017/s0362502800007264,
   10.1017/s0362502800001796, 10.1017/s0362502800000985, 10.1017/s0362502800007045,
   10.1017/s0362502800002169, 10.1017/s0362502800000651.
 
 ## 7. What this means (for the owner; this session decides nothing)
 
-- With the parser fixed, the Cambridge + Kyoto pair works when Kyoto has the article: the two pairs
-  found agree in full, through two fetch APIs. The limit is coverage. Kyoto indexes 54 *Early China*
-  records over 1998-2011, against 187 Crossref works for those years (reviews included), and 5 of 8
-  research articles drawn here are not in it. Pass 3's 5 of 8 and pass 4's 3 of 8 are the two draws;
-  the second is the clean test.
-- So English articles join English books as **marginal, limited by the second source's coverage**. A
-  further pass would test the same coverage again. Widening to other Western journals Kyoto indexes
-  more fully would be a new design, not a rerun; nothing here measures which those are.
-- No arm is viable, so no custodian card is required. One card goes to the board asking whether to
-  close the four cells.
+- **Not coverage, but exact title matching, limited this draw.** Kyoto holds all 6 research articles
+  drawn; the filter let 2 obituaries in; the route lost 3 of the 6 on small title differences.
+- **That limit would not go away by loosening the route alone** (this session's reading, not the
+  reviewer's): the design drops an item when its two records disagree on title (`final-design.md` A.5,
+  "any mismatch drops the item"). Two of the three misses are real disagreements between the records
+  (a misspelling on one side, a different word on the other), so they would be dropped at the
+  comparison even if the route found them. Only the CJK case (…1796) is a reading problem that a
+  normalisation rule (drop CJK characters from both titles before comparing) would fix without
+  accepting disagreeing records. Counted that way, this draw would read **3 of 8**: still marginal.
+  Getting above that means accepting near-equal titles as agreeing, which changes what a key
+  guarantees, and is the owner's decision, not a parser fix.
+- English books stay marginal for coverage (5 of 8 ISBNs absent from K10plus in pass 3).
+- No arm is viable, so no custodian card is required. A card goes to the board with the real choice:
+  close the four cells, or change the comparison rule (near-equal titles) and test it on a fresh draw.
 
 ## 8. Spend
 
@@ -97,4 +110,8 @@ files are pass 3's saved responses, reused without a new call. No search, no mod
 
 - Whether the Kyoto files came through complete; the two refused files may hold *Early China* records.
 - Which Western journals Kyoto indexes densely enough for a pair.
-- A blind review of this note against the saved files (run before the PR is opened).
+- The obituary filter's miss: pass 4's filter does not catch titles of the form "Name (dates)".
+- A blind review ran (a fresh agent given the diff and the saved files): it confirmed every scored
+  figure, the commit order and the scripts, and found the route's three misses and the obituaries;
+  sections 6-7 are corrected from it. `probe_p4.py` was committed with the results, not before the
+  draw (the plan froze only the parser); the reviewer found it implements section 2 exactly.
