@@ -1,6 +1,6 @@
 # Battery 2 other cells, design pass 2: probes only
 
-Status: **probe plan, committed before any candidate record was fetched.** Owner's verdict "a" on board
+Status: **probe plan (sections 1-5, committed before any candidate record was fetched) and its results (sections 6-9).** Owner's verdict "a" on board
 card `d-b2-cells-without-pair` (2026-11-14; carried out from 2026-11-15). Method and rule as in
 `OTHER-CELLS-DESIGN.md` sections 1 and 4; this file changes only what it says it changes. Nothing is
 built. No model is called. Cap: 300 fetch calls for the whole pass, reachability included; if the cap is
@@ -125,3 +125,94 @@ settle what pass 1 could not: whether the seed half (issue page plus id form) wo
    journal-index files that passed the gate (`rjnl.txt`, `journal2.txt`, already saved) are searched by
    code for the strings `Early China` and `周易研究`, to learn whether a later pass could route to those
    journals. No new Kyoto fetch, and no article record is read.
+
+## 6. Results (scored by `other-cells-probe/probe_p2.py` from saved responses)
+
+The candidates named here were seen by this session and are in a public file: **keep them out of any
+item set.**
+
+| Arm | Enumeration | Cands | A full | B full | Both | Verdict by the rule |
+|---|---|---|---|---|---|---|
+| Z-new/K (CiNii ds + K10plus ms) | 3 lists, 87 distinct, 45 eligible | 8 | 8 | 2 | **2 of 8** | marginal |
+| Z-new/H (CiNii ms + HathiTrust ds) | same | 8 | 8 | 1 | **1 of 8** | not viable |
+| N-en/K | 4 lists, 84 distinct, 68 eligible | 8 | 8 | 3 | **3 of 8** | marginal |
+| N-en/H | same | 8 | 8 | 2 | **2 of 8** | marginal |
+| E-ncl (Cambridge ds + NCL ms) | Crossref 1996-2000: 61 works, 40 returned, 23 eligible | 8 | 7 | 0 | **0 of 8** | null: NCL file 502 on 3 tries |
+| E-kyoto (gate) | 6 files | - | - | - | - | gate open: 4 of 6 files whole |
+| C-old | 2 issue pages | 8 | 0 | - | 0 | not viable before any fetch (no record B); record A also failed |
+
+- **Seed lists (the widening the owner asked for).** Chinese books 2000+: `subject=易経` 19,
+  `subject=周易` 126 (50 returned at `count=50`), `clas=123.1` 22; 87 distinct in the pages read, 45 with
+  an ISBN and not spent. Pass 1 had 22. English books: `subject=易経` 2, `subject=Yi jing` 31,
+  `subject=I ching` 54 (50 returned), `clas=123.1` 3; 84 distinct, 68 eligible. Pass 1 had 3. So
+  English books are no longer "enumeration too thin"; later pages of `subject=周易` and `I ching` were
+  not read.
+- **Z-new/K.** K10plus gave a record with a title for 3 of 8 ISBNs (for the other 5 the parser read no title; the responses were not opened by eye); 2 have all four fields and the ISBN, one
+  lacks a publisher. Title agreement 0 of 2 under `nrm`, year 1 of 2 (why the titles differ was not
+  looked at: script, traditional against simplified, or a different book are all open).
+  Candidates: BB2302541X, BB23013046, BB12558271, BD12942922, BB23914582, BD03128094, BC09665816,
+  BB26442865.
+- **Z-new/H.** HathiTrust returned a record for 1 of 8 (BB12558271, the same book K10plus has); titles
+  disagree under `nrm`, years disagree.
+- **N-en/K.** K10plus returned a four-field record for 5 of 8; **2 of the 5 do not carry the ISBN asked
+  for** (BC10516096, BB29832800), so the rule's new same-book check refused them. Without that check the
+  arm would read 5 of 8; with it, 3. The 3 agree with CiNii on title and year. Candidates: BD19743979,
+  BC10516096, BC16051971, BB29832800, BB14409046, BA88523608, BA65069298, BD05472589.
+- **N-en/H.** HathiTrust returned a record for 2 of 8 (both also in K10plus); both agree on title and
+  year. The six with no HathiTrust record were not examined further.
+- **E-ncl.** Record A through DeepSeek: 7 of 8 full (one Cambridge page gave no author line).
+  Record B: the NCL file returned 502 three times through Moonshot, and (deviation 2a, outside the rule)
+  DeepSeek's "failed to fetch" three times. So the file has not been read by either API; its row count
+  and its *Early China* coverage are unknown (Gap). Candidates: DOIs 10.1017/s0362502800004296,
+  10.1017/s0362502800003230, 10.1017/s0362502800004284, 10.1017/s0362502800003242,
+  10.1017/s0362502800003278, 10.1017/s0362502800001012, 10.1017/s0362502800003291,
+  10.1017/s0362502800004260.
+- **E-kyoto gate.** Through Moonshot's view of the GitLab API: `ruimoku-old/RUI001.txt` (93 kB),
+  `ruimoku-papers/CHU001.txt` (35 kB), `ruimoku-journals/journal2.txt` (156 kB) and `rjnl.txt` (128 kB)
+  came through by the gate's definition; `ruimoku-old/JOURNAL1.txt` and `ruimoku-metadata/09journals.txt`
+  got the "security risk" refusal three times. Three of the four needed three tries. The files are
+  line-based mainframe records with `$`-prefixed subfield codes (in `RUI001.txt` in full-width
+  characters); `CHU001.txt` came back inside a code fence; `rjnl.txt` had six Markdown escapes inserted
+  by the converter. Whether any file is complete cannot be told: the API gives no size Moonshot will
+  pass, and the host is unreachable otherwise. Deviation 2b: `rjnl.txt` has one line naming *Early
+  China*, `journal2.txt` none; neither names 《周易研究》.
+- **C-old.** The 1996/1 ids return a 192-character site shell, as pass 1's 1995/1 ids did. The 1998/1
+  pages open with the 相似文献 block, but pass 1's self-citation parser read none of them (cause not
+  examined: the arm cannot be viable, and a second parser pass is excluded). The issue pages opened;
+  the TOC-line count in the script read 0, a regex written for another layout. So the seed half for the
+  1990s is still unsettled, and the cell still has no record B.
+
+## 7. What this means per cell (for the owner; this session decides nothing)
+
+- **English articles.** Still no pair. The new fact is that Kyoto's dataset files now come through
+  Moonshot (4 of 6, some after retries), and the journal index names *Early China*. That makes
+  Cambridge (DeepSeek) + Kyoto file (Moonshot) a pair that keeps two APIs, which pass 1 could not
+  offer. It is untested: a parser for the mainframe format, the route from the journal line to its
+  articles, and completeness of a converted file are all open, and Kyoto would be a new custodian class
+  needing a PREREG deviation. The NCL file did not open through either API.
+- **English books.** The seed list is no longer the problem (68 eligible). Both record-B routes are
+  marginal (3 and 2 of 8). K10plus often returns a record of another edition under the same ISBN query.
+- **Chinese books 2000+.** Marginal through K10plus (2 of 8, title agreement 0 of 2); HathiTrust adds
+  nothing (1 of 8). Most newer Chinese books are in neither catalogue.
+- **Chinese articles before 2000.** No record B outside the aggregator class exists among the sources
+  tried; the cell stays without a pair.
+- **Nothing here is viable by the rule**, so no new-custodian card is required by section 4. One card
+  goes to the board anyway, because the Kyoto gate opened and a next step is the owner's call.
+
+## 8. Spend
+
+176 fetch calls (66 reachability, 71 book arms, 36 article arms, 3 deviation 2a) and 4 DeepSeek
+searches. No model was called. Cost per call is not visible to this session (Gap).
+
+## 9. Not checked
+
+- Completeness of any Kyoto file; the format of its records beyond the line shape; any article record
+  in it.
+- The NCL file's content (never opened).
+- Why Chinese titles disagree between CiNii and K10plus / HathiTrust.
+- Why the C-old parser read nothing on the 1998/1 pages.
+- Later pages of the larger CiNii lists; random offsets (design A.2) instead of default order.
+- Whether HathiTrust counts as a library catalogue under deviation 1 (owner's call, not asked, since no
+  H arm is viable).
+- The reachability observations rest on a few requests on one day; Moonshot's GitLab behaviour (502,
+  then 200 on a retry) varied within minutes.
