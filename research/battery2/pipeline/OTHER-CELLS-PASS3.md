@@ -1,6 +1,6 @@
 # Battery 2 other cells, design pass 3: probes only
 
-Status: **probe plan (sections 1-5, committed before any candidate record was fetched) and its results (sections 6-9).** Owner's verdict "a" on board
+Status: **probe plan (sections 1-4, committed before any candidate record was fetched; section 5 records a deviation made after scoring) and its results (sections 6-9).** Owner's verdict "a" on board
 card `d-b2-cells-pass3`, given in chat on 2026-11-15. Method and rule as in `OTHER-CELLS-DESIGN.md`
 sections 1 and 4 and `OTHER-CELLS-PASS2.md`; this file changes only what it says. Nothing is built, no
 model is called. Cap: 300 fetch calls for the pass, reachability included. Chinese books 1987-1999 stay
@@ -92,36 +92,59 @@ item set.**
 
 - **N-en/K776.** K10plus answers `numberOfRecords` 0 for 5 of the 8 ISBNs; the other 3 records carry
   all four fields and the ISBN in 020 (two also in 776). So the new 776 rule changed nothing here:
-  3 of 8 under both rules. All 3 agree with CiNii on title; 2 of 3 on year. Candidates: BC12520458,
+  3 of 8 under both rules. All 3 agree with CiNii on title; 2 of 3 on year. The year mismatch
+  (BA63609259: CiNii 2003, K10plus 2013 under another publisher, with the asked ISBN in both 020 and
+  776) looks like an e-book record carrying the print ISBN, so the same-book rule passed a record that
+  is probably another edition. Candidates: BC12520458,
   BB30912157, BB05903631, BB04650122, BD05884418, BA63609259, BA85884439, BA7372081X.
-- **E-kyoto, record A.** Cambridge through DeepSeek: 7 of 8 full (one page, 10.1017/s0362502800002212,
-  gave no title line).
+- **E-kyoto, record A.** Cambridge through DeepSeek: 7 of 8 full. The failure, 10.1017/s0362502800002212,
+  is a book review the review filter missed (its "pp" sits inside markup, `402 pp</i>.`). Among the
+  other seven are an obituary, two review articles and an annual scholarship summary: the
+  author-and-page filter does not pick research articles.
 - **E-kyoto, record B.** 58 `OU` files asked for, 56 opened (`OU030` and `OU058`: Moonshot "security
   risk", three tries each), 61 new calls (`OU001` was cached from reachability). The parser found one
   block with journal code `420300`, in `OU009` (year 2000), and matched none of the eight candidates.
   Candidates: DOIs 10.1017/s0362502800002212, 10.1017/s0362502800000675, 10.1017/s0362502800000638,
   10.1017/s0362502800007082, 10.1017/s0362502800007136, 10.1017/s0362502800001826,
   10.1017/s0362502800000687, 10.1017/s0362502800007161.
-- **E-kyoto, the looks of deviation 1 (outside the rule; they change no score).** (a) `OU009` opens
-  its issues with lines of the form letter, four digits, dash, five digits, which the plan's header
-  pattern (letter and six digits) does not match. After that file's first header the parser saw no
-  boundary, so the "one block of 319 records" is a misreading, and blocks in other files that use this
-  form were missed too. (b) **The first 30 normalised characters of 4 of the 8 candidate titles occur
-  in the saved `OU` files** (10.1017/s0362502800007082 and …7136 in `OU023`; …0687 in `OU014`; …7161 in
-  `OU011`, `OU014` and `OU039`). So Kyoto's dataset holds at least half of these articles; the 0 of 8 is
-  the parser's failure, not the dataset's. Under which journal code they sit, and whether their author
-  and year fields are complete, was not read.
+- **E-kyoto, the looks of deviation 1 (outside the rule; they change no score), as corrected by the
+  blind review.** (a) The parser recognises no issue header in `OU009`, whose headers have the form
+  `C2003-00095`; so the "one block of 319 records" is every article line of that file under the
+  file's first `$j`. The dash form is used in 52 of the 56 opened files (from `OU007` on, and partly in
+  `OU005` and `OU006`), so nearly every `420300` block was missed: the review found them in `OU011`,
+  `OU014`, `OU023`, `OU032`, `OU033`, `OU037` and `OU039` (years 1998-2011). (b) **As run, the search
+  was not the registered one:** the registration says `nrm` of the first 30 characters of the title;
+  what ran was the first 30 characters of `nrm(title)`, which is not recorded anywhere before this
+  correction. The registered form finds titles of 4 candidates in the saved files (…7082, …7136 in
+  `OU023`; …0687 in `OU014`; …1826 in `OU037`) plus a false hit for …7161, whose first 30 characters
+  are a recurring series title (the matches are the summaries for other years, not 2000). Crossref
+  titles carry HTML markup, which `nrm` turns into letters; with the markup stripped, …0675 is also
+  found (`OU014`). So **5 of the 8 candidate titles are in the dataset**; …2212, …0638 and …7161 were not
+  found in the opened files. These looks have no saved script or output of their own; they reproduce
+  from the snapshots.
+- **A third parser defect, found by the blind review:** authors are `$A` in nearly all files (14,868
+  `$A` lines against 836 `$a`, the latter almost only in `OU001-006`), and the parser reads only `$a`.
+  With headers fixed, record B would still lack its author in about 52 files.
+- **The reviewer's own rerun, reported as its finding and not as a score.** Outside the rule, the
+  reviewer reran the registered route with all three fixes (both header forms, `$A`, markup stripped)
+  and reports exactly one match, full on both sides, for …0675, …0687, …7082 and …7136: 4 of 8, the
+  viable bar. This session did not rerun it. Section 4 forbids counting it: the parser was fixed by
+  looking at this draw's results, so the same draw cannot test it.
 
 ## 7. What this means (for the owner; this session decides nothing)
 
 - **English books:** marginal again (3 of 8, after 3 of 8 and 2 of 8 in pass 2). The limit is coverage
   (5 of 8 ISBNs absent from K10plus), not the same-book rule. Accepting 776 links would not have helped
   this draw.
-- **English articles:** not viable by the rule, and the rule was right to say so: the parser fixed in
-  advance misread the files. But the probe also shows the dataset holds at least 4 of 8 candidate
-  titles, through a route that keeps two fetch APIs (Cambridge by DeepSeek, Kyoto by Moonshot). A pass 4
-  would need a parser that reads both header forms, written and tested on files already seen, a fresh
-  candidate draw (these 8 are spent), and its own bar. Kyoto would still be a new custodian class.
+- **English articles:** not viable by the rule, because the parser fixed in advance was written from
+  one unrepresentative file (`OU001`) and misread the rest in three ways (header form, `$A` authors,
+  Crossref markup). The dataset itself holds 5 of the 8 candidate titles, through a route that keeps
+  two fetch APIs (Cambridge by DeepSeek, Kyoto by Moonshot), and a rerun with the three fixes reaches
+  4 of 8 on this draw (the reviewer's figure, not a score). A pass 4 would need: the parser fixed on the
+  files already seen and frozen before any new candidate is drawn; a fresh draw (these 8 are spent); a
+  filter that keeps reviews, obituaries and summaries out; and its own bar. The `OU` files also hold
+  blocks dated 1998-2000, so pass 2's window is partly reachable too. Kyoto would still be a new
+  custodian class needing a PREREG deviation before any item is built.
 - No arm is viable, so section 4 requires no card. One goes to the board anyway, because a pass 4 or a
   stop is the owner's call.
 
@@ -131,11 +154,17 @@ item set.**
 (1 Crossref, 8 Cambridge, 61 Kyoto). No search, no model call. The deviation 1 looks made no call.
 Cost per call is not visible to this session (Gap).
 
-## 9. Not checked
+## 9. Not checked, and corrections to section 1
 
-- How many of the 58 `OU` files use the second header form, and what journal code the four found
-  titles sit under (the looks of deviation 1 stopped at what it named).
-- Whether the found Kyoto entries carry an author and a year in the fields record B needs.
+- Corrections to section 1 (left as registered), from the blind review: `OU001` is not representative
+  (from `OU007` on, headers read like `C2003-00095` and authors are `$A`); the `OU` files also hold
+  blocks dated 1998-2000; the `KIN` files are numbered 001-009 with one number absent; `ruimoku-old`'s
+  tree was read to its third (full) page only, not "all pages"; `OU001` has 49 `$j` lines but 29
+  distinct codes; `OBN00186` is 14.5 k characters (27.5 kB as UTF-8).
+
 - Whether any `OU` file came through complete (no size to compare against).
 - The 1981-2000 Western-article files (`OOBUN`): not opened.
-- A blind review of this note against the saved files (to be run before the PR leaves draft).
+- The reviewer's 4-of-8 rerun was not repeated by this session.
+- A blind review ran (a fresh agent given the diff and the saved files): it found the two errors
+  corrected above (the look (b) search and the parser's `$A` defect) and the smaller ones folded into
+  sections 1 and 6.
