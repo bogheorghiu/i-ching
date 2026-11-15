@@ -212,7 +212,8 @@ with no flag (the reopen flag runs with stage b only). The outcomes were fixed i
 - Why none of the 22 passed: the Moonshot copy of the contents pages also has the names run together (19 items:
   record B is one string where record A has two or three names), or record A's own catalogue line cuts the names
   at other places than record B (3 items: record A has three two-character parts, record B two three-character
-  names). The pre-run note that the second reader "keeps a mark between names" was wrong for these pages; it had
+  names). The 22 are 21 distinct articles: one was seeded in runs 1 and 3 and is among the 3, which are therefore
+  2 articles. One of the 19 has both causes. The pre-run note that the second reader "keeps a mark between names" was wrong for these pages; it had
   been seen on the 2019 page only. This is a null result on the 22 and it stands: nothing was repaired.
 - No model was called and no new page request was needed for the contents pages (the Moonshot copies of
   2026-11-09 were read); `stage_d` was not reached for any of the 22 beyond the author comparison.
@@ -222,6 +223,8 @@ with no flag (the reopen flag runs with stage b only). The outcomes were fixed i
   model is not known. Reading record B through a third reader would be a new deviation, written before any item
   is read that way; the direct route (a browser in the session, no converter) is closed for now because the
   session's network does not allow the host (the proxy refused it, 2026-11-15).
+- A fresh reader recomputed the counts in this section from the state files (2026-11-15): all confirmed, none
+  contradicted; the two qualifications above are that reader's.
 - The reviewer's minor points left as they are: the report line for reopened items counts "dropped again" and
   "held" only; a kind (b) item dropped again would keep a stale `recB_reread` note (none was); the counts above
   were made by a script over the state files, not read from that report line.
