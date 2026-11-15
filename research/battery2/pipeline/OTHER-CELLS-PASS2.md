@@ -118,3 +118,10 @@ settle what pass 1 could not: whether the seed half (issue page plus id form) wo
    gives one form and a MARC 020 often holds only the other; the plan did not say, and the literal
    reading would refuse a record of the same book. Digits and a final X are compared; qualifiers such
    as "(pbk.)" are ignored.
+2. **2026-11-15, after all arms were scored (E-ncl: the NCL file returned 502 three times through
+   Moonshot, a null): two looks outside the rule, which score nothing.** (a) The NCL file is fetched
+   once through DeepSeek (up to three tries), to learn whether the host opens at all; record B through
+   DeepSeek would break PREREG deviation 4, so E-ncl stays a null whatever it returns. (b) The Kyoto
+   journal-index files that passed the gate (`rjnl.txt`, `journal2.txt`, already saved) are searched by
+   code for the strings `Early China` and `周易研究`, to learn whether a later pass could route to those
+   journals. No new Kyoto fetch, and no article record is read.
