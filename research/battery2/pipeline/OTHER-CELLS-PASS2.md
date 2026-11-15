@@ -12,7 +12,7 @@ never to this repository. Candidates are named here by identifier only, never wi
 
 ## 1. What was seen before this was written (reachability, 2026-11-15)
 
-66 fetch calls and 4 DeepSeek searches, to learn which hosts open and how; no candidate list was
+62 fetch calls and 4 DeepSeek searches, to learn which hosts open and how; no candidate list was
 fetched. Records touched, all excluded from every arm below:
 
 - **Kyoto 東洋学文献類目 dataset** (`corpus.kanji.zinbun.kyoto-u.ac.jp/gitlab`). Through Moonshot the
@@ -23,7 +23,7 @@ fetched. Records touched, all excluded from every arm below:
   `ruibangou.txt`; metadata: `00genres.txt` to `09journals.txt`). One file came through whole:
   `metadata/00genres.txt` (a genre table, 33 kB; encoding declared `utf-8-mcs-er`, rare characters as
   `&M-nnnnn;` entity references). Every other file asked for (`09journals.txt`, `rjnl.txt`,
-  `ruibangou.txt`, `journal1.txt`) returned 502 or Moonshot's "security risk" refusal, three tries each.
+  `ruibangou.txt`, `journal1.txt`) returned 502 or Moonshot's "security risk" refusal, two or three tries each (`09journals.txt` through the files-metadata endpoint returned 200 with an empty body).
   Web paths under `/-/` (tree, raw) returned 502; GitLab blob search returned 502. DeepSeek: failed.
   Direct access from this container: refused by the proxy. One Moonshot response escaped Markdown
   characters (`\#`, `\[`) in a raw text file.
@@ -147,7 +147,7 @@ item set.**
   `subject=I ching` 54 (50 returned), `clas=123.1` 3; 84 distinct, 68 eligible. Pass 1 had 3. So
   English books are no longer "enumeration too thin"; later pages of `subject=周易` and `I ching` were
   not read.
-- **Z-new/K.** K10plus gave a record with a title for 3 of 8 ISBNs (for the other 5 the parser read no title; the responses were not opened by eye); 2 have all four fields and the ISBN, one
+- **Z-new/K.** K10plus gave a record for 3 of 8 ISBNs; the other 5 responses say `numberOfRecords` 0 (as do the 3 N-en/K misses), and every HathiTrust miss in both cells is an empty `records` object; 2 have all four fields and the ISBN, one
   lacks a publisher. Title agreement 0 of 2 under `nrm`, year 1 of 2 (why the titles differ was not
   looked at: script, traditional against simplified, or a different book are all open).
   Candidates: BB2302541X, BB23013046, BB12558271, BD12942922, BB23914582, BD03128094, BC09665816,
@@ -155,8 +155,11 @@ item set.**
 - **Z-new/H.** HathiTrust returned a record for 1 of 8 (BB12558271, the same book K10plus has); titles
   disagree under `nrm`, years disagree.
 - **N-en/K.** K10plus returned a four-field record for 5 of 8; **2 of the 5 do not carry the ISBN asked
-  for** (BC10516096, BB29832800), so the rule's new same-book check refused them. Without that check the
-  arm would read 5 of 8; with it, 3. The 3 agree with CiNii on title and year. Candidates: BD19743979,
+  for** (BC10516096, BB29832800), so the rule's new same-book check refused them. Both are the
+  electronic version of the same work: their 776 `z` gives the ISBN asked for (the print edition), and
+  one has an online-resource 007. Without that check the arm would read 5 of 8 (viable); with it, 3. A
+  later design could accept a record linked by 776 to the asked ISBN; that would be a new rule, not this
+  probe's. The 3 agree with CiNii on title and year. Candidates: BD19743979,
   BC10516096, BC16051971, BB29832800, BB14409046, BA88523608, BA65069298, BD05472589.
 - **N-en/H.** HathiTrust returned a record for 2 of 8 (both also in K10plus); both agree on title and
   year. The six with no HathiTrust record were not examined further.
@@ -166,11 +169,16 @@ item set.**
   and its *Early China* coverage are unknown (Gap). Candidates: DOIs 10.1017/s0362502800004296,
   10.1017/s0362502800003230, 10.1017/s0362502800004284, 10.1017/s0362502800003242,
   10.1017/s0362502800003278, 10.1017/s0362502800001012, 10.1017/s0362502800003291,
-  10.1017/s0362502800004260.
+  10.1017/s0362502800004260. Two of the eight (…001012, …003291) are book reviews, which the
+  author-and-page filter lets through; one of them counts as A full. A later pass that builds items needs a
+  filter for reviews.
 - **E-kyoto gate.** Through Moonshot's view of the GitLab API: `ruimoku-old/RUI001.txt` (93 kB),
   `ruimoku-papers/CHU001.txt` (35 kB), `ruimoku-journals/journal2.txt` (156 kB) and `rjnl.txt` (128 kB)
   came through by the gate's definition; `ruimoku-old/JOURNAL1.txt` and `ruimoku-metadata/09journals.txt`
-  got the "security risk" refusal three times. Three of the four needed three tries. The files are
+  did not come through (`JOURNAL1.txt`: 403, 502, 403; `09journals.txt`: two new 403s, its first try being
+  the cached 502 from reachability, so it had two new tries, not the three the plan asked for). `RUI001.txt`
+  and `journal2.txt` opened on the third new call; `rjnl.txt` on its second new call (its first try was the
+  cached reachability 403). The files are
   line-based mainframe records with `$`-prefixed subfield codes (in `RUI001.txt` in full-width
   characters); `CHU001.txt` came back inside a code fence; `rjnl.txt` had six Markdown escapes inserted
   by the converter. Whether any file is complete cannot be told: the API gives no size Moonshot will
@@ -191,7 +199,8 @@ item set.**
   articles, and completeness of a converted file are all open, and Kyoto would be a new custodian class
   needing a PREREG deviation. The NCL file did not open through either API.
 - **English books.** The seed list is no longer the problem (68 eligible). Both record-B routes are
-  marginal (3 and 2 of 8). K10plus often returns a record of another edition under the same ISBN query.
+  marginal (3 and 2 of 8). In 2 of K10plus's 5 records the ISBN query returned the e-book of the same
+  work, linked to the print ISBN by 776; counting those would make N-en/K 5 of 8.
 - **Chinese books 2000+.** Marginal through K10plus (2 of 8, title agreement 0 of 2); HathiTrust adds
   nothing (1 of 8). Most newer Chinese books are in neither catalogue.
 - **Chinese articles before 2000.** No record B outside the aggregator class exists among the sources
@@ -201,8 +210,9 @@ item set.**
 
 ## 8. Spend
 
-176 fetch calls (66 reachability, 71 book arms, 36 article arms, 3 deviation 2a) and 4 DeepSeek
-searches. No model was called. Cost per call is not visible to this session (Gap).
+172 fetch calls (62 reachability, 71 book arms, 36 article arms, 3 deviation 2a) and 4 DeepSeek
+searches (`calls.jsonl` has 176 lines: the 4 searches are logged there too). Deviation 2b made no call
+and left no artifact of its own; it reproduces from the saved files. No model was called. Cost per call is not visible to this session (Gap).
 
 ## 9. Not checked
 
@@ -216,3 +226,9 @@ searches. No model was called. Cost per call is not visible to this session (Gap
   H arm is viable).
 - The reachability observations rest on a few requests on one day; Moonshot's GitLab behaviour (502,
   then 200 on a retry) varied within minutes.
+- A flaw in the plan itself, found by the blind review: the E-kyoto gate re-asked two files that
+  section 1 lists as touched in reachability, and the fetch wrapper's cache made a reachability
+  response count as the gate's first try for them.
+- The blind review (a fresh agent given the diff and the saved files) found no blocking error. Its
+  corrections are in this version: spend, retry counts, the K10plus zero-record counts, the e-book
+  records behind N-en/K's refusals, and the book reviews among E-ncl's candidates.
