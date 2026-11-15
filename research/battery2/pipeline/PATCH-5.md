@@ -186,4 +186,14 @@ Run on the four stored work directories with `--stage b` (each with its own targ
 - Mutations, each caught by that check: the two-line join disabled (the item stays `toc_entry_absent`); the
   same-characters test replaced by "always" (the one-character difference is reopened); the once-only guard
   removed (a second reopening goes through).
+- Blind review (a fresh reader given the diff and `origin/main`, 2026-11-15) found three faults, fixed before
+  merge: a reopened kind (b) item kept `accepted` and came back into `items.jsonl` before its re-read had run (now
+  held from the moment it is reopened, and the flag is refused with any stage but b); the two-line title join
+  applied to every reading and could match a heading plus a title suffix (now only for a reopened kind (b) item,
+  and `toc_line` keeps both lines); the PREREG text described kind (b) outcomes that the code does not produce
+  (text corrected). Each fix has a case in the offline check: under the flag with the re-read not run, the item is
+  held and absent from the accepted set; a fresh item whose title is a heading plus a suffix stays
+  `toc_entry_absent`.
+- The offline check is not in the repository (as with the earlier checks in this file); it ran from this
+  session's scratch folder.
 - Not checked here: the real pages. The result of the run goes in the next section.
