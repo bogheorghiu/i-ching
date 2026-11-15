@@ -113,4 +113,8 @@ settle what pass 1 could not: whether the seed half (issue page plus id form) wo
 
 ## 5. Deviations from this plan
 
-(none yet)
+1. **2026-11-15, after the script was written and before any candidate fetch: "contains the ISBN
+   asked for" counts the ISBN-10 and ISBN-13 forms of one number as the same ISBN.** Reason: CiNii
+   gives one form and a MARC 020 often holds only the other; the plan did not say, and the literal
+   reading would refuse a record of the same book. Digits and a final X are compared; qualifiers such
+   as "(pbk.)" are ignored.
