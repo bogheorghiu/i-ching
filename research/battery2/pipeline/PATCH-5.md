@@ -173,3 +173,58 @@ Run on the four stored work directories with `--stage b` (each with its own targ
   year agreed on 334, and the one difference is a line break, not a changed character.
 - Not checked: the snapshots were compared through `toc_entry`'s fields only, not page text against page text.
 
+## Layout drops read again (PREREG deviation 5, 2026-11-15): the change
+
+- `layout_drop(st)` selects, `reopen_layout_drop(st)` lifts the drop once and records it under `reopened` (the
+  previous drop and, for an author mismatch, the previous record B); `process` calls it only under
+  `--reopen-layout-drops`. `toc_entry` joins a title with the line before it when only the join equals record A's
+  title. Why, which items and the outcomes fixed in advance: PREREG deviation 5.
+- Checked offline on made-up states with a made-up Moonshot page, before any real page was read: names kept apart
+  by Moonshot pass `stage_d`'s comparisons; names still run together, names cut differently by record A, and a
+  one-character difference stay dropped (the last is not reopened at all); a two-line title is found and the item
+  kept; a first-pass `toc_entry_absent` is not reopened; a second reopening is refused.
+- Mutations, each caught by that check: the two-line join disabled (the item stays `toc_entry_absent`); the
+  same-characters test replaced by "always" (the one-character difference is reopened); the once-only guard
+  removed (a second reopening goes through).
+- Blind review (a fresh reader given the diff and `origin/main`, 2026-11-15) found three faults, fixed before
+  merge: a reopened kind (b) item kept `accepted` and came back into `items.jsonl` before its re-read had run (now
+  held from the moment it is reopened, and the flag is refused with any stage but b); the two-line title join
+  applied to every reading and could match a heading plus a title suffix (now only for a reopened kind (b) item,
+  and `toc_line` keeps both lines); the PREREG text described kind (b) outcomes that the code does not produce
+  (text corrected). Each fix has a case in the offline check: under the flag with the re-read not run, the item is
+  held and absent from the accepted set; a fresh item whose title is a heading plus a suffix stays
+  `toc_entry_absent`.
+- The offline check is not in the repository (as with the earlier checks in this file); it ran from this
+  session's scratch folder.
+- Not checked here: the real pages. The result of the run goes in the next section.
+
+## Layout drops read again: result (2026-11-15, after PR 40)
+
+Run on the four stored work directories on `main` at c148f27: `--stage b --reopen-layout-drops`, then `--stage d`
+with no flag (the reopen flag runs with stage b only). The outcomes were fixed in PREREG deviation 5 before the run.
+
+| Kind | Reopened | Outcome |
+|---|---|---|
+| (b) entry not found at the deviation-4 re-read | 1 | returned to the accepted set, Moonshot copy as record B |
+| (a) author mismatch, same characters | 22 | 0 passed `stage_d`; all 22 dropped again, `field_mismatch:author` |
+
+- Accepted items: 339 before, 340 after; distinct by title and author: 333.
+- Why none of the 22 passed: the Moonshot copy of the contents pages also has the names run together (19 items:
+  record B is one string where record A has two or three names), or record A's own catalogue line cuts the names
+  at other places than record B (3 items: record A has three two-character parts, record B two three-character
+  names). The 22 are 21 distinct articles: one was seeded in runs 1 and 3 and is among the 3, which are therefore
+  2 articles. One of the 19 has both causes. The pre-run note that the second reader "keeps a mark between names" was wrong for these pages; it had
+  been seen on the 2019 page only. This is a null result on the 22 and it stands: nothing was repaired.
+- No model was called and no new page request was needed for the contents pages (the Moonshot copies of
+  2026-11-09 were read); `stage_d` was not reached for any of the 22 beyond the author comparison.
+- A lead, not a result (one page, read once, after the run): the 2023 contents page read through a third reader
+  (Exa's page reader) shows a space between the names where the DeepSeek and Moonshot copies show none. So the page
+  itself appears to separate the names and both converters drop the separator. Whether that reader involves a
+  model is not known. Reading record B through a third reader would be a new deviation, written before any item
+  is read that way; the direct route (a browser in the session, no converter) is closed for now because the
+  session's network does not allow the host (the proxy refused it, 2026-11-15).
+- A fresh reader recomputed the counts in this section from the state files (2026-11-15): all confirmed, none
+  contradicted; the two qualifications above are that reader's.
+- The reviewer's minor points left as they are: the report line for reopened items counts "dropped again" and
+  "held" only; a kind (b) item dropped again would keep a stale `recB_reread` note (none was); the counts above
+  were made by a script over the state files, not read from that report line.
