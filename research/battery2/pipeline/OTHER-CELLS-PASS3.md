@@ -1,6 +1,6 @@
 # Battery 2 other cells, design pass 3: probes only
 
-Status: **probe plan, committed before any candidate record was fetched.** Owner's verdict "a" on board
+Status: **probe plan (sections 1-5, committed before any candidate record was fetched) and its results (sections 6-9).** Owner's verdict "a" on board
 card `d-b2-cells-pass3`, given in chat on 2026-11-15. Method and rule as in `OTHER-CELLS-DESIGN.md`
 sections 1 and 4 and `OTHER-CELLS-PASS2.md`; this file changes only what it says. Nothing is built, no
 model is called. Cap: 300 fetch calls for the pass, reachability included. Chinese books 1987-1999 stay
@@ -79,3 +79,63 @@ before the arm it touches is scored. The report is a note in a PR here and a com
    not recognise: the lines of `OU009` around the block are read by code. (b) Whether any of the eight
    candidate titles occurs anywhere in the 56 saved `OU` files, under any journal code: `nrm` of the
    first 30 characters of each Crossref title, searched in `nrm` of each file. No new fetch.
+
+## 6. Results (scored by `other-cells-probe/probe_p3.py` from saved responses)
+
+The candidates named here were seen by this session and are in a public file: **keep them out of any
+item set.**
+
+| Arm | Enumeration | Cands | A full | B full | Both | Verdict by the rule |
+|---|---|---|---|---|---|---|
+| N-en/K776 | pass-2 union, 68 eligible; entries 9-16 | 8 | 8 | 3 | **3 of 8** | marginal |
+| E-kyoto | Crossref 2001-2009: 137 works, 40 returned, 12 eligible | 8 | 7 | 0 | **0 of 8** | not viable |
+
+- **N-en/K776.** K10plus answers `numberOfRecords` 0 for 5 of the 8 ISBNs; the other 3 records carry
+  all four fields and the ISBN in 020 (two also in 776). So the new 776 rule changed nothing here:
+  3 of 8 under both rules. All 3 agree with CiNii on title; 2 of 3 on year. Candidates: BC12520458,
+  BB30912157, BB05903631, BB04650122, BD05884418, BA63609259, BA85884439, BA7372081X.
+- **E-kyoto, record A.** Cambridge through DeepSeek: 7 of 8 full (one page, 10.1017/s0362502800002212,
+  gave no title line).
+- **E-kyoto, record B.** 58 `OU` files asked for, 56 opened (`OU030` and `OU058`: Moonshot "security
+  risk", three tries each), 61 new calls (`OU001` was cached from reachability). The parser found one
+  block with journal code `420300`, in `OU009` (year 2000), and matched none of the eight candidates.
+  Candidates: DOIs 10.1017/s0362502800002212, 10.1017/s0362502800000675, 10.1017/s0362502800000638,
+  10.1017/s0362502800007082, 10.1017/s0362502800007136, 10.1017/s0362502800001826,
+  10.1017/s0362502800000687, 10.1017/s0362502800007161.
+- **E-kyoto, the looks of deviation 1 (outside the rule; they change no score).** (a) `OU009` opens
+  its issues with lines of the form letter, four digits, dash, five digits, which the plan's header
+  pattern (letter and six digits) does not match. After that file's first header the parser saw no
+  boundary, so the "one block of 319 records" is a misreading, and blocks in other files that use this
+  form were missed too. (b) **The first 30 normalised characters of 4 of the 8 candidate titles occur
+  in the saved `OU` files** (10.1017/s0362502800007082 and …7136 in `OU023`; …0687 in `OU014`; …7161 in
+  `OU011`, `OU014` and `OU039`). So Kyoto's dataset holds at least half of these articles; the 0 of 8 is
+  the parser's failure, not the dataset's. Under which journal code they sit, and whether their author
+  and year fields are complete, was not read.
+
+## 7. What this means (for the owner; this session decides nothing)
+
+- **English books:** marginal again (3 of 8, after 3 of 8 and 2 of 8 in pass 2). The limit is coverage
+  (5 of 8 ISBNs absent from K10plus), not the same-book rule. Accepting 776 links would not have helped
+  this draw.
+- **English articles:** not viable by the rule, and the rule was right to say so: the parser fixed in
+  advance misread the files. But the probe also shows the dataset holds at least 4 of 8 candidate
+  titles, through a route that keeps two fetch APIs (Cambridge by DeepSeek, Kyoto by Moonshot). A pass 4
+  would need a parser that reads both header forms, written and tested on files already seen, a fresh
+  candidate draw (these 8 are spent), and its own bar. Kyoto would still be a new custodian class.
+- No arm is viable, so section 4 requires no card. One goes to the board anyway, because a pass 4 or a
+  stop is the owner's call.
+
+## 8. Spend
+
+103 fetch calls: 17 reachability (11 tree listings, 6 file requests), 16 book arm, 70 article arm
+(1 Crossref, 8 Cambridge, 61 Kyoto). No search, no model call. The deviation 1 looks made no call.
+Cost per call is not visible to this session (Gap).
+
+## 9. Not checked
+
+- How many of the 58 `OU` files use the second header form, and what journal code the four found
+  titles sit under (the looks of deviation 1 stopped at what it named).
+- Whether the found Kyoto entries carry an author and a year in the fields record B needs.
+- Whether any `OU` file came through complete (no size to compare against).
+- The 1981-2000 Western-article files (`OOBUN`): not opened.
+- A blind review of this note against the saved files (to be run before the PR leaves draft).
