@@ -1,7 +1,7 @@
 # Battery 2 other cells, design pass 4: English articles only, probes only
 
-Status: **probe plan, committed (with the frozen parser `other-cells-probe/kyoto4.py`) before any
-pass-4 candidate was drawn or fetched.** Owner's verdict "a" on board card `d-b2-cells-pass4`, given in
+Status: **probe plan (sections 1-4) and frozen parser `other-cells-probe/kyoto4.py`, committed before any
+pass-4 candidate was drawn or fetched; results in sections 6-9.** Owner's verdict "a" on board card `d-b2-cells-pass4`, given in
 chat on 2026-11-15. Method and rule as in `OTHER-CELLS-DESIGN.md` sections 1 and 4 and the pass-2 and
 pass-3 notes; this file changes only what it says. Nothing is built, no model is called. Books are not
 retried (owner's choice). Cap: 60 fetch calls. Saved responses go only to the private branch
@@ -54,3 +54,47 @@ a PR here and a comment on issue #33.
 ## 5. Deviations from this plan
 
 (none yet)
+
+## 6. Results (scored by `other-cells-probe/probe_p4.py` from saved responses)
+
+The candidates named here were seen by this session and are in a public file: **keep them out of any
+item set.**
+
+| Arm | Enumeration | Cands | A full | B full | Both | Verdict by the rule |
+|---|---|---|---|---|---|---|
+| E-kyoto4 | Crossref 1998-2011: 187 works, 100 returned, 14 eligible | 8 | 7 | 3 | **2 of 8** | marginal |
+
+- **Record B.** 56 of 58 `OU` files read (the saved pass-3 responses); `OU030` and `OU058` refused
+  again ("security risk", three new tries each). The `420300` blocks hold 54 records with years 1998,
+  2000, 2001, 2003, 2004, 2005, 2007, 2008 and 2010 (first year of each block). Kyoto had exactly one
+  matching record for 3 of the 8 candidates and none for 5, although all 8 fall within those years.
+- **Record A.** Cambridge through DeepSeek: 7 of 8 full; 10.1017/s0362502800000985 gave no author line.
+  That is the third candidate with a Kyoto record, so "both" is 2.
+- **Agreement (reported, not part of the rule):** both "both" pairs agree on title and year.
+- Candidates: DOIs 10.1017/s036250280000064x, 10.1017/s0362502800007094, 10.1017/s0362502800007264,
+  10.1017/s0362502800001796, 10.1017/s0362502800000985, 10.1017/s0362502800007045,
+  10.1017/s0362502800002169, 10.1017/s0362502800000651.
+
+## 7. What this means (for the owner; this session decides nothing)
+
+- With the parser fixed, the Cambridge + Kyoto pair works when Kyoto has the article: the two pairs
+  found agree in full, through two fetch APIs. The limit is coverage. Kyoto indexes 54 *Early China*
+  records over 1998-2011, against 187 Crossref works for those years (reviews included), and 5 of 8
+  research articles drawn here are not in it. Pass 3's 5 of 8 and pass 4's 3 of 8 are the two draws;
+  the second is the clean test.
+- So English articles join English books as **marginal, limited by the second source's coverage**. A
+  further pass would test the same coverage again. Widening to other Western journals Kyoto indexes
+  more fully would be a new design, not a rerun; nothing here measures which those are.
+- No arm is viable, so no custodian card is required. One card goes to the board asking whether to
+  close the four cells.
+
+## 8. Spend
+
+15 fetch calls: 1 Crossref and 8 Cambridge (DeepSeek), 6 Kyoto retries (Moonshot); the other 56 Kyoto
+files are pass 3's saved responses, reused without a new call. No search, no model call.
+
+## 9. Not checked
+
+- Whether the Kyoto files came through complete; the two refused files may hold *Early China* records.
+- Which Western journals Kyoto indexes densely enough for a pair.
+- A blind review of this note against the saved files (run before the PR is opened).
