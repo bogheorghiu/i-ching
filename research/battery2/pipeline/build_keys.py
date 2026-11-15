@@ -925,8 +925,9 @@ CNKI_HOSTS = ("www.cnki.com.cn", "cnki.com.cn")
 TOC_HEAD = re.compile(r"《([^》]{2,30})》\s*(\d{4})\s*年")
 
 
-def toc_entry(url, title):
-    """Record B from an institute TOC: (entry, record, None) or (None, None, reason)."""
+def toc_entry(url, title, join_broken_title=False):
+    """Record B from an institute TOC: (entry, record, None) or (None, None, reason). join_broken_title: only for an
+    item reopened under PREREG deviation 5, a title the converter broke over two lines is read as one."""
     F = moonshot_fetch(url, "seed: institute toc")     # record A comes through DeepSeek: PREREG deviation 4
     if not F["ok"]:
         return None, None, "unfetchable_source"
@@ -944,6 +945,9 @@ def toc_entry(url, title):
         t, _, rest = ln.partition("//") if "//" in ln else ln.rpartition("/")
         if i and re.match(r"^[-—–]{2,}", t):          # subtitle wrapped onto its own line
             t = lines[i - 1] + t
+        elif join_broken_title and i and "/" not in lines[i - 1] and norm(t) != norm(title) \
+                and norm(lines[i - 1] + t) == norm(title):
+            t, ln = lines[i - 1] + t, lines[i - 1] + ln       # both lines go into toc_line
         if norm(t) == norm(title):
             hits.append((t.strip(), rest, ln))
     if len(hits) != 1:
@@ -1484,7 +1488,8 @@ def reread_record_b(st):
     c, old = st["cand"], st["recB"]
     if not c.get("seed_b_url") or fetcher_of(old.get("snapshot_file")) != fetcher_of(st["recA"].get("snapshot_file")):
         return
-    e, rec, why = toc_entry(c["seed_b_url"], st["entryA"]["title"])
+    e, rec, why = toc_entry(c["seed_b_url"], st["entryA"]["title"],
+                            join_broken_title=(st.get("reopened") or {}).get("previous_drop", {}).get("rule") == "toc_entry_absent")
     if why in ("unfetchable_source", "toc_header_absent", "toc_author_unparsed"):    # the page was not read
         st["recB_reread"] = {"status": "not_rechecked", "reason": why, "date": today()}
         return
@@ -1503,6 +1508,38 @@ def reread_record_b(st):
     st["recB_reread"] = {"status": "equal", "date": today()}
     if st.get("records"):
         st["records"] = [st["recA"], st["recB"]]
+
+
+def cjk_seq(s):
+    return re.sub(r"[^\u3400-\u9fff\uf900-\ufaff]", "", t2s(unicodedata.normalize("NFKC", str(s or ""))))
+
+
+def layout_drop(st):
+    """PREREG deviation 5: a drop caused by how a page was converted, not by the records disagreeing. Selected in
+    code: an author mismatch whose two author strings hold the same CJK characters in the same order, or an entry
+    that the re-read of deviation 4 did not find."""
+    d = st.get("drop") or {}
+    if d.get("rule") == "field_mismatch:author" and st.get("entryA") and st.get("entryB"):
+        a = cjk_seq(st["entryA"].get("author"))
+        return bool(a) and a == cjk_seq(st["entryB"].get("author"))
+    return d.get("rule") == "toc_entry_absent" and "read again through Moonshot" in d.get("detail", "")
+
+
+def reopen_layout_drop(st):
+    """Lift a layout drop once, so that record B is read again through Moonshot and compared by the unchanged
+    stage_d. Nothing is repaired here: an author mismatch loses its stored record B (stage_b fetches it afresh);
+    an entry the re-read missed keeps it (reread_record_b compares the new reading with it)."""
+    if st.get("reopened") or not layout_drop(st) or not st["cand"].get("seed_b_url"):
+        return False
+    d = st.pop("drop")
+    st["reopened"] = {"prereg": "PREREG deviation 5", "previous_drop": d, "date": today()}
+    if d["rule"] == "field_mismatch:author":
+        st["reopened"]["previous_recB"] = st.pop("recB")
+        st["reopened"]["previous_entryB"] = st.pop("entryB")
+        st.pop("recB_reread", None)                  # it described the record B just set aside
+    else:                                            # keeps its key and verdict: held until the re-read has run
+        st["recB_reread"] = {"status": "not_rechecked", "reason": "reopened, not read again yet", "date": today()}
+    return True
 
 
 def held(st):
@@ -2074,6 +2111,8 @@ FN = {"b": stage_b, "c": stage_c, "d": stage_d, "e": stage_e, "f": stage_f}
 
 def process(cid, args, stages):
     st = load_state(cid)
+    if args.reopen_layout_drops and reopen_layout_drop(st):
+        save_state(st)
     if st.get("drop"):
         return st
     try:
@@ -2373,6 +2412,11 @@ def write_report(args, states, chosen, rest, dropped, note):
                  "rerun with a larger --harvest-factor to add candidates.")
     L.append("- extra_acceptable_keys is empty: the design's different-family comparison of the clue's top 10 (C3) "
              "is not run here; Opus may only flag `other_fitting_work`, which drops the clue.")
+    n_re = [s for s in states if s.get("reopened")]
+    if n_re:
+        L.append(f"- Reopened under PREREG deviation 5: {len(n_re)} item(s); "
+                 f"{sum(1 for s in n_re if s.get('drop'))} dropped again, "
+                 f"{sum(1 for s in n_re if not s.get('drop') and held(s))} held.")
     n_held = sum(1 for s in states if not s.get("drop") and held(s))
     L.append(f"- Held, in no output file: {n_held} item(s) whose record B was saved through DeepSeek and could not be "
              "read again through Moonshot (PREREG deviation 4).")
@@ -2421,6 +2465,8 @@ def main():
     p.add_argument("--ds-price-in", type=float, default=None, help="DeepSeek native USD per 1M input tokens")
     p.add_argument("--ds-price-out", type=float, default=None, help="DeepSeek native USD per 1M output tokens")
     p.add_argument("--ds-price-cache", type=float, default=None, help="DeepSeek native USD per 1M cached input tokens")
+    p.add_argument("--reopen-layout-drops", action="store_true",
+                   help="PREREG deviation 5: read again the items dropped by page conversion (see layout_drop)")
     p.add_argument("--host-stats", action="append", default=[], metavar="PATH",
                    help="another run's tools.jsonl used for host steering in harvest (repeatable)")
     args = p.parse_args()
@@ -2432,6 +2478,8 @@ def main():
     if missing:
         p.error(f"--host-stats file(s) not found: {missing}")
     args.host_stats = [os.path.abspath(h) for h in args.host_stats]
+    if args.reopen_layout_drops and args.stage != "b":
+        p.error("--reopen-layout-drops runs with --stage b only (the stage that reads record B again)")
     if args.stage == "s" and not args.seed_file:
         p.error("--stage s needs --seed-file")
     if args.seed_file:

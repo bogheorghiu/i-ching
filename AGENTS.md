@@ -71,7 +71,7 @@ They do not mention settings, rulesets, secrets or collaborators (read 2026-11-0
   enables (`bogheorghiu/shared-rules`, `bogheorghiu/prompt-design`), or that those repos carry
   the same gate: their code runs unread in every local session here.
 
-Where these come from, with the council record that argued them: `bogheorghiu/negative-spiral`,
+Where these come from, with the council record that argued them: `bogheorghiu/open-spiral`,
 `docs/security-model.md`. That repo is the looser reference (most PRs auto-merge);
 `bogheorghiu/board-pattern` is the tighter one (it also owns every script its hooks and
 scheduled tasks run).
