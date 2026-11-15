@@ -73,4 +73,9 @@ before the arm it touches is scored. The report is a note in a PR here and a com
 
 ## 5. Deviations from this plan
 
-(none yet)
+1. **2026-11-15, after both arms were scored (E-kyoto: 0 of 8; one `420300` block, in `OU009`, year
+   2000, holding 319 parsed records): two looks outside the rule, which score nothing.** (a) Whether the
+   319 records really belong to one *Early China* issue, or the parser ran past a block boundary it did
+   not recognise: the lines of `OU009` around the block are read by code. (b) Whether any of the eight
+   candidate titles occurs anywhere in the 56 saved `OU` files, under any journal code: `nrm` of the
+   first 30 characters of each Crossref title, searched in `nrm` of each file. No new fetch.
