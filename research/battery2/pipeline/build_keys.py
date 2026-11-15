@@ -944,6 +944,8 @@ def toc_entry(url, title):
         t, _, rest = ln.partition("//") if "//" in ln else ln.rpartition("/")
         if i and re.match(r"^[-—–]{2,}", t):          # subtitle wrapped onto its own line
             t = lines[i - 1] + t
+        elif i and "/" not in lines[i - 1] and norm(t) != norm(title) and norm(lines[i - 1] + t) == norm(title):
+            t = lines[i - 1] + t                      # title broken over two lines by the converter (deviation 5)
         if norm(t) == norm(title):
             hits.append((t.strip(), rest, ln))
     if len(hits) != 1:
@@ -1503,6 +1505,35 @@ def reread_record_b(st):
     st["recB_reread"] = {"status": "equal", "date": today()}
     if st.get("records"):
         st["records"] = [st["recA"], st["recB"]]
+
+
+def cjk_seq(s):
+    return re.sub(r"[^\u3400-\u9fff\uf900-\ufaff]", "", t2s(unicodedata.normalize("NFKC", str(s or ""))))
+
+
+def layout_drop(st):
+    """PREREG deviation 5: a drop caused by how a page was converted, not by the records disagreeing. Selected in
+    code: an author mismatch whose two author strings hold the same CJK characters in the same order, or an entry
+    that the re-read of deviation 4 did not find."""
+    d = st.get("drop") or {}
+    if d.get("rule") == "field_mismatch:author" and st.get("entryA") and st.get("entryB"):
+        a = cjk_seq(st["entryA"].get("author"))
+        return bool(a) and a == cjk_seq(st["entryB"].get("author"))
+    return d.get("rule") == "toc_entry_absent" and "read again through Moonshot" in d.get("detail", "")
+
+
+def reopen_layout_drop(st):
+    """Lift a layout drop once, so that record B is read again through Moonshot and compared by the unchanged
+    stage_d. Nothing is repaired here: an author mismatch loses its stored record B (stage_b fetches it afresh);
+    an entry the re-read missed keeps it (reread_record_b compares the new reading with it)."""
+    if st.get("reopened") or not layout_drop(st) or not st["cand"].get("seed_b_url"):
+        return False
+    d = st.pop("drop")
+    st["reopened"] = {"prereg": "PREREG deviation 5", "previous_drop": d, "date": today()}
+    if d["rule"] == "field_mismatch:author":
+        st["reopened"]["previous_recB"] = st.pop("recB")
+        st["reopened"]["previous_entryB"] = st.pop("entryB")
+    return True
 
 
 def held(st):
@@ -2074,6 +2105,8 @@ FN = {"b": stage_b, "c": stage_c, "d": stage_d, "e": stage_e, "f": stage_f}
 
 def process(cid, args, stages):
     st = load_state(cid)
+    if args.reopen_layout_drops and reopen_layout_drop(st):
+        save_state(st)
     if st.get("drop"):
         return st
     try:
@@ -2421,6 +2454,8 @@ def main():
     p.add_argument("--ds-price-in", type=float, default=None, help="DeepSeek native USD per 1M input tokens")
     p.add_argument("--ds-price-out", type=float, default=None, help="DeepSeek native USD per 1M output tokens")
     p.add_argument("--ds-price-cache", type=float, default=None, help="DeepSeek native USD per 1M cached input tokens")
+    p.add_argument("--reopen-layout-drops", action="store_true",
+                   help="PREREG deviation 5: read again the items dropped by page conversion (see layout_drop)")
     p.add_argument("--host-stats", action="append", default=[], metavar="PATH",
                    help="another run's tools.jsonl used for host steering in harvest (repeatable)")
     args = p.parse_args()
