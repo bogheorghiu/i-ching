@@ -116,3 +116,30 @@ the same batch (`batch_6eab1cfcd693`, same seeded pick), with the same system pr
 `:exacto` point in section 5), `reasoning.effort = "max"`, `max_tokens = 128000`, `provider.zdr = true`,
 streamed. Same reporting rules as section 2, same one-retry rule, cap USD 1. The Pro result in section 4 stays
 on record; Flash is the trial's model from here on. Written before the Flash call.
+
+## 7. Result with Flash 1017 (2026-11-16)
+
+One call, no retry: generation `gen-1794836165-lFOyvu9y02MI6yJcSW3k`, `finish_reason` stop, 14,004 prompt tokens,
+15,916 completion tokens (15,593 reasoning), USD 0.0085. Ten parseable verdicts.
+
+| | Units |
+|---|---|
+| Neither flagged | 6 |
+| Flagged by both | 0 |
+| Opus only | 4 (the same 4 as in section 4) |
+| Flash only | 0 |
+
+Unlike Pro, Flash wrote a note specific to each unit, each saying it found no issue. So on this batch both
+DeepSeek tiers at maximum effort raised none of Opus's four flags (Opus under a 16,000-token reasoning cap). The
+self-preference confound of section 5 does not explain it here: of Opus's four flags, three were on Sonnet-written
+clues, and Flash passed those too.
+
+**Route, recorded after the call.** The owner's standing preference (ClaudeShared `field-notes/model-routing.md`,
+2026-11-12) sends DeepSeek work to DeepSeek's own API, keeping the OpenRouter balance for steps that need model
+diversity. Both trial calls went through OpenRouter instead (USD 0.055 together). Later DeepSeek calls from this
+work go to `api.deepseek.com` (`deepseek-flash`, thinking enabled, `reasoning_effort` max, streamed), as that note
+and the courier guide describe.
+
+**Next, if wanted (not done):** whether Opus's flags are right decides which checker is "stronger" here. The three
+`clue_leaks` flags are checkable in code (a 1-2 character title term repeated in the clue) on the whole pool,
+without any model.
