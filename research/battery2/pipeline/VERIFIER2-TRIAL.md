@@ -80,3 +80,30 @@ a separate change, not made here.
 
 Saved: the answer, the batch and the unit-by-unit table are in this session's scratchpad until they can be
 pushed to `battery2-keys`, folder `verifier2-trial-2026-11-16/` (this session has read access only; see the PR).
+
+## 5. Corrections after blind review (2026-11-16)
+
+A fresh agent checked sections 1-4 against the code, the saved batch and the raw answer. It confirmed the batch
+pick (re-run of the seeded choice), the order of events (sections 1-3 committed at `823026b` before the call;
+byte-identical in the result commit), the call record, the counts and the flag names. Corrections:
+
+- **The runs differ in more than the model.** Section 1 says the route makes the two runs "differ in the model
+  only". False. Stage g called Opus with `reasoning.max_tokens = 16000`, `max_tokens = 32000`,
+  `provider.only = ["anthropic"]`, not streamed; this trial sent DeepSeek `reasoning.effort = "max"`,
+  `max_tokens = 128000`, `provider.zdr = true`, streamed. So section 4's conclusion reads: on this batch, DeepSeek
+  V4 Pro at maximum effort raised none of the four flags that Opus raised under a 16,000-token reasoning cap.
+  Model and reasoning setting both differ.
+- **No `:exacto` endpoint.** The pipeline's non-Anthropic call uses one, and PREREG decision 2 names them for
+  the models under test; this call did not.
+- **"Newest and largest"**: `deepseek-v4-pro-0813` is the newest Pro model listed on 2026-11-16, not the newest
+  DeepSeek model (`deepseek-v4.1-flash-1017` is later). "Largest" was not checked against parameter counts.
+- **A confound not named in section 2.** 3 of the 10 clues were written by DeepSeek's own model (the pipeline's
+  native writer); a DeepSeek verifier may favour them. Opus flagged 1 of those 3 and 3 of the 7 Sonnet clues.
+- **DeepSeek's notes** are the same string, word for word, on all 10 units, with 5,512 reasoning tokens at
+  maximum effort.
+- **The cap** of USD 1 was not enforced in code; it held in fact (USD 0.046, no retry).
+- **Saved files.** The batch is already on `battery2-keys`; the scratchpad holds the answer, the table, the
+  script and its log. Nothing is in `verifier2-trial-2026-11-16/` yet: a deviation from section 3 until this
+  session can push there.
+- The code leakage check also has an English 2-word rule; section 4 describes only the Chinese one, which is the
+  one that applied.
