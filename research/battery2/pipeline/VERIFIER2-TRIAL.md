@@ -45,3 +45,38 @@ Fixed now, before the answer:
 
 The answer, the unit-by-unit table and the call record go to the private branch `battery2-keys`, folder
 `verifier2-trial-2026-11-16/`, because they hold key fields. This repo gets only counts and flag names.
+
+## 4. Result (2026-11-16)
+
+**The call.** One call, no retry needed: generation `gen-1794835642-o4gtEy88ODIm2rLJHaAe`, `finish_reason`
+stop, 14,070 prompt tokens, 5,623 completion tokens (5,512 reasoning), USD 0.046. The picked batch is a run 4
+batch (`batch_6eab1cfcd693`). DeepSeek returned one parseable verdict for each of the 10 units.
+
+| | Units |
+|---|---|
+| Neither flagged | 6 |
+| Flagged by both | 0 |
+| Opus only | 4 (3 `clue_leaks`, 1 `other_fitting_work`) |
+| DeepSeek only | 0 |
+
+DeepSeek flagged nothing; its note on each of the four reads, in substance, "records and clue match key; no
+issues found".
+
+**What the four Opus flags were** (read after the result; full notes on `battery2-keys`):
+- The three `clue_leaks` each point at one or two title words that the clue repeats: a hexagram name, a
+  character the article discusses, a period name. The code leakage check (a shared 3-character n-gram) let
+  these through because the repeated term is shorter than 3 characters, or is split differently.
+- The `other_fitting_work` names another article by the same author, in the same journal, that Opus says fits
+  the clue too. That claim comes from Opus's memory and was not checked.
+
+**What this shows, within its limits.** On this batch, DeepSeek V4 Pro at maximum effort was the more lenient
+checker: it raised none of the four flags Opus raised and none of its own. That is the opposite of the
+hypothesis being tried. One batch of 10 units cannot say how often this holds across the pool. Nothing changed
+status (section 2).
+
+**Not checked.** Whether Opus's four flags were right: whether those clues really leak, and whether the other
+article exists. The three short-term leaks point at a gap in the code check that is worth its own look; that is
+a separate change, not made here.
+
+Saved: the answer, the batch and the unit-by-unit table are in this session's scratchpad until they can be
+pushed to `battery2-keys`, folder `verifier2-trial-2026-11-16/` (this session has read access only; see the PR).
