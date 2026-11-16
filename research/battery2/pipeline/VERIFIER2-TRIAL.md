@@ -107,3 +107,12 @@ byte-identical in the result commit), the call record, the counts and the flag n
   session can push there.
 - The code leakage check also has an English 2-word rule; section 4 describes only the Chinese one, which is the
   one that applied.
+
+## 6. Deviation, 2026-11-16, before its call: Flash 1017 replaces Pro (owner's instruction)
+
+The owner, in chat after the Pro result: "forget deepseek pro, use flash 1017". So the trial is run again on
+the same batch (`batch_6eab1cfcd693`, same seeded pick), with the same system prompt and user message, on
+`deepseek/deepseek-v4.1-flash-1017:exacto` (the pipeline's own extractor endpoint, which also answers the
+`:exacto` point in section 5), `reasoning.effort = "max"`, `max_tokens = 128000`, `provider.zdr = true`,
+streamed. Same reporting rules as section 2, same one-retry rule, cap USD 1. The Pro result in section 4 stays
+on record; Flash is the trial's model from here on. Written before the Flash call.
