@@ -132,3 +132,57 @@ leaves out an article that CNKI does not number in sequence.
 
 Saved responses: held in this session's scratchpad until they can be pushed to `battery2-keys`, folder
 `controls-probe-2026-11-16/` (this session has read access only to that branch; see the PR).
+
+## 6. Corrections after blind review (2026-11-16)
+
+A fresh agent reviewed sections 1-5 against `main` (no web content). Sections 1-5 are left as written; these
+corrections replace the sentences they name.
+
+**When sections 1-4 were frozen.** Commit `a95b7ab` on this branch, pushed before the first probe fetch; section
+5 is commit `5df672d`.
+
+**The bar could not be met, and I could have known.** The CNKI condition in 3.2 (no unmatched non-notice page in
+a year) fails for every year with saved probes. PATCH-5 had already recorded unmatched CNKI pages for these
+years (notices, columns, obituaries), and before writing section 4 I had counted, from the same saved seed
+logs, that no issue had zero unmatched pages. So the 2012-2024 part of the result was knowable before the
+bar was set, and the null says nothing about whether controls can be built. What the probe did add: the state of
+the 2010, 2011 and 2025 pages.
+
+**Departures from `final-design.md` that section 3 did not name.** §B asks for a complete TOC that two
+custodians agree on, with continuous pagination. Proposal 3 uses one custodian (CASS) read through two
+fetchers, takes the union of the two copies rather than their agreement, and checks no pagination. 3.1 replaces
+issue probes and author probes with venue probes, which §B does not define; §G kept author probes on a
+condition. Any of this would need a PREREG deviation before a control is built. Since the result is a null,
+none is proposed.
+
+**Author probes.** Section 1 says CNKI author pages block non-mainland IPs, citing PATCH-5. That is not in
+PATCH-5. The record (issue #33, 2026-11-09 17:09) says the CNKI article *detail* page blocks non-mainland IPs;
+author pages were not tried. Whether a complete bibliography of a scholar is reachable is UNRESOLVED, so the
+reason given for dropping author probes does not hold as written.
+
+**Other sentences.**
+- Section 2, "the page is complete": what is shown is that the DeepSeek copy lost 7 lines the Moonshot copy
+  has. Whether the Moonshot copy lists every article of 2021 issue 1 was not checked.
+- 3.2, "one reader only ever lost lines": the DeepSeek copy also had 1 line the Moonshot copy lacked.
+- Section 2, "They were never candidates; nothing was built from them": CONTRADICTED. 6 of the 70 lost lines are
+  accepted items, seeded from the owner's Kimi lists, not from the TOC. No key is affected: since deviation 4,
+  every accepted item's record B is the Moonshot copy, which has those lines.
+- Section 2, "the two-readers rule the owner kept on 2026-11-15": the rule is PREREG deviation 4 (2026-11-09).
+  The 2026-11-15 hand-off on issue #33 records the owner saying it stays.
+- Section 4, "the same Gap as in PATCH-5": PATCH-5's Gap is DeepSeek clue-call prices; DeepSeek fetch prices are
+  a separate, also unrecorded, figure.
+- Section 5, "No 2025 page exists in the index": only page 1 of the index was read, and the next id in sequence
+  (`t20240928_5788121`) was not tried. Absence is not established; the 2020s fail on 2020-2024 anyway.
+- Section 5: the Moonshot retry and the second host were decided after launch and are not in section 4. The
+  Moonshot 404 is the index's page 2 (`index_1.shtml`), which returned "No text/markdown content".
+- Section 5, "a fault in the reader written for this probe, not evidence that the CASS pages leave articles
+  out": 9 of at least 39 unmatched pages were read, picked by hand. Supported: none of those 9 shows an
+  omission. The reader also lacks the wrapped-subtitle handling that `build_keys.toc_entry` already has.
+
+**For a later design, not acted on here.** 3.4 calls an answer invented on an exact title miss, while §D judges
+titles by similarity, so a near-verbatim real title would count as a control failure; and §D makes any
+wrong-real answer on a control a failure, which 3.4 softened. Section 4's bar never tested whether 3.3 leaves
+any topics.
+
+**Raw evidence.** The probe's snapshots are still only in this session's scratchpad. They go to `battery2-keys`
+once this session can push there (asked on the PR); until then they can be lost if the session ends.
