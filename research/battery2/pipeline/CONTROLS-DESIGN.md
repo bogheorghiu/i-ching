@@ -95,3 +95,40 @@ The stored pages cover 2012-2024. Missing for the two decades: 2010, 2011, 2025 
   absent. The CNKI probe is the only check on that, and it only reaches articles CNKI numbers in sequence.
 
 Saved responses go to the private branch `battery2-keys`, folder `controls-probe-2026-11-16/`.
+
+## 5. Result (2026-11-16): null, no usable decade
+
+**Calls.** 13 fetches (DeepSeek: 3, all HTTP 200; Moonshot: 10, of which 8 were HTTP 504, 1 was 404 and 1 was 200)
+and 1 Exa search. No model call. No CNKI id was probed: once a year has only one copy, 3.2 makes it unusable,
+and probing could not change that.
+
+**Pages found.** The CASS index lists yearly pages for 2015-2024 on page 1. An Exa search found the 2011 page at
+`iwr.cssn.cn/.../t20240928_5788107.shtml`; the 2010 page is `..._5788106.shtml` (its DeepSeek copy is headed
+2010). **No 2025 page exists in the index**, read through both readers on 2026-11-16.
+
+**By the rule of 3.2:**
+
+| Decade | Outcome | Reason |
+|---|---|---|
+| 2020s | not usable | no 2025 page |
+| 2010s | not usable | 2010 and 2011 have a DeepSeek copy only: Moonshot returned HTTP 504 on both pages, on both hosts, on a first try and on one retry 30 s later (8 calls; the first-try snapshots were moved aside, not deleted) |
+
+Applied to the 13 years with two saved copies (2012-2024, using the CNKI probes already saved), **no year is
+usable**: every year has both copies and all six issue headers, but between 3 and 18 CNKI probe pages per year
+have a title that is neither in the union of entry lines nor marked as a notice.
+
+**The bar (section 4) is not met: the result is a null.** Proposal 3 does not go to the owner as buildable.
+
+**Read after the result; it changes nothing above.** Of 9 unmatched CNKI pages looked at by hand, 7 are not
+articles but fall outside the notice list (obituaries, 悼念; conference reports; an editor's introduction; a
+group photo), and 2 are articles whose TOC entry wraps the subtitle onto a second line. The line reader of 3.2
+keeps only lines holding `/`, so it loses the main-title line of a wrapped entry. That is a fault in the reader
+written for this probe, not evidence that the CASS pages leave articles out. Fixing either fault now, on the
+pages that showed it, would shape the rule to a result already seen; the next step goes to the owner instead
+(card `d-b2-controls-next`).
+
+**Not checked.** Whether the 2010 and 2011 pages open through Moonshot at another time; whether any page
+leaves out an article that CNKI does not number in sequence.
+
+Saved responses: held in this session's scratchpad until they can be pushed to `battery2-keys`, folder
+`controls-probe-2026-11-16/` (this session has read access only to that branch; see the PR).
