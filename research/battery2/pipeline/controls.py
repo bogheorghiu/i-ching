@@ -155,8 +155,9 @@ def cnki_page(year, issue, seq, force=False):
     if "【引证文献】" not in text and "【摘要】" not in text:
         return "not_found", None
     h1 = re.search(r"^#\s+(.+)$", text, re.M)
-    first = re.match(r"\s*([^\n【#]+?)\s*\n\s*(?:\n\s*)*【摘要】", text)      # converter left out the "#"
-    title = (h1 or first).group(1).strip() if (h1 or first) else None
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    first = lines[0] if len(lines) > 1 and lines[1].startswith("【摘要】") and lines[0][0] not in "【#" else None
+    title = h1.group(1).strip() if h1 else first                     # first: the converter left out the "#"
     if not title:
         return "untitled", None
     e = {"forms": [title], "seq": seq, "url": url}
