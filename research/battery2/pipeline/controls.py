@@ -18,9 +18,13 @@ import build_keys as bk  # noqa: E402
 JOURNAL, CNKI_CODE, NAPSTIC_CODE, ISSUES = "周易研究", "ZYJY", "zhouyyj", range(1, 7)
 SIM_MATCH = 0.85          # final-design §D, "Correct": title character similarity; here also "same article"
 SIM_FLOOR = 0.5           # §D: below this an answer's title is unrelated to every listed title
-CNKI_MARGIN, CNKI_TAIL, CNKI_CAP = 5, 4, 40
+CNKI_MARGIN, CNKI_TAIL, CNKI_CAP = 5, 4, 60
+GAP_RETRIES, GAP_WAIT_S = 3, 30
 NAPSTIC_PAGES = 5
-MOONSHOT_TRIES, MOONSHOT_WAIT_S = 3, 600
+PAGE_TRIES, PAGE_WAIT_S = 3, 600         # the CASS page, per fetcher
+MAX_FETCHES = 600
+INFRA_FAILS = {"cass_page_not_opened", "cass_no_usable_copy_unopened", "cnki_gap_unopened", "fetch_budget_spent"}
+_fetches = 0
 # Not research articles: such an entry may be missing from one custodian without breaking agreement.
 # It stays in the listing that answers and topics are checked against.
 NONRESEARCH = re.compile("书讯|简介|新书架|选题|征订|稿约|目录|启事|悼念|纪念|讣告|综述|会议|论坛|研讨会|致辞|"
@@ -45,10 +49,14 @@ def best(forms, listing):
 def fetch(api, url, prefix, route, force=False):
     """A stored 200 snapshot is reused unless force; a failed one is tried again. A refetch keeps the earlier
     snapshot under "previous"."""
+    global _fetches
     fn = f"{prefix}_{bk.sha(url)}.json"
     path = os.path.join(bk.SNAP, fn)
     snap = bk.read_json(path)
-    if snap is None or snap.get("status") != 200 or force:
+    if snap is None or not _ok(snap) or force:
+        if _fetches >= MAX_FETCHES:
+            raise BudgetSpent(url)
+        _fetches += 1
         endpoint = bk.DS_FETCH_URL if api == "deepseek" else bk.MOONSHOT_FETCH_URL
         status, js, raw = bk.http_post(endpoint, {"Authorization": "Bearer placeholder"}, {"url": url}, timeout=180)
         snap = {"kind": "fetch", "url": url, "route": route, "date": bk.today(), "status": status, "fetcher": api,
@@ -57,19 +65,27 @@ def fetch(api, url, prefix, route, force=False):
         bk.write_json(path, snap)
         bk.jlog(os.path.join(bk.SNAP, "index.jsonl"), {"ts": bk.nowiso(), "kind": "fetch", "url": url, "route": route,
                                                      "fetcher": api, "status": status, "file": fn})
-    text = bk.fetch_text(snap.get("response"))
-    return text if snap.get("status") == 200 and len(bk.norm(text)) > 30 else None
+    return bk.fetch_text(snap.get("response")) if _ok(snap) else None
+
+
+class BudgetSpent(Exception):
+    pass
+
+
+def _ok(snap):
+    """A 200 with readable text; a 200 with almost nothing in it counts as a failed fetch."""
+    return snap.get("status") == 200 and len(bk.norm(bk.fetch_text(snap.get("response")))) > 30
 
 
 def cass_copies(url):
-    ds = fetch("deepseek", url, "cd", "controls: cass page")
-    ms = None
-    for k in range(MOONSHOT_TRIES):
-        ms = fetch("moonshot", url, "cm", "controls: cass page")
-        if ms is not None or k == MOONSHOT_TRIES - 1:
-            break
-        time.sleep(MOONSHOT_WAIT_S)
-    return ds, ms
+    out = {}
+    for api, prefix in (("deepseek", "cd"), ("moonshot", "cm")):
+        for k in range(PAGE_TRIES):
+            out[api] = fetch(api, url, prefix, "controls: cass page")
+            if out[api] is not None or k == PAGE_TRIES - 1:
+                break
+            time.sleep(PAGE_WAIT_S)
+    return out["deepseek"], out["moonshot"]
 
 
 # ----------------------------------------------------------------------------- custodian A: CASS yearly page
@@ -113,8 +129,10 @@ def cass_issues(text):
             p = START_PAGE.search(rest)
             author = START_PAGE.sub("", rest).strip(" /")
             forms = [t] + ([prev + t] if prev else [])
-            out[cur].append({"forms": [f for f in forms if bk.norm(f)], "page": int(p.group(1)) if p else None,
-                             "line": ln, "notice": not bk.norm(author)})
+            forms = [f for f in forms if bk.norm(f)]
+            if forms:
+                out[cur].append({"forms": forms, "page": int(p.group(1)) if p else None, "line": ln,
+                                 "notice": not bk.norm(author)})
             prev = None
         else:
             prev = ln if bk.has_cjk(ln) and len(ln) < 80 else None
@@ -142,9 +160,6 @@ def page_order_breaks(entries):
 
 
 # ----------------------------------------------------------------------------- custodian B: CNKI id run
-CNKI_SELF = re.compile(r"\[J\];([^;\n]+);(\d{4})年(\d{1,2})期")
-
-
 def cnki_page(year, issue, seq, force=False):
     """(kind, entry): kind is "article", "not_found" (CNKI's own frame page for an id it does not hold),
     "untitled" (an article page whose title cannot be read) or "unopened" (the fetch failed)."""
@@ -155,9 +170,9 @@ def cnki_page(year, issue, seq, force=False):
     if "【引证文献】" not in text and "【摘要】" not in text:
         return "not_found", None
     h1 = re.search(r"^#\s+(.+)$", text, re.M)
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    first = lines[0] if len(lines) > 1 and lines[1].startswith("【摘要】") and lines[0][0] not in "【#" else None
-    title = h1.group(1).strip() if h1 else first                     # first: the converter left out the "#"
+    first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
+    # Converters seen: "# title"; the title as a plain first line (sometimes twice), then 【摘要】 or 【引证文献】.
+    title = h1.group(1).strip() if h1 else (first if first and first[0] not in "【#" else None)
     if not title:
         return "untitled", None
     e = {"forms": [title], "seq": seq, "url": url}
@@ -165,16 +180,17 @@ def cnki_page(year, issue, seq, force=False):
     e["abstract"] = ab.group(1).strip() if ab else ""
     # CNKI marks a body excerpt standing in for a missing abstract with <正>: news, book notices, plates.
     e["notice"] = not e["abstract"] or e["abstract"].startswith("<正>")
-    k = text.find("相似文献")
-    m = CNKI_SELF.search(text[k:].replace("|", "\n")) if k >= 0 else None
-    e["catalogue_issue"] = (int(m.group(2)), int(m.group(3))) if m else None
+    k = text.find("相似文献")          # CNKI's own catalogue line: the one under 相似文献 whose title is this title
+    own = [m for m in bk.CNKI_SELF.finditer(text[k:].replace("|", "\n"))
+           if bk.norm(m.group(1).split(";")[-1]) == bk.norm(title)] if k >= 0 else []
+    e["catalogue_issue"] = (int(own[0].group(3)), int(own[0].group(4))) if own else None
     return "article", e
 
 
 def cnki_run(year, issue, n_cass):
     """Walk ids from 001 to at least n_cass + CNKI_MARGIN, and on until CNKI_TAIL ids after the last article
     (at most CNKI_CAP). Between the first and the last article every id must be an article: any other id is
-    fetched once more, and is a gap if it still is not. A not-found id before the first article is allowed:
+    fetched up to GAP_RETRIES more times, GAP_WAIT_S apart, and is a gap if it still is not. A not-found id before the first article is allowed:
     CNKI's numbering of an issue can start above 001."""
     kinds, hits, last, seq = {}, {}, 0, 0
     while seq < CNKI_CAP:
@@ -189,29 +205,35 @@ def cnki_run(year, issue, n_cass):
     for s in range(1, last + 1):
         if s in hits or (s < first and kinds[s] == "not_found"):
             continue
-        kinds[s], e = cnki_page(year, issue, s, force=True)
-        if e:
-            hits[s] = e
-        elif not (s < first and kinds[s] == "not_found"):
+        for _ in range(GAP_RETRIES):
+            time.sleep(GAP_WAIT_S)
+            kinds[s], e = cnki_page(year, issue, s, force=True)
+            if e:
+                hits[s] = e
+                break
+        if not e and not (s < first and kinds[s] == "not_found"):
             gaps.append(f"{s:03d}:{kinds[s]}")
-    return [hits[s] for s in sorted(hits)], gaps, seq >= CNKI_CAP
+    return [hits[s] for s in sorted(hits)], gaps, last > CNKI_CAP - CNKI_TAIL     # still finding articles at the cap
 
 
 # ----------------------------------------------------------------------------- napstic: a subset, a falsifier
 def napstic_titles(year, issue):
-    titles, seen = [], set()
+    """(titles, health): health says whether page 1 opened and showed this issue; when it did not, the check is
+    empty, which is recorded, not failed (napstic lists a subset and is not a custodian)."""
+    titles, seen, health = [], set(), "page 1 not read"
     for page in range(1, NAPSTIC_PAGES + 1):
         url = f"https://search.napstic.cn/literature/oaj/{NAPSTIC_CODE}?page={page}&activeYear={year}&activeIssue={issue}"
         text = fetch("deepseek", url, "cd", "controls: napstic issue")
         h = NAP_HEAD.search(text or "")
         if not h or (int(h.group(1)), int(h.group(2))) != (year, issue):
             break
+        health = "ok"
         new = [t.strip() for t in NAP_ART.findall(text) if bk.norm(t) not in seen]
         if not new:
             break
         seen.update(bk.norm(t) for t in new)
         titles += new
-    return titles
+    return titles, health
 
 
 # ----------------------------------------------------------------------------- the verdict
@@ -239,17 +261,20 @@ def usable_copies(copies):
         elif entries:
             fails.setdefault("cass_copy_set_aside", []).append(f"{name}: " + ",".join(page_order_breaks(entries)))
     if not serving:
-        fails["cass_no_usable_copy"] = list(copies)
+        key = "cass_no_usable_copy_unopened" if len(shut) == len(copies) else "cass_no_usable_copy"
+        fails[key] = list(copies)
     return union(*serving), fails
 
 
-def issue_verdict(year, issue, copies, cnki, gaps, capped, nap):
+def issue_verdict(year, issue, copies, cnki, gaps, capped, nap, nap_health):
     cass, notes = usable_copies(copies)
     fails = {k: v for k, v in notes.items() if k != "cass_copy_set_aside"}
     if not cnki:
         fails["cnki_run_empty"] = []
-    if gaps:
-        fails["cnki_gap"] = gaps
+    if [g for g in gaps if not g.endswith(":unopened")]:
+        fails["cnki_gap"] = [g for g in gaps if not g.endswith(":unopened")]
+    if [g for g in gaps if g.endswith(":unopened")]:
+        fails["cnki_gap_unopened"] = [g for g in gaps if g.endswith(":unopened")]
     if capped:
         fails["cnki_cap_reached"] = [CNKI_CAP]
     wrong = [e["url"] for e in cnki if e["catalogue_issue"] not in (None, (year, issue))]
@@ -263,7 +288,8 @@ def issue_verdict(year, issue, copies, cnki, gaps, capped, nap):
     miss = [t for t in nap if best([t], listing) < SIM_MATCH]
     if miss:
         fails["napstic_not_in_listing"] = miss
-    return {"complete": not fails, "fails": fails, "set_aside": notes.get("cass_copy_set_aside", []),
+    return {"complete": not fails, "fails": fails, "infra_only": bool(fails) and set(fails) <= INFRA_FAILS,
+            "napstic_health": nap_health, "set_aside": notes.get("cass_copy_set_aside", []),
             "counts": {**{n: len(c or []) for n, c in copies.items()}, "cass": len(cass), "cnki": len(cnki),
                        "napstic": len(nap)},
             "listing": [e["forms"] for e in listing], "abstracts": [e["abstract"] for e in cnki if not e["notice"]]}
@@ -274,6 +300,8 @@ def score_control(answer, decade_listing, decade):
     """answer: extracted fields {title, venue, year, issue}; decade_listing: every issue's listing forms."""
     if not bk.norm(answer.get("title")):
         return "abstain"
+    answer = {**answer, **{k: int(answer[k]) for k in ("year", "issue")
+                           if isinstance(answer.get(k), str) and answer[k].strip().isdigit()}}
     venue_hit = bk.norm(answer.get("venue")) == bk.norm(JOURNAL)
     year = answer.get("year")
     if venue_hit and answer.get("issue") is not None and answer["issue"] not in ISSUES:
@@ -294,18 +322,27 @@ def main():
     p.add_argument("--year", type=int, action="append", required=True)
     p.add_argument("--cass", action="append", required=True, help="CASS yearly page, one per --year, same order")
     a = p.parse_args()
+    if len(a.year) != len(a.cass):
+        p.error("give one --cass per --year")
     bk.W = os.path.abspath(a.workdir)
     bk.SNAP = os.path.join(bk.W, "snapshots")
     os.makedirs(bk.SNAP, exist_ok=True)
     path = os.path.join(bk.W, "verdicts.json")
     out = bk.read_json(path, {}) or {}
     for year, url in zip(a.year, a.cass):
-        ds, ms = cass_copies(url)
+        try:
+            ds, ms = cass_copies(url)
+        except BudgetSpent:
+            ds = ms = None
         parsed = {n: (cass_issues(t) if t else None) for n, t in (("deepseek", ds), ("moonshot", ms))}
         for issue in ISSUES:
             copies = {n: (None if c is None else c.get((year, issue), [])) for n, c in parsed.items()}
-            cnki, gaps, capped = cnki_run(year, issue, len(usable_copies(copies)[0]))
-            v = issue_verdict(year, issue, copies, cnki, gaps, capped, napstic_titles(year, issue))
+            try:
+                cnki, gaps, capped = cnki_run(year, issue, len(usable_copies(copies)[0]))
+                v = issue_verdict(year, issue, copies, cnki, gaps, capped, *napstic_titles(year, issue))
+            except BudgetSpent:
+                v = {"complete": False, "fails": {"fetch_budget_spent": [MAX_FETCHES]}, "infra_only": True}
+            v["fetches_so_far"] = _fetches
             out[f"{year}/{issue}"] = v
             bk.write_json(path, out)
             print(year, issue, "complete" if v["complete"] else "NOT complete", v["counts"], list(v["fails"]))
