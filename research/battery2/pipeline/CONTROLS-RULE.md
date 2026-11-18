@@ -106,3 +106,38 @@ only where present.
   custodians classify notices differently, so both would reject complete issues; they are listed as limits above.
 - **Freeze.** The commit that adds this sentence freezes sections 1-5 and `controls.py`. Its hash is recorded in
   the next commit, which changes nothing else: `eff33257cc6a884581a7dc0bd350665ed9868fcd`.
+
+## 7. Result (2026-11-18): null, 8 of 12 issues complete
+
+**The run.** `controls.py` at the freeze commit on 2010 and 2011: 284 fetches in all (2 through Moonshot, the
+rest DeepSeek; under USD 0.25). A container restart stopped the run after 2010/3; it was resumed with the same
+code and workdir, so pages already saved were reused and 2010/1-3 were recomputed from the same snapshots. No
+model call. Files: `battery2-keys`, `controls-test-2010-2011/`.
+
+| Issue | Verdict | Failure |
+|---|---|---|
+| 2010/1, 2010/4, 2011/1-6 | complete | |
+| 2010/2 | not complete | 1 CNKI page not on the CASS page |
+| 2010/3 | not complete | 1 CNKI page not on the CASS page |
+| 2010/5 | not complete | 2 CNKI pages not on the CASS page |
+| 2010/6 | not complete | 2 CNKI pages not on the CASS page; 1 CASS entry not in CNKI |
+
+None of the four is an infrastructure failure, so section 4's one re-run does not apply. **By section 4 this is a
+null: no 2010s controls are built.** Nothing in the rule or the code was changed after the freeze.
+
+**What the failures are** (read after the result; changes nothing above):
+- The 6 CNKI-only pages are book notices and news items (a new book, an appointment of the journal's editor).
+  Their CNKI pages have an empty abstract. Section 2 exempts a CNKI page as a notice only when its abstract is
+  CNKI's `<正>` excerpt, so under the rule as written they count as research articles that the CASS page lacks.
+  The code also meant to treat an empty abstract as a notice, but its abstract pattern reads the next section
+  heading (`【引证文献】`) as the abstract, so that branch never fires on this page layout. Rule text and code agree
+  on these six pages; the code's intent and its effect do not.
+- The CASS-only entry in 2010/6 is a foreword to a book (`序《墨经正读》`). No page in CNKI's run for that issue holds
+  it. That is a real disagreement between the custodians, and it would fail the issue even if the six notices
+  were exempt.
+
+**What this does and does not show.** The rule's notion of a notice was too narrow for 2010's CNKI pages, which
+the development years did not show (their notices carried `<正>` excerpts). It does not show that the CASS
+pages or CNKI miss research articles: apart from the foreword, every disagreement is a notice. The 2-control-failure
+gate of §E cannot be applied (PREREG deviation 6). The next step is the owner's (board card
+`d-b2-controls-null`).
