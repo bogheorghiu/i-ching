@@ -105,4 +105,4 @@ only where present.
   own catalogue line, and a strict count comparison, because development pages lack the line often and the
   custodians classify notices differently, so both would reject complete issues; they are listed as limits above.
 - **Freeze.** The commit that adds this sentence freezes sections 1-5 and `controls.py`. Its hash is recorded in
-  the next commit, which changes nothing else.
+  the next commit, which changes nothing else: `eff33257cc6a884581a7dc0bd350665ed9868fcd`.
