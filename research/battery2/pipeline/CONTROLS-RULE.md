@@ -141,3 +141,72 @@ the development years did not show (their notices carried `<正>` excerpts). It 
 pages or CNKI miss research articles: apart from the foreword, every disagreement is a notice. The 2-control-failure
 gate of §E cannot be applied (PREREG deviation 6). The next step is the owner's (board card
 `d-b2-controls-null`).
+
+## 8. Amendment after the null (2026-11-21): wider notices, a re-run that is not blind
+
+Written 2026-11-21, after the result in section 7 and before the re-run fetches anything. The owner chose option a of
+board card `d-b2-controls-null`. Sections 1-7 are not edited. This section, section 9 and the amended `controls.py`
+are frozen at the commit named in section 9; earlier commits are drafts. PREREG deviation 7 records the departure from
+deviation 6.
+
+**What changes in `controls.py`.**
+
+1. *A CNKI page with an empty abstract is a notice.* Section 2 point 3 exempts a CNKI page from agreement only when
+   its abstract is CNKI's `<正>` excerpt. The code meant to exempt a page without an abstract as well, and did for a
+   page with no `【摘要】` line; but when the line is there and empty, its pattern ran on to the next heading
+   (`【引证文献】`) and read that as the abstract (section 7). An abstract that begins with `【` is now read as empty.
+2. *A foreword is a notice, on either custodian's page:* a title that begins with 序 directly followed by a
+   book-title mark (《 or 〈), like the CASS entry of section 7. The pattern is this narrow because 序 also occurs
+   inside research titles (卦序, 序卦), and a marker word would take those out of the agreement check.
+3. *The fetch cap is 1,500.* Section 4's 600 was for two years.
+4. *The verdict counts what the two exemptions cover* (`cnki_empty_abstract` and `foreword` in `counts`, per issue),
+   so that the cost of widening can be read from the run. The first count includes pages that the frozen code already
+   exempted (those with no `【摘要】` line).
+
+An exempt entry stays in the listing that answers and topics are checked against; only the agreement check skips it.
+Everything else in section 2 is unchanged: both fetchers, the id run and its retries, the 0.85 similarity, the
+catalogue line, napstic.
+
+**Why, and what a pass would be.**
+
+- Section 7 reads the seven disagreements of the failed issues as six notices (CNKI pages with an empty abstract) and
+  one foreword. That reading was made after the result, by the session that ran the test; this section does not
+  re-verify it.
+- This is not a blind test. The exemptions were written after reading the 2010-2011 results, which are the cases they
+  were written to fix, and the 2012-2019 pages were read for key building and for developing the rule (section 3), so
+  no issue of 2010-2019 is unseen. The 12 issues of 2010-2011 passing again would show that the code does what this
+  section says, not that the rule is right. For 2012-2019 the amendment can change a verdict only where a page has an
+  empty abstract or a foreword title; the frozen code passed the 12 development issues of 2013 and 2019 after the
+  reader fixes of section 3.
+- A pass would show that under this rule the two custodians agree on every entry that is not exempt, in all 60
+  issues. That is weaker than a pass of section 4's bar: an exempt entry is no longer held against the other
+  custodian. A research article with an empty CNKI abstract that the CASS page lacks (or one with a foreword title that
+  the other custodian lacks) would no longer raise the warning that a custodian misses articles. It would still be in
+  the listing, so no answer is scored invented against a listing that lacks it; what is lost is the warning, not the
+  entry.
+- Not checked before writing this: how many pages of 2012-2019 have an empty abstract or a foreword title (the counts
+  of change 4 report that), and whether any research article of 2010-2019 has an empty CNKI abstract. The second
+  cannot be read from counts; it is a limit of any pass (Gap).
+
+**The re-run and its bar.**
+
+- *Run.* `controls.py` as frozen in section 9, on all 60 issues of 2010-2019: `--year` and `--cass` for each year, the
+  CASS pages being `t20240928_5788106` (2010) to `t20240928_5788115` (2019) under `/qknj/zhouyi/mulu/202409/`, on
+  `iwr.cssn.cn` for 2010-2011 and `iwr.cass.cn` for 2012-2019. The pages saved by the test run (2010-2011) and the
+  development run (2013, 2019) are copied into the new work directory first and reused as `fetch` reuses any stored 200
+  reply; every other page is fetched. For the 12 issues of 2010-2011 the amended rule is then the only difference from
+  section 7.
+- *Budget.* At most 1,500 fetches in one run of the program, enforced in code. Estimate: about 850 with the saved pages
+  and about 1,400 without (the test took 284 fetches for 12 issues); the owner's card allowed about 1,200 and about
+  USD 1 (DeepSeek fetch USD 0.00075 each by the courier guide, Moonshot at most USD 0.005). The cap counts one run of
+  the program; the total over a resumed run is read from `snapshots/index.jsonl`. No model call.
+- *Pass.* All 60 issues are complete by section 2 as amended here.
+- *Infrastructure only.* As in section 4: an issue whose only failures are infrastructure is run once more, with fresh
+  fetches of what failed, at least 6 hours later; its second verdict counts.
+- *Null.* Any issue not complete after that: no 2010s controls are built, the result and every failure reason go to the
+  owner, and the rule is not widened again on these data. A different rule would be a new decision of the owner. This
+  amendment is the only one made after reading the result of section 7.
+- *After a pass.* Topics as in section 4 (pre-registered in a later section before any topic call; at least 24 must
+  survive), then the 2-control-failure gate of §E as pre-registered. Every statement that rests on this listing says
+  that it was certified without a blind test.
+- *Both results are reported.* Section 7 (a null, from a blind test) is not replaced by this one (labelled not blind).
