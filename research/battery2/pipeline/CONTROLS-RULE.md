@@ -361,3 +361,63 @@ wrong. It raised fourteen points. The code is frozen, so none of them changes it
 - **The first freeze.** A squash merge removes `eff3325` from the history of `main`; it stays reachable as
   `refs/pull/48/head`. `controls.py` as frozen there is git blob `7ab077990f9139495b48ed61c647eb232ef8ae72`, sha256
   `5fd259f935cef683510dd45ff9a4530fab4ef1ce260a8b73dca3e72a2f9079cf`, and the head of PR 48 holds the same file.
+
+## 12. Result of the re-run (2026-11-22): null, 51 of 60 issues complete (not blind)
+
+**The run.** `controls.py` as frozen in section 9 (git blob `61e86d869ce8dcc18f943b46c4f2e88c5d888f15`), one
+invocation over all 60 issues of 2010-2019, from 02:29Z to 03:52Z, no restart, no model call. 713 fetches (707 DeepSeek,
+6 Moonshot; one of them, a probe of the CASS 2012 page that timed out, was made just before the launch; 21 URLs were
+fetched more than once), at most USD 0.56, under the cap of 1,500 and the card's "about 1,200" and "about USD 1". The
+24 issues of 2010-2011, 2013 and 2019 were judged on pages saved on 2026-11-18 with no fetch at all; all 713 fetches went
+to 2012 and 2014-2018. Files: `battery2-keys`, `controls-2010s-20261122/` (verdicts, saved pages, and `analysis/` with
+the scripts and outputs behind the numbers below). The numbers are GROUNDED in the run's own record (`verdicts.json`,
+`snapshots/index.jsonl`).
+
+| Issue | Verdict | Failure |
+|---|---|---|
+| the other 51 | complete | |
+| 2012/2, 2012/5 | not complete | no usable CASS copy; 12 and 13 CNKI pages not on the CASS page |
+| 2014/4, 2014/6 | not complete | a CNKI page's catalogue line names another year and issue |
+| 2015/6, 2016/1 | not complete | 1 napstic title not in the listing |
+| 2016/6, 2018/1 | not complete | a CNKI id between two articles that is not an article (a gap) |
+| 2017/5 | not complete | 2 CNKI research pages not on the CASS page |
+
+None of the nine is an infrastructure failure, so section 8's one re-run does not apply. **By section 8 this is a
+null: no 2010s controls are built.** Nothing in the rule or the code was changed after the freeze, and no invocation
+came after the first, so `verdicts.json` holds the first verdicts (section 10). Section 7 (a null from a blind test)
+stands next to this one (a null from a test that was not blind).
+
+**What the failures are** (read after the result; changes nothing above; GROUNDED means read from the saved pages,
+offline, on 2026-11-22):
+- *2012/2, 2012/5 (the reader).* The CASS 2012 page lists the headers of issues 5, 2 and 1 one after another and then
+  one block of entries; the reader files that block under issue 1, and the blocks of issues 2 and 5, which have no
+  header of their own, are dropped. Matched against CNKI's titles, the page's six blocks fall one on each issue and every
+  entry matches (13, 12, 12, 12, 14 and 15 entries): the entries are on the page, under the wrong header. The copies of
+  2026-11-09 parse the same way, in both fetchers. GROUNDED.
+- *2014/4, 2014/6 (the reader).* Both are plates (id 001) whose title is also the title of an article in another
+  journal (2018, 2020). The code takes the first line of CNKI's "similar documents" list that has the page's title as the
+  page's own catalogue line, without checking the journal. 2 of the 849 saved CNKI pages of 2010-2019 with such a line
+  show it. GROUNDED.
+- *2015/6, 2016/1 (the rule).* napstic lists the news column 信息动态 as an article. It is in neither custodian's
+  listing, and the napstic check has no exemption for notices. GROUNDED.
+- *2016/6, 2018/1 (CNKI's numbering).* Id 011 of 2016/6 and id 012 of 2018/1 return CNKI's frame page on four tries,
+  between two articles. In both issues every CASS research entry matches a CNKI page, so no listed article is behind the
+  hole. Whether CNKI ever held an article there is UNRESOLVED.
+- *2017/5 (a disagreement of the custodians).* CNKI ids 009 and 010 are research articles that the CASS page lacks in
+  both fetched copies: their title words occur nowhere on the page, and its start pages for issue 5 jump from 53 to 81.
+  The union listing holds them. Whether the source page lacks them or both converters drop them is UNRESOLVED; a third
+  source would settle it (Gap).
+
+**The exempt entries.** 13 entries were exempt by section 8 and are not held by the other custodian: 9 in 2010 (as in
+the replay of section 8), 1 each in 2014 and 2016, 2 in 2018. By their titles all 13 are news, book notices, plates or a
+foreword; none looks like a research article (a reading by the session that ran the check, not blind). No ruling of the
+owner is open under section 8. The titles are in the private results.
+
+**What this does and does not show.** Six of the nine failures (2012/2, 2012/5, 2014/4, 2014/6, 2015/6, 2016/1) are
+faults of the reader or the rule on pages whose entries agree; two are holes in CNKI's numbering (2016/6, 2018/1); one is
+a real disagreement between the custodians (2017/5). The amendment of section 8 did what it was written for: the 12
+issues of 2010-2011 passed, with no fetch. The 36 issues of 2012 and 2014-2018, on which it was not written and which
+the development on 2013 and 2019 did not cover, show five kinds of failure (the five lines above), 9 issues in all. The
+napstic check was not empty in 18 of the 60 issues (86 titles); in the other 42 it was empty, or its page 1 was not read.
+Under the pre-registered consequence nothing is built from this listing; what to do next is the owner's decision (board
+card `d-b2-controls-after-rerun`).
