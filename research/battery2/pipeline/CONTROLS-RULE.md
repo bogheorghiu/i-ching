@@ -276,3 +276,54 @@ catalogue line, napstic.
   - *Section 2 and the code now differ.* Point 1 says so; sections 1-7 are not edited.
 - **Freeze.** The commit that adds this sentence freezes section 8, this section and the amended `controls.py`. Its
   hash is recorded in the next commit, which changes nothing else: `0f48a50bad012cadefb71fe7d1364bbfda631f4e`.
+
+## 10. Notes after the freeze, written while the re-run was in progress
+
+Written 2026-11-22 after the freeze (section 9) and after the first 16 of the 60 verdicts were printed: 15 complete,
+2012/2 not complete (no usable CASS copy). Nothing frozen is edited: section 8, section 9 and `controls.py` are as at
+the freeze commit (`git diff 0f48a50 HEAD -- research/battery2/pipeline/controls.py` is empty). This commit adds this
+section and `pipeline/check_controls_amendment.py`, the synthetic checks that section 9 cites; they pass 14 of 14 on the
+frozen code and 7 of 14 on the code of `eff3325`.
+
+- **A second review.** A fresh agent on Anthropic's side, given only the diff and the three changed files (no
+  repository, no history, no result) and asked what could be wrong, raised twelve points. The code points are true
+  and stay, because the code is frozen: a run that reaches the cap stops with a KeyError after writing that issue's
+  verdict (noticed in section 8); an invocation judges every issue of a year again and forces a fresh fetch of any
+  non-article id inside a CNKI run, so a later invocation can turn a gap that was not infrastructure into a pass. The
+  rules below meet both without changing code. The other points are words in section 9 that are not exact; they are
+  corrected below.
+- **Which verdict counts.** The first verdict written for an issue counts, unless every failure in it was
+  infrastructure (`infra_only`): then the verdict of the one infrastructure re-run counts (section 8). A resumed run,
+  after a restart or the cap, is an invocation after the first in this sense. The first verdicts are kept: `verdicts.json`
+  is copied before each later invocation, and each invocation's printed lines are kept.
+- **Saved pages.** "Judged on pages saved on 2026-11-18, not fetched again" (section 8) states an intent. The code
+  fetches again a saved page that is not a readable 200 reply, a non-article id inside a CNKI run, and any URL not saved
+  under the same string. The report counts the fetches that were made for the 24 issues and says which; the 12 issues
+  of 2010-2011 were completed with no fetch.
+- **Budget.** The cap is 1,500 for one invocation, against the card's "about 1,200". The report gives the total over
+  all invocations from `index.jsonl` (the saved pages were copied without their index, so it counts this re-run, one
+  probe fetch included) and its cost.
+- **The owner's ruling.** Section 9's "each ruling is written down before the run" means the two possible rulings and
+  what each does (section 8, "Reading the waived entries"); the rulings themselves come after. A ruling can only make
+  an issue stricter: the code already leaves an issue with exempt entries complete, so *notice* changes nothing and
+  *research article* makes the issue not complete. The reading of titles is by the session that ran the check, not
+  blind. If the run passes, the owner gets the whole list of waived entries and not only those read as research
+  articles, and a second reader that is not this session (anonymised, through the courier) reads the titles too; an
+  entry on which the two readings differ goes to the owner as one read as a research article.
+- **Words in section 9 that are not exact.** (1) "PREREG deviation 7 says that the pattern is kept": deviation 7 says
+  that an abstract that begins with a section heading is read as empty; the code is as section 8 point 1 says, any
+  abstract whose first character is `【`. (2) "The list covers the two new exemptions only": it covers an entry exempt for
+  having no abstract (an empty `【摘要】` line, which is new; a missing line, which the frozen code already exempted
+  and section 2 does not name) and forewords; section 8 point 4 is the exact statement. (3) "A wider pattern would be
+  written on shapes not seen on the pages to be judged": the CASS pages were seen. The pattern stays narrow because the
+  two other preface shapes have CNKI pages and their issues were complete without any exemption; what is not
+  enumerated is the CNKI side. (4) "The run is one invocation, so the cap is one cap": one cap for that invocation.
+  (5) Dates: section 8 and deviation 7 were first written on 2026-11-21 and amended on 2026-11-22 before the freeze
+  (2026-11-22T02:26:30Z); the counts dated 2026-11-22 belong to that amendment, and "Not checked before writing this"
+  in deviation 7 is as of its first writing.
+- **The foreword test on a joined title.** A joined CASS reading can in principle start with a line that belongs to
+  another entry. On the ten saved CASS pages (38 copies) the test fires on exactly one entry, 2010/6.
+- **A squash merge.** It removes `0f48a50` from the history of `main`; the commit stays reachable as
+  `refs/pull/49/head`, and the frozen code is identified by its content: `controls.py` is git blob
+  `61e86d869ce8dcc18f943b46c4f2e88c5d888f15` (`git hash-object`), sha256
+  `243105a0c39d4333f94ffd7de2432f433154e00e0df1b3e27a0f2b2e02afd8d7`, and that is the file the run executed.
