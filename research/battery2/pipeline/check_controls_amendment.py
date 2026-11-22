@@ -115,14 +115,55 @@ CASES = [
     ("a wrapped CASS foreword is listed as waived in its joined reading", case_wrapped_listing),
 ]
 
+# The rule still rejects. Each case breaks one thing in an issue that passes, and the verdict must name it.
+FRAME = "中国知网 页面不存在 " * 4        # CNKI's frame page for an id it does not hold: neither heading in it
+T1, T2, T3 = "关于卦序的新探", "论象数与义理之关系", "汉代易学人物考"
+CASS3 = f"《周易研究》2010年第6期\n{T1}/甲//5\n{T2}/乙//12\n{T3}/丙//20\n"
+ART = {i: page(t, f"【摘要】：摘要{i}。\n") for i, t in enumerate((T1, T2, T3), 1)}
+
+
+def judged(cass, cnki_by_id, nap=()):
+    """Issue 2010/6 judged as main() does, with no network. cass: {copy: page text, or None for a copy that did not
+    open}; cnki_by_id: CNKI page text by id (None: the fetch failed; an id that is absent is CNKI's frame page)."""
+    c.fetch = lambda api, url, prefix, route, force=False: cnki_by_id.get(int(url[-7:-4]), FRAME)
+    c.time.sleep = lambda s: None
+    copies = {n: (None if t is None else c.cass_issues(t).get((2010, 6), [])) for n, t in cass.items()}
+    cnki, gaps, capped = c.cnki_run(2010, 6, len(c.usable_copies(copies)[0]))
+    return c.issue_verdict(2010, 6, copies, cnki, gaps, capped, list(nap), "ok")
+
+
+def both(text):
+    return {"deepseek": text, "moonshot": text}
+
+
+def names(cass=None, cnki_by_id=ART, nap=()):
+    return set(judged(cass or both(CASS3), cnki_by_id, nap)["fails"])
+
+
+DECREASING = f"《周易研究》2010年第6期\n{T1}/甲//20\n{T2}/乙//12\n{T3}/丙//5\n"
+REJECTS = [
+    ("control: the unbroken issue is complete", lambda: judged(both(CASS3), ART)["complete"]),
+    ("a CNKI page missing at the end of the run: cass_not_in_cnki", lambda: "cass_not_in_cnki" in names(cnki_by_id={1: ART[1], 2: ART[2]})),
+    ("a CASS entry missing: cnki_not_in_cass", lambda: "cnki_not_in_cass" in names(both(f"《周易研究》2010年第6期\n{T1}/甲//5\n{T2}/乙//12\n"))),
+    ("a CNKI id between two articles that is not one: cnki_gap", lambda: "cnki_gap" in names(cnki_by_id={1: ART[1], 3: ART[3]})),
+    ("a CNKI id between two articles that does not open: cnki_gap_unopened", lambda: "cnki_gap_unopened" in names(cnki_by_id={1: ART[1], 2: None, 3: ART[3]})),
+    ("no CASS copy carries the issue: cass_no_usable_copy", lambda: "cass_no_usable_copy" in names(both("无题\n"))),
+    ("a CASS copy whose start pages decrease, the other unopened", lambda: {"cass_no_usable_copy", "cass_page_not_opened"} <= names({"deepseek": DECREASING, "moonshot": None})),
+    ("a napstic title that is not in the listing: napstic_not_in_listing", lambda: "napstic_not_in_listing" in names(nap=("一篇不在目录里的文章",))),
+    ("a different title in place of one is missing on both sides", lambda: {"cass_not_in_cnki", "cnki_not_in_cass"} <= names(cnki_by_id={**ART, 3: page("魏晋玄学新论", "【摘要】：三。\n")})),
+]
+
 bad = 0
-for name, fn in CASES:
-    try:
-        ok = bool(fn())
-    except Exception as exc:  # a missing function or key in the frozen code counts as a failed case
-        ok = False
-        name += f"  [{type(exc).__name__}: {exc}]"
-    bad += not ok
-    print("PASS" if ok else "FAIL", "-", name)
-print(f"{len(CASES) - bad} of {len(CASES)} pass")
+for group, cases in (("the amendment", CASES), ("the rule still rejects", REJECTS)):
+    group_bad = 0
+    for name, fn in cases:
+        try:
+            ok = bool(fn())
+        except Exception as exc:  # a missing function or key in the frozen code counts as a failed case
+            ok = False
+            name += f"  [{type(exc).__name__}: {exc}]"
+        group_bad += not ok
+        print("PASS" if ok else "FAIL", "-", name)
+    print(f"{len(cases) - group_bad} of {len(cases)} pass: {group}")
+    bad += group_bad
 sys.exit(1 if bad else 0)
