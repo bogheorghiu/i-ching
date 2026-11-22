@@ -275,4 +275,4 @@ catalogue line, napstic.
     `index.jsonl` reports.
   - *Section 2 and the code now differ.* Point 1 says so; sections 1-7 are not edited.
 - **Freeze.** The commit that adds this sentence freezes section 8, this section and the amended `controls.py`. Its
-  hash is recorded in the next commit, which changes nothing else.
+  hash is recorded in the next commit, which changes nothing else: `0f48a50bad012cadefb71fe7d1364bbfda631f4e`.
