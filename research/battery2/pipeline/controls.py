@@ -244,6 +244,11 @@ def foreword(e):
     return any(FOREWORD.search(f) for f in e["forms"])
 
 
+def waived(e):
+    """Exempt by CONTROLS-RULE.md section 8: a foreword, or a CNKI page with an empty abstract."""
+    return foreword(e) or e.get("abstract") == ""
+
+
 def research(e):
     """A notice: an entry with no author on the CASS page, a CNKI page whose abstract is empty or CNKI's <正>
     excerpt, a marker title, or a foreword (CONTROLS-RULE.md section 8)."""
@@ -295,11 +300,13 @@ def issue_verdict(year, issue, copies, cnki, gaps, capped, nap, nap_health):
     miss = [t for t in nap if best([t], listing) < SIM_MATCH]
     if miss:
         fails["napstic_not_in_listing"] = miss
+    waived_alone = [[side, e["forms"][0]] for side, a, b in (("cass", cass, cnki), ("cnki", cnki, cass)) for e in a
+                    if waived(e) and best(e["forms"], b) < SIM_MATCH]
     return {"complete": not fails, "fails": fails, "infra_only": bool(fails) and set(fails) <= INFRA_FAILS,
             "napstic_health": nap_health, "set_aside": notes.get("cass_copy_set_aside", []),
             "counts": {**{n: len(c or []) for n, c in copies.items()}, "cass": len(cass), "cnki": len(cnki),
-                       "napstic": len(nap), "cnki_empty_abstract": sum(not e["abstract"] for e in cnki),
-                       "foreword": sum(foreword(e) for e in cass + cnki)},
+                       "napstic": len(nap), "waived_unmatched": len(waived_alone)},
+            "waived_unmatched": waived_alone,
             "listing": [e["forms"] for e in listing], "abstracts": [e["abstract"] for e in cnki if not e["notice"]]}
 
 

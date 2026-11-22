@@ -151,17 +151,17 @@ deviation 6.
 
 **What changes in `controls.py`.**
 
-1. *A CNKI page with an empty abstract is a notice.* Section 2 point 3 exempts a CNKI page from agreement only when
-   its abstract is CNKI's `<正>` excerpt. The code meant to exempt a page without an abstract as well, and did for a
-   page with no `【摘要】` line; but when the line is there and empty, its pattern ran on to the next heading
+1. *A CNKI page with an empty abstract counts as a notice.* Section 2 point 3 exempts a CNKI page from agreement only
+   when its abstract is CNKI's `<正>` excerpt. The code meant to exempt a page without an abstract as well, and did for
+   a page with no `【摘要】` line; but when the line is there and empty, its pattern ran on to the next heading
    (`【引证文献】`) and read that as the abstract (section 7). An abstract that begins with `【` is now read as empty.
 2. *A foreword is a notice, on either custodian's page:* a title that begins with 序 directly followed by a
    book-title mark (《 or 〈), like the CASS entry of section 7. The pattern is this narrow because 序 also occurs
    inside research titles (卦序, 序卦), and a marker word would take those out of the agreement check.
 3. *The fetch cap is 1,500.* Section 4's 600 was for two years.
-4. *The verdict counts what the two exemptions cover* (`cnki_empty_abstract` and `foreword` in `counts`, per issue),
-   so that the cost of widening can be read from the run. The first count includes pages that the frozen code already
-   exempted (those with no `【摘要】` line).
+4. *The verdict lists what the two exemptions waived:* per issue, the exempt entries (an empty-abstract CNKI page, a
+   foreword) that the other custodian does not hold (`waived_unmatched`, its count also in `counts`). Some were already
+   exempt by a marker word or by `<正>`; the list is there to be read, so that a pass can be checked for a hidden gap.
 
 An exempt entry stays in the listing that answers and topics are checked against; only the agreement check skips it.
 Everything else in section 2 is unchanged: both fetchers, the id run and its retries, the 0.85 similarity, the
@@ -172,6 +172,12 @@ catalogue line, napstic.
 - Section 7 reads the seven disagreements of the failed issues as six notices (CNKI pages with an empty abstract) and
   one foreword. That reading was made after the result, by the session that ran the test; this section does not
   re-verify it.
+- An empty abstract is not proof of a notice. On the saved 2010-2011 pages 15 CNKI pages have an empty abstract. Eight
+  are not on the CASS page and are, by their titles, book notices or news items (two of them were already exempt by a
+  marker word). Seven are on the CASS page: five are conference speeches, reports or notices, two are plain research
+  articles. On 2013 and 2019 one page has an empty abstract, a research article that is on the CASS page. So the
+  exemption could also hide a research article that only CNKI holds. (Read offline from the saved pages on 2026-11-22,
+  nothing fetched; the classes are the writer's reading of titles, not code's.)
 - This is not a blind test. The exemptions were written after reading the 2010-2011 results, which are the cases they
   were written to fix, and the 2012-2019 pages were read for key building and for developing the rule (section 3), so
   no issue of 2010-2019 is unseen. The 12 issues of 2010-2011 passing again would show that the code does what this
@@ -184,9 +190,9 @@ catalogue line, napstic.
   the other custodian lacks) would no longer raise the warning that a custodian misses articles. It would still be in
   the listing, so no answer is scored invented against a listing that lacks it; what is lost is the warning, not the
   entry.
-- Not checked before writing this: how many pages of 2012-2019 have an empty abstract or a foreword title (the counts
-  of change 4 report that), and whether any research article of 2010-2019 has an empty CNKI abstract. The second
-  cannot be read from counts; it is a limit of any pass (Gap).
+- Not checked before writing this: how many pages of 2012-2019 have an empty abstract or a foreword title, and how many
+  of them only one custodian holds (the lists of change 4 report that after the run). Whether a title that looks like a
+  notice is one is a reading of the title, not a check (Gap).
 
 **The re-run and its bar.**
 
@@ -201,6 +207,9 @@ catalogue line, napstic.
   USD 1 (DeepSeek fetch USD 0.00075 each by the courier guide, Moonshot at most USD 0.005). The cap counts one run of
   the program; the total over a resumed run is read from `snapshots/index.jsonl`. No model call.
 - *Pass.* All 60 issues are complete by section 2 as amended here.
+- *Reading the waived entries.* The report reads each entry of `waived_unmatched` by its title and says which are book
+  notices or news and which look like research articles. A research article among them does not change the verdict of
+  this section; it is reported to the owner as a doubt on that issue before topics are built.
 - *Infrastructure only.* As in section 4: an issue whose only failures are infrastructure is run once more, with fresh
   fetches of what failed, at least 6 hours later; its second verdict counts.
 - *Null.* Any issue not complete after that: no 2010s controls are built, the result and every failure reason go to the
