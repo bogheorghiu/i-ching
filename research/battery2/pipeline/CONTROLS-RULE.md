@@ -282,8 +282,9 @@ catalogue line, napstic.
 Written 2026-11-22 after the freeze (section 9) and after the first 16 of the 60 verdicts were printed: 15 complete,
 2012/2 not complete (no usable CASS copy). Nothing frozen is edited: section 8, section 9 and `controls.py` are as at
 the freeze commit (`git diff 0f48a50 HEAD -- research/battery2/pipeline/controls.py` is empty). This commit adds this
-section and `pipeline/check_controls_amendment.py`, the synthetic checks that section 9 cites; they pass 14 of 14 on the
-frozen code and 7 of 14 on the code of `eff3325`.
+section and `pipeline/check_controls_amendment.py`, the synthetic checks that section 9 cites: 14 checks of the
+amendment, which pass 14 of 14 on the frozen code and 7 of 14 on the code of `eff3325`. The rejection checks of
+section 11 were added to the same file in a later commit.
 
 - **A second review.** A fresh agent on Anthropic's side, given only the diff and the three changed files (no
   repository, no history, no result) and asked what could be wrong, raised twelve points. The code points are true
@@ -327,3 +328,36 @@ frozen code and 7 of 14 on the code of `eff3325`.
   `refs/pull/49/head`, and the frozen code is identified by its content: `controls.py` is git blob
   `61e86d869ce8dcc18f943b46c4f2e88c5d888f15` (`git hash-object`), sha256
   `243105a0c39d4333f94ffd7de2432f433154e00e0df1b3e27a0f2b2e02afd8d7`, and that is the file the run executed.
+
+## 11. Notes from the blind review of PR 48, written while the re-run was in progress
+
+A second fresh agent on Anthropic's side was given the diff of PR 48 (sections 1-7, `controls.py` at its freeze, the
+test result), the three changed files and an export of `main`, no history and no results, and asked what could be
+wrong. It raised fourteen points. The code is frozen, so none of them changes it. What each led to:
+
+- **Mutations.** It was right that nothing shown so far made the rule reject an incomplete issue; the checks only
+  showed that it did not reject a complete one. Nine checks in `pipeline/check_controls_amendment.py` now break one
+  thing in an issue that passes (a CNKI page missing, a CASS entry missing, a gap in the ids, an id that does not
+  open, no CASS copy that carries the issue, a copy whose start pages decrease, a napstic title not in the listing,
+  a different title in place of one) and require the verdict to name it. They pass 9 of 9 on the frozen code and on
+  the code of `eff3325`. Four mutants of the code were each caught: agreement off (3 checks fail), gap check off (1),
+  napstic check off (1), "a copy must serve the issue" off (2).
+- **Numbers from the saved pages** (2026-11-22, offline). A title with a marker word (`NONRESEARCH`) is exempt from
+  agreement. Of 718 CASS entries with an author in 2010-2019, 25 are exempt only by that word (研讨会 9, 综述 7, 目录 5,
+  新书架 2, 简介 1, 论坛 1), and a literature review (综述) is a research article; they stay in the listing. A CNKI
+  abstract is one line: of 655 pages with one, 17 have a line after it before the next heading, and that line is the
+  interface text `下载App查看全文`; the first line has a median of 128 characters. The "284 fetches" of section 7 is the
+  line count of the test run's `snapshots/index.jsonl`.
+- **Limits of the registered rule that stay.** (1) Ids after the last article are not retried or reported: if the
+  last article's page does not open, the CNKI side loses it without a failure, and only the CASS side can still
+  catch it; a `not_found` id before the first article is allowed without a retry. (2) A run that reaches the cap
+  stops with a KeyError (section 8), and `http_post` raises `InfraError` after three connection failures, which
+  `controls.py` does not catch; either stops the run, and a resumed run is an invocation after the first (section 10).
+  (3) `score_control` leaves an issue given as "第3期" a string and scores it as an impossible issue, so as invented:
+  the extractor's output format matters and is not in this change. (4) CNKI is fetched through DeepSeek only, the CASS
+  page through both fetchers. (5) The CASS start pages are read and used only to set a copy aside, not as the
+  pagination check of §B. (6) The claims of sections 2 and 3 about live services (CNKI gives no page numbers; what
+  napstic lists) are dated 2026-11-16 to 2026-11-18 and carry no evidence tag; they were not checked again (Gap).
+- **The first freeze.** A squash merge removes `eff3325` from the history of `main`; it stays reachable as
+  `refs/pull/48/head`. `controls.py` as frozen there is git blob `7ab077990f9139495b48ed61c647eb232ef8ae72`, sha256
+  `5fd259f935cef683510dd45ff9a4530fab4ef1ce260a8b73dca3e72a2f9079cf`, and the head of PR 48 holds the same file.
