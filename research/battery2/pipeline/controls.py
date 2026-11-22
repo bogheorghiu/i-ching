@@ -300,7 +300,9 @@ def issue_verdict(year, issue, copies, cnki, gaps, capped, nap, nap_health):
     miss = [t for t in nap if best([t], listing) < SIM_MATCH]
     if miss:
         fails["napstic_not_in_listing"] = miss
-    waived_alone = [[side, e["forms"][0]] for side, a, b in (("cass", cass, cnki), ("cnki", cnki, cass)) for e in a
+    # The longest form: forms[0] of a title the CASS page wraps is only its second line; the joined reading is last.
+    waived_alone = [[side, max(e["forms"], key=len)]
+                    for side, a, b in (("cass", cass, cnki), ("cnki", cnki, cass)) for e in a
                     if waived(e) and best(e["forms"], b) < SIM_MATCH]
     return {"complete": not fails, "fails": fails, "infra_only": bool(fails) and set(fails) <= INFRA_FAILS,
             "napstic_health": nap_health, "set_aside": notes.get("cass_copy_set_aside", []),

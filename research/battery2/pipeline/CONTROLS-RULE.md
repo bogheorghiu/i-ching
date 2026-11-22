@@ -155,13 +155,16 @@ deviation 6.
    when its abstract is CNKI's `<正>` excerpt. The code meant to exempt a page without an abstract as well, and did for
    a page with no `【摘要】` line; but when the line is there and empty, its pattern ran on to the next heading
    (`【引证文献】`) and read that as the abstract (section 7). An abstract that begins with `【` is now read as empty.
-2. *A foreword is a notice, on either custodian's page:* a title that begins with 序 directly followed by a
-   book-title mark (《 or 〈), like the CASS entry of section 7. The pattern is this narrow because 序 also occurs
-   inside research titles (卦序, 序卦), and a marker word would take those out of the agreement check.
+2. *A foreword is a notice, on either custodian's page:* a title that begins with 序 and then, with nothing but
+   spaces between, a book-title mark (《 or 〈), like the CASS entry of section 7. The pattern is this narrow because
+   序 also occurs inside research titles (卦序, 序卦), and a marker word would take those out of the agreement check.
 3. *The fetch cap is 1,500.* Section 4's 600 was for two years.
-4. *The verdict lists what the two exemptions waived:* per issue, the exempt entries (an empty-abstract CNKI page, a
-   foreword) that the other custodian does not hold (`waived_unmatched`, its count also in `counts`). Some were already
-   exempt by a marker word or by `<正>`; the list is there to be read, so that a pass can be checked for a hidden gap.
+4. *The verdict lists what the two exemptions waived:* per issue, the exempt entries (a CNKI page with no abstract,
+   whether its `【摘要】` line is empty or missing; a foreword) that the other custodian does not hold
+   (`waived_unmatched`, its count also in `counts`; a title that the CASS page wraps over two lines is shown joined).
+   An entry exempt only by a marker word, by `<正>` or by a missing CASS author is not listed: those exemptions are
+   section 2's, and section 7's test ran with them. The list is there to be read, so that a pass can be checked for a
+   hidden gap in the two new exemptions.
 
 An exempt entry stays in the listing that answers and topics are checked against; only the agreement check skips it.
 Everything else in section 2 is unchanged: both fetchers, the id run and its retries, the 0.85 similarity, the
@@ -175,9 +178,12 @@ catalogue line, napstic.
 - An empty abstract is not proof of a notice. On the saved 2010-2011 pages 15 CNKI pages have an empty abstract. Eight
   are not on the CASS page and are, by their titles, book notices or news items (two of them were already exempt by a
   marker word). Seven are on the CASS page: five are conference speeches, reports or notices, two are plain research
-  articles. On 2013 and 2019 one page has an empty abstract, a research article that is on the CASS page. So the
-  exemption could also hide a research article that only CNKI holds. (Read offline from the saved pages on 2026-11-22,
-  nothing fetched; the classes are the writer's reading of titles, not code's.)
+  articles. On 2013 and 2019 one page has an empty abstract, a research article that is on the CASS page. Over all the
+  saved CNKI pages of 2010-2019 (826 article pages from earlier runs, chosen for other purposes, so not a rate) the
+  heading followed directly by `【引证文献】` occurs on 14 pages, all of 2010, and ten pages of 2011-2019 have no `【摘要】`
+  line at all, which the frozen code already took as a notice; by their titles six of those ten are research articles.
+  So the exemption could also hide a research article that only CNKI holds. (Read offline from the saved pages on
+  2026-11-22, nothing fetched; the classes are the writer's reading of titles, not code's.)
 - This is not a blind test. The exemptions were written after reading the 2010-2011 results, which are the cases they
   were written to fix, and the 2012-2019 pages were read for key building and for developing the rule (section 3), so
   no issue of 2010-2019 is unseen. The 12 issues of 2010-2011 passing again would show that the code does what this
@@ -190,32 +196,81 @@ catalogue line, napstic.
   the other custodian lacks) would no longer raise the warning that a custodian misses articles. It would still be in
   the listing, so no answer is scored invented against a listing that lacks it; what is lost is the warning, not the
   entry.
-- Not checked before writing this: how many pages of 2012-2019 have an empty abstract or a foreword title, and how many
-  of them only one custodian holds (the lists of change 4 report that after the run). Whether a title that looks like a
-  notice is one is a reading of the title, not a check (Gap).
+- Not checked before writing this: how many pages of 2012-2019 have no abstract or a foreword title, and how many of
+  them only one custodian holds (the lists of change 4 report that after the run). Checked on the ten CASS pages of
+  2010-2019, all saved, nothing fetched (2026-11-22): three entries have a preface shape (`序《…》`, `…前言`, `…总序`);
+  one is the foreword of section 7, and the other two (2010/1, 2013/5) have CNKI pages and were complete in the earlier
+  runs. The CNKI side of 2012-2019 is not enumerated. Whether a title that looks like a notice is one is a reading of
+  the title, not a check (Gap).
 
 **The re-run and its bar.**
 
-- *Run.* `controls.py` as frozen in section 9, on all 60 issues of 2010-2019: `--year` and `--cass` for each year, the
-  CASS pages being `t20240928_5788106` (2010) to `t20240928_5788115` (2019) under `/qknj/zhouyi/mulu/202409/`, on
-  `iwr.cssn.cn` for 2010-2011 and `iwr.cass.cn` for 2012-2019. The pages saved by the test run (2010-2011) and the
-  development run (2013, 2019) are copied into the new work directory first and reused as `fetch` reuses any stored 200
-  reply; every other page is fetched. For the 12 issues of 2010-2011 the amended rule is then the only difference from
-  section 7.
-- *Budget.* At most 1,500 fetches in one run of the program, enforced in code. Estimate: about 850 with the saved pages
-  and about 1,400 without (the test took 284 fetches for 12 issues); the owner's card allowed about 1,200 and about
-  USD 1 (DeepSeek fetch USD 0.00075 each by the courier guide, Moonshot at most USD 0.005). The cap counts one run of
-  the program; the total over a resumed run is read from `snapshots/index.jsonl`. No model call.
-- *Pass.* All 60 issues are complete by section 2 as amended here.
+- *Run.* `controls.py` as frozen in section 9, on all 60 issues of 2010-2019, in one invocation with a `--year` and a
+  `--cass` for each year. The CASS pages are `t20240928_5788106.shtml` (2010) to `t20240928_5788115.shtml` (2019) under
+  `/qknj/zhouyi/mulu/202409/`, as `http://iwr.cssn.cn/…` for 2010-2011 and `http://iwr.cass.cn/…` for 2012-2019; a saved
+  page is reused only under the same URL string. The pages saved by the test run (2010-2011) and the development run
+  (2013, 2019) are copied into the new work directory first and reused as `fetch` reuses any stored 200 reply; every
+  other page is fetched. For the 12 issues of 2010-2011 the amended rule is then the only difference from section 7.
+  Those 12 and the 12 of 2013 and 2019 are judged on pages saved on 2026-11-18, not fetched again; the report says so.
+- *Budget.* At most 1,500 fetches in one invocation of the program, enforced in code. Estimate: about 850 with the saved
+  pages and about 1,400 without (the test took 284 fetches for 12 issues); the owner's card allowed about 1,200 and about
+  USD 1 (DeepSeek fetch USD 0.00075 each by the courier guide, Moonshot at most USD 0.005). The cap counts one
+  invocation; a resumed run (a restart, or section 4's one infrastructure re-run, which counts the fetch budget as an
+  infrastructure failure) has its own cap, and the total over all of them is read from `snapshots/index.jsonl` and
+  reported. No model call.
+- *Pass.* All 60 issues are complete by section 2 as amended here, which is a certification without a blind test.
 - *Reading the waived entries.* The report reads each entry of `waived_unmatched` by its title and says which are book
-  notices or news and which look like research articles. A research article among them does not change the verdict of
-  this section; it is reported to the owner as a doubt on that issue before topics are built.
+  notices, news or plates and which look like research articles (a reading by the session that ran the check, not
+  blind). The verdict of this section is the code's, but the topics stage does not start until the owner has ruled on
+  every entry read as a research article, as one of two: *notice* (the reason is recorded; the issue stays complete) or
+  *research article* (the issue is not complete, and the null paragraph below applies). Why: an exempt entry that the
+  other custodian lacks is the case where one custodian may be missing an article, and the code no longer warns of it.
 - *Infrastructure only.* As in section 4: an issue whose only failures are infrastructure is run once more, with fresh
   fetches of what failed, at least 6 hours later; its second verdict counts.
 - *Null.* Any issue not complete after that: no 2010s controls are built, the result and every failure reason go to the
-  owner, and the rule is not widened again on these data. A different rule would be a new decision of the owner. This
+  owner, and the rule is not widened again on these data. A different rule would be a new amendment: the owner's
+  decision, written before it runs, with its result reported next to this one and not as a pass of this section. This
   amendment is the only one made after reading the result of section 7.
 - *After a pass.* Topics as in section 4 (pre-registered in a later section before any topic call; at least 24 must
   survive), then the 2-control-failure gate of §E as pre-registered. Every statement that rests on this listing says
   that it was certified without a blind test.
 - *Both results are reported.* Section 7 (a null, from a blind test) is not replaced by this one (labelled not blind).
+
+## 9. Review of the amendment, and the freeze
+
+- GLM 5.3 through the courier, on section 8, PREREG deviation 7 and the diff of `controls.py` (run
+  `b2-controls-amend-review-20261122a`, `gen-1795313456-VPOBYqQ4lbs3uFfeU9Lp`, USD 0.040). It could not see the CASS
+  parser, `best` or the merge code, so its points were checked here against those and against the saved pages. The
+  order that ran held two context lines of the code excerpt in other words than the file (a comment, a docstring
+  wrap); no point rests on them.
+- **Taken.** Point 2 now says what its pattern allows (spaces between 序 and the mark). Point 4 now says that the list
+  covers the two new exemptions only: it had promised a check for hidden gaps that it cannot give for the exemptions
+  of section 2. A title the CASS page wraps is shown joined in `waived_unmatched`, because its `forms[0]` is only the
+  second line. PREREG deviation 7 says that the pattern is kept and an abstract that begins with a heading is read as
+  empty. The run is one invocation, so the cap is one cap, and the pass carries its label in its own sentence. An
+  entry read as a research article now stops the topics stage until the owner has ruled, and each ruling is written
+  down before the run: the review found that the doubt, as first written, could not change anything. A different rule
+  is a new amendment and not a pass of this section.
+- **Not taken, and why.**
+  - *List the exemptions of section 2 as well.* Section 7's test ran with them and the amendment does not widen them;
+    the hole is real and not new. Point 4 says so.
+  - *A cut-off page becomes a notice.* A page with neither `【摘要】` nor `【引证文献】` is `not_found`, which between
+    the first and the last article is a gap that fails the issue; a reply with almost no text is a failed fetch.
+  - *Other spellings of the heading, or a structured abstract that begins with `【`.* None among the 826 saved article
+    pages of 2010-2019; all 14 empty headings are followed by `【引证文献】`. A new layout would turn CNKI pages into
+    notices, but every CASS research entry still needs a CNKI entry (a notice can be that entry), and the CNKI-only
+    pages would fill `waived_unmatched`, so it would show.
+  - *An abstract on the line below the heading reads as empty.* It does not: the pattern's `\s*` spans the line
+    break, and a synthetic page tests it.
+  - *The foreword pattern misses 跋, 后记, 前言, 代序, a leading quotation mark, a title that ends with the word.* The
+    owner chose the foreword of section 7. Of the three preface shapes on the ten saved CASS pages the other two were
+    complete in the earlier runs (section 8, "Not checked"); a wider pattern would be written on shapes not seen on
+    the pages to be judged. If a paratext that only CNKI holds fails an issue, that is a null, and a wider rule is a
+    new amendment.
+  - *`foreword` reads every form, `NONRESEARCH` only the first.* The joined reading of a wrapped CASS title is the only
+    place its first line lives: the foreword of section 7 is the second line of its entry. The first-form test is
+    section 2's and unchanged.
+  - *The fetch budget counted as an infrastructure failure is a route to a pass.* It is section 4's registered rule,
+    and a resumed run is judged by the same rule on every issue. It is a route to a larger bill, which the total in
+    `index.jsonl` reports.
+  - *Section 2 and the code now differ.* Point 1 says so; sections 1-7 are not edited.
