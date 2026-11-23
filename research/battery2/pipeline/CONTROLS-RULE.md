@@ -959,8 +959,11 @@ trick clue. A *test topic* is a hand-written topic used only to fill frames for 
    published nothing in 2010-2019, so it has no correct answer; answer from the text alone, without tools or search;
    return JSON `{"pick": n, "reason": "one sentence in English"}` (English because the owner reads it, 17.5.3).
    Nothing else: no listing, no frame, no word about how trick questions are made. Why tell it the count and the
-   definition: a known count makes chance exact (1 in 5), and the definition is the one §D uses, so the judge looks
-   for what a control is. The prompt around the questions is kept in private results, sha256 recorded (17.8.2).
+   definition: a known count makes chance exact (1 in 5), and the definition is that of section 1 (a topic on which
+   the journal published nothing in the decade), so the judge looks for what a control is. A model under test is told
+   no such thing (§C.4: fakes are not mentioned), so a judge that is looking is the harder case: a frame that passes
+   has passed more than the battery asks, and a frame that fails may still go unnoticed by a model that is not
+   looking. The prompt around the questions is kept in private results, sha256 recorded (17.8.2).
 3. What counts is read in code from the artifacts: the judge's returned text (parsed for `pick`) and its transcript
    (tool calls; model and effort per turn). A round is void if the judge made any tool call, if its model or effort is
    not the one recorded (17.8.2), or if `pick` is not an integer from 1 to 5. A void round is run once more with a new
