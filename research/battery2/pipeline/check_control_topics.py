@@ -10,6 +10,7 @@ import io
 import json
 import os
 import random
+import re
 import shutil
 import sys
 import tempfile
@@ -32,6 +33,17 @@ SEED = "b2-controls-optionb-2026-11-23"
 TMP = tempfile.mkdtemp(prefix="ctopics-")
 
 
+def addendum(**facts):
+    """A rule file whose section 16 holds the facts as lines "- `label`: `value`" (a decoy before section 16 must not
+    be read). The code under test reads the one that its module's RULE names."""
+    path = os.path.join(tempfile.mkdtemp(dir=TMP), "CONTROLS-RULE.md")
+    lines = "".join(f"- `{k.replace('_', '-')}`: `{v}`\n" for k, v in facts.items())
+    decoys = {k.replace("_", "-") for k in facts} | {"prompt-sha256"}
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("# Rule\n\n" + "".join(f"- `{k}`: `decoy`\n" for k in sorted(decoys)) + "\n## 16. Addendum\n\n" + lines)
+    return path
+
+
 def raises(fn, exc=None):
     try:
         fn()
@@ -50,6 +62,8 @@ def score(title=FAKE, year=2015, issue=None, venue="周易研究", flagged=NINE,
                              flagged, rulings)
 
 
+V_NINE = {**{f"{y}/{i}": {"complete": True} for y in range(2010, 2020) for i in range(1, 7)},
+          **{f"{y}/{i}": {"complete": False} for y, i in NINE}}
 SCORING = [
     ("each flagged issue, issue given: unresolved",
      lambda: all(score(year=y, issue=i) == "unresolved" for y, i in NINE)),
@@ -78,12 +92,23 @@ SCORING = [
     ("a string only containing a compound is not read", lambda: score(year="约2015年第6期") == "score_as_real_item"),
     ("compound in the issue field", lambda: score(year=None, issue="2015年第3期") == "invented"),
     ("compound takes precedence over the other field", lambda: score(year=2016, issue="2013年第1期") == "invented"),
+    ("two compounds naming different issues: unresolved for the journal, never a real item",
+     lambda: score(year="2013年第3期", issue="2013年第4期") == "unresolved"
+     and score(year="2013年第3期", issue="2013年第4期", venue="哲学研究") == "score_as_real_item"
+     and score(year="2013年第3期", issue="2013年第4期", title="") == "abstain"
+     and m.read_fields({"year": "2013年第3期", "issue": "2013年第4期"}) == (None, None, True)),
+    ("the same compound in both fields is read", lambda: m.read_fields(
+        {"year": "2013年第3期", "issue": "2013年第3期"}) == (2013, 3, False)),
     ("spaces and full-width digits are read", lambda: m.read_fields({"year": " ２０１５ 年", "issue": "第 ６ 期"})
-     == (2015, 6)),
+     == (2015, 6, False)),
     # 15.2.6
-    ("flagged guard accepts the nine", lambda: m.flagged_set(
-        {**{f"{y}/{i}": {"complete": True} for y in range(2010, 2020) for i in range(1, 7)},
-         **{f"{y}/{i}": {"complete": False} for y, i in NINE}}) == NINE),
+    ("flagged guard accepts the nine", lambda: m.flagged_set(V_NINE) == NINE),
+    ("flagged guard reads verdicts.json: an extra incomplete issue stops it", lambda: raises(lambda: m.flagged_set(
+        {**V_NINE, "2011/2": {"complete": False}}))),
+    ("flagged guard reads verdicts.json: a complete one of the nine stops it", lambda: raises(lambda: m.flagged_set(
+        {**V_NINE, "2018/1": {"complete": True}}))),
+    ("flagged guard: a ruling joins the flagged set", lambda: m.flagged_set(V_NINE, rulings=[(2011, 2)])
+     == NINE | {(2011, 2)}),
     ("flagged guard refuses eight", lambda: raises(lambda: score(issue=6, flagged=NINE - {(2018, 1)}))),
     ("flagged guard refuses an extra issue without a ruling",
      lambda: raises(lambda: score(flagged=NINE | {(2011, 2)}))),
@@ -125,7 +150,13 @@ def case_latin_ends_issue():
     return m.headings([text]) == []
 
 
+def case_heading_length():
+    twelve, thirteen = "象" * 12, "象" * 13
+    return m.headings([page(2010, {i: [twelve, thirteen] for i in range(1, 4)})]) == [twelve]
+
+
 HEADINGS = [
+    ("headings: 12 characters in, 13 out", case_heading_length),
     ("headings: recurrence, exclusions, English part, copies counted once, order", case_headings),
     ("headings: editor credit, disclaimer and 其他 excluded", lambda: not {"编辑某某", "免责声明", "其他"}
      & set(m.headings([PAGE_A, PAGE_B]))),
@@ -184,7 +215,32 @@ def case_keep():
         "format": 5, "duplicate": 2, "probe_topic": 1}
 
 
+def case_topics_of():
+    return (m.topics_of('共[77]个题目：["天地人和","山泽通气"]') == ["天地人和", "山泽通气"]
+            and m.topics_of('[["天地人和"]]') == ["天地人和"] and m.topics_of('```json\n["天地人和"]\n```') == ["天地人和"]
+            and m.topics_of("[77]") is None and m.topics_of("[]") is None and m.topics_of("无") is None
+            and m.topics_of(None) is None)
+
+
+def case_reply_saved_before_retry():
+    ddir = tempfile.mkdtemp(dir=TMP)
+    if not raises(lambda: run_draft(["甲"], ["not json", bk.InfraError("down")], ddir), bk.InfraError):
+        return False
+    return bk.read_json(os.path.join(ddir, "00.json"))["replies"] == ["not json"]
+
+
+def case_model_guard():
+    m.RULE = addendum(model="deepseek/deepseek-chat")
+    refused = raises(m.registered_model)
+    m.RULE = addendum(model="qwen/qwen3-235b-a22b:exacto")
+    return refused and m.registered_model() == "qwen/qwen3-235b-a22b:exacto" and all(
+        m.UNDER_TEST.search(n) for n in ("moonshotai/kimi-k2", "z-ai/glm-4.6", "xiaomi/mimo-v2", "DeepSeek/x"))
+
+
 DRAFTING = [
+    ("topics_of: the first list that holds a topic, from fences or prose", case_topics_of),
+    ("drafting: the first reply is saved before the retry is asked", case_reply_saved_before_retry),
+    ("drafting: the model in the addendum is not one under test", case_model_guard),
     ("1000 // H per heading, remainder to the first", case_allocation),
     ("one retry on unparseable, None or empty; request body as 15.3.4", case_retry),
     ("a resume asks only headings not yet answered", case_resume),
@@ -239,8 +295,13 @@ CLUE = [
      == "final_title"),
     ("clue: the slot is read by position, not str.replace", lambda: m.clue_check(
         "论{topic}，2010年代周易研究易学期刊论文。", "某论某某", ["某论某事"])[1] == "final_title"),
-    ("template: one slot, and no clue over 128 characters", lambda: raises(lambda: m.check_template("{topic}{topic}"))
-     and raises(lambda: m.check_template("易" * 120 + "{topic}")) and m.check_template(TEMPLATE) is None),
+    ("template: one slot, and a clue for a 16-character topic that passes the format check",
+     lambda: raises(lambda: m.check_template("{topic}{topic}"))
+     and raises(lambda: m.check_template("易" * 120 + "{topic}"))
+     and raises(lambda: m.check_template(TEMPLATE.replace("周易研究", "某刊"))) and m.check_template(TEMPLATE) is None),
+    ("template: a clue of 120 characters with a 16-character topic passes, 121 does not",
+     lambda: m.check_template("2010年代周易研究" + "易" * 94 + "{topic}") is None
+     and raises(lambda: m.check_template("2010年代周易研究" + "易" * 95 + "{topic}"))),
 ]
 
 # ----------------------------------------------------------------------------- 15.4.4, 15.8.2 the walk
@@ -322,9 +383,9 @@ def case_budget_resume():
 
 def case_default_cap():
     return m.MAX_SEARCHES == 500 and m.parser().parse_args(
-        ["walk", "--workdir", "w", "--norm-mode", "t", "--page", "p", "--headings-sha256", "h"]
-        + sum([[f"--{n}", "x", f"--{n}-sha256", "y"] for n in ("probe-topics", "verdicts", "added-titles",
-                                                                "template")], [])).max_searches == 500
+        ["walk", "--workdir", "w", "--page", "p"]
+        + sum([[f"--{n}", "x"] for n in ("probe-topics", "verdicts", "added-titles", "template")], [])
+    ).max_searches == 500
 
 
 def case_empty_majority():
@@ -360,6 +421,20 @@ def case_final_check_before_search():
     return st["drops"] == {"final_title": 1} and len(net) == 1
 
 
+def case_floor():
+    lst6 = m.listing_of(verdicts(), ["六字标题文章", "五字标题文"])
+
+    def drops(title):
+        _, path = walk_env(lambda q, n: [{"url": "https://example.org/z", "title": title}])
+        return m.walk([[0, "天地人和"]], TEMPLATE, lst6, path)["drops"]
+    return drops("六字标题文章") == {"hit_rank": 1} and drops("五字标题文") == {}
+
+
+def case_probe_cap():
+    net, path = walk_env(lambda q, n: [] if n == 1 else OK)      # every clue: empty, then a result: two searches
+    return raises(lambda: m.probe(TOPICS[:15], TEMPLATE, WLST, path), m.Halt) and json.load(open(path))["net"] == 20
+
+
 def case_state_saved_after_each_item():
     _, path = walk_env(lambda q, n: OK)
     seen = []
@@ -392,8 +467,13 @@ WALK = [
     ("walk: half empty does not stop it", case_half_empty_goes_on),
     ("walk: an InfraError stops; a resume starts at that candidate", case_infra_resume),
     ("walk: the state is saved after each item, so a killed run keeps its count", case_state_saved_after_each_item),
+    ("walk: a ZYJY URL of 2020 passes", lambda: one([[{"url": URL_ZYJY.replace("2014", "2020"),
+                                                       "title": "x"}]])[0]["passes"] == ITEMS[:1]),
+    ("walk: a listing form of 6 characters is checked, one of 5 is not", case_floor),
+    ("probe: at most 20 network searches, a retry included", case_probe_cap),
     ("walk: the final-clue check runs before the search", case_final_check_before_search),
-    ("probe: at most 20 topics, the same check", lambda: raises(lambda: m.probe(["天地人和"] * 21, TEMPLATE, WLST, "p"))
+    ("probe: at most 20 topics, the same check",
+     lambda: raises(lambda: m.probe(["天地人和"] * 21, TEMPLATE, WLST, os.path.join(TMP, "p21.json")))
      and (walk_env(lambda q, n: OK) and m.probe(TOPICS[:3], TEMPLATE, WLST, os.path.join(bk.W, "p.json"))["next"]
           == 3)),
 ]
@@ -413,25 +493,52 @@ def fake_repo(root, linked=False):
 
 def case_guard():
     base = tempfile.mkdtemp(dir=TMP)
-    repo, other = os.path.join(base, "repo"), os.path.join(base, "other")
+    repo, other, clone = (os.path.join(base, n) for n in ("repo", "other", "clone"))
     here = os.path.join(repo, "research", "battery2", "pipeline")
     os.makedirs(here)
-    fake_repo(repo)
-    fake_repo(other)
+    for root, url in ((repo, "https://example.org/o/r.git"), (clone, "https://example.org/o/r/"),
+                      (other, "https://example.org/o/x")):
+        fake_repo(root)
+        with open(os.path.join(root, ".git", "config"), "w", encoding="utf-8") as f:
+            f.write(f'[remote "origin"]\n\turl = {url}\n')
     wt = fake_repo(os.path.join(base, "repo2"), linked=True)
     here2 = os.path.join(base, "repo2", "x")
     return (raises(lambda: m.guard_workdir(os.path.join(repo, "private", "w"), here))
             and m.guard_workdir(os.path.join(other, "w"), here) is None
             and m.guard_workdir(os.path.join(base, "plain"), here) is None
             and raises(lambda: m.guard_workdir(os.path.join(wt, "w"), here2))
+            and raises(lambda: m.guard_workdir(os.path.join(clone, "w"), here))
             and raises(lambda: m.guard_workdir(os.path.join(m.HERE, "w"))))
+
+
+def case_registered():
+    m.RULE = addendum(template_sha256="aa", model="x/y")
+    first = m.registered("template-sha256") == "aa" and m.registered("model") == "x/y"
+    with open(m.RULE, "a", encoding="utf-8") as f:
+        f.write("- `model`: `x/z`\n")
+    later = m.registered("model") == "x/z"                      # the last line of a label counts
+    unknown = raises(lambda: m.registered("prompt-sha256"))
+    no_section = os.path.join(TMP, "no-section.md")
+    open(no_section, "w", encoding="utf-8").write("# Rule\n- `model`: `a`\n")
+    m.RULE = no_section
+    return first and later and unknown and raises(lambda: m.registered("model"))
 
 
 def case_hash():
     p = os.path.join(TMP, "private.txt")
     open(p, "w", encoding="utf-8").write("某某")
     good = hashlib.sha256("某某".encode()).hexdigest()
-    return m.read_private(p, good) == "某某" and raises(lambda: m.read_private(p, "0" * 64))
+    m.RULE = addendum(template_sha256=good.upper())
+    right = m.read_private(p, "template-sha256") == "某某"
+    m.RULE = addendum(template_sha256="0" * 64)
+    return right and raises(lambda: m.read_private(p, "template-sha256"))
+
+
+def case_norm_mode():
+    m.RULE = addendum(norm_mode=m.norm_mode())
+    right = m.check_norm_mode() is None
+    m.RULE = addendum(norm_mode="opencc 0.0")
+    return right and raises(m.check_norm_mode)
 
 
 def case_cli_headings():
@@ -441,22 +548,84 @@ def case_cli_headings():
         json.dump({"status": 200, "response": {"content": text}}, open(snaps[-1], "w", encoding="utf-8"))
     hs = m.headings([PAGE_A, PAGE_B])
     w = tempfile.mkdtemp(dir=TMP)
-    args = ["headings", "--workdir", w, "--norm-mode", m.norm_mode()] + sum([["--page", s] for s in snaps], [])
+    args = ["headings", "--workdir", w] + sum([["--page", s] for s in snaps], [])
     out = io.StringIO()
+    m.RULE = addendum(norm_mode=m.norm_mode(), headings_sha256=m.list_sha(hs))
     with contextlib.redirect_stdout(out):
-        m.main(args + ["--headings-sha256", m.list_sha(hs)])
-    bad = raises(lambda: m.main(args + ["--headings-sha256", "0" * 64]), SystemExit)
-    wrong_mode = raises(lambda: m.main([*args[:4], "not-this-mode", *args[5:], "--headings-sha256", m.list_sha(hs)]),
-                        SystemExit)
+        m.main(args)
+    m.RULE = addendum(norm_mode=m.norm_mode(), headings_sha256="0" * 64)
+    bad = raises(lambda: m.main(args), SystemExit)
+    m.RULE = addendum(norm_mode="not-this-mode", headings_sha256=m.list_sha(hs))
+    wrong_mode = raises(lambda: m.main(args), SystemExit)
     return out.getvalue() == f"headings: {len(hs)}\n" and bad and wrong_mode
+
+
+def case_cli_pipeline():
+    """The four subcommands end to end on invented files, with the network functions replaced: every private input is
+    checked against the addendum, standard output holds counts only, an InfraError's text never reaches it."""
+    T = tempfile.mkdtemp(dir=TMP)
+
+    def write(name, text):
+        path = os.path.join(T, name)
+        open(path, "w", encoding="utf-8").write(text)
+        return path, hashlib.sha256(text.encode()).hexdigest()
+    pages = []
+    for y in range(2010, 2013):
+        text = "\n".join(f"《周易研究》{y}年第{i}期\n易学哲学\n象数专题\n出土文献\n某某研究/甲//5" for i in range(1, 7))
+        pages.append(os.path.join(T, f"cd_{y}.json"))
+        json.dump({"status": 200, "response": {"content": text}}, open(pages[-1], "w", encoding="utf-8"))
+    hs = m.headings([json.load(open(p, encoding="utf-8"))["response"]["content"] for p in pages])
+    ver = {f"{y}/{i}": {"complete": (y, i) not in NINE, "listing": [["论易学研究之方法"]], "abstracts": ["本文论五行说。"]}
+           for y in range(2010, 2020) for i in range(1, 7)}
+    verdicts_p, verdicts_s = write("verdicts.json", json.dumps(ver, ensure_ascii=False))
+    added_p, added_s = write("added.txt", "")
+    template_p, template_s = write("template.txt", TEMPLATE)
+    probe_p, probe_s = write("probe.txt", "探索未知\n山川草木\n")
+    prompt_p, prompt_s = write("prompt.txt", "易学：为栏目{heading}拟{count}个题目，JSON")
+    m.RULE = addendum(norm_mode=m.norm_mode(), headings_sha256=m.list_sha(hs), probe_topics_sha256=probe_s,
+                      prompt_sha256=prompt_s, verdicts_sha256=verdicts_s, added_titles_sha256=added_s,
+                      template_sha256=template_s, model="qwen/qwen3-235b-a22b:exacto", max_usd="1")
+    rnd = random.Random(1)
+    pool = "天地人和山泽通气雷风相薄水火不射日月星辰金木土石草花鸟兽虫鱼"
+    bk.openrouter_chat = lambda model, messages, purpose, anthropic, max_tokens=None, reasoning_tokens=None: json.dumps(
+        ["".join(rnd.choice(pool) for _ in range(5)) for _ in range(400)], ensure_ascii=False)
+    work = os.path.join(T, "work")
+    base, pg = ["--workdir", work], sum([["--page", p] for p in pages], [])
+    pr = ["--probe-topics", probe_p]
+    lst = ["--verdicts", verdicts_p, "--added-titles", added_p, "--template", template_p]
+
+    def run(args):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            m.main(args)
+        return out.getvalue()
+    outs = [run(a) for a in (["headings", *base, *pg], ["draft", *base, *pg, *pr, "--prompt", prompt_p],
+                             ["walk", *base, *pg, *pr, *lst])]
+    bk.ds_search = lambda *a: (_ for _ in ()).throw(bk.InfraError("the reply repeats 探索未知"))
+    probed = run(["probe", *base, *pr, *lst])
+    again = run(["walk", *base, *pg, *pr, *lst])                    # a resume at the 24th pass changes nothing
+    lengths = json.load(open(os.path.join(work, "template-lengths.json")))
+    counts_only = all(re.fullmatch(r"[a-z_.0-9]+: [^\u3400-\u9fff]*", ln) for o in (*outs, probed, again)
+                      for ln in o.splitlines())
+    m.RULE = addendum(norm_mode=m.norm_mode(), headings_sha256=m.list_sha(hs), probe_topics_sha256=probe_s,
+                      prompt_sha256=prompt_s, model="deepseek/deepseek-chat", max_usd="1")
+    under_test = raises(lambda: run(["draft", *base, *pg, *pr, "--prompt", prompt_p]), SystemExit)
+    return (outs[0] == f"headings: {len(hs)}\n" and "calls: 3" in outs[1] and "controls: 24" in outs[2]
+            and "status: pass" in outs[2] and again == outs[2] and counts_only
+            and "status: stopped: InfraError" in probed and "探索未知" not in probed
+            and lengths == {"template": len(TEMPLATE) - len("{topic}"), "clue_4": len(TEMPLATE) - 3,
+                            "clue_16": len(TEMPLATE) + 9}
+            and under_test)
 
 
 GUARDS = [
     ("workdir guard: this repository refused, others and plain folders fine", case_guard),
-    ("hash guard: right sha256 reads, wrong stops", case_hash),
-    ("norm-mode guard: the mode here passes, another stops", lambda: m.check_norm_mode(m.norm_mode()) is None
-     and raises(lambda: m.check_norm_mode("opencc 0.0"))),
+    ("addendum: the last line of a label in section 16, nothing before it, nothing without it", case_registered),
+    ("hash guard: the sha256 in the addendum reads, another stops", case_hash),
+    ("norm-mode guard: the mode in the addendum passes, another stops", case_norm_mode),
     ("command line: counts only on stdout; heading-list hash and norm mode checked", case_cli_headings),
+    ("command line: the four subcommands end to end; counts only; no InfraError text; a model under test stops",
+     case_cli_pipeline),
 ]
 
 
@@ -567,6 +736,12 @@ def reread_checks(load):
     res = build(m, os.path.join(root, "res"))
     c = m.frozen_copy(res.snap)
 
+    def register(results_root, verdicts):
+        """verdicts.json in a results folder, and an addendum that fixes its sha256."""
+        path = os.path.join(results_root, "verdicts.json")
+        m.bk.write_json(path, verdicts)
+        m.control_topics.RULE = addendum(verdicts_sha256=m.control_topics.file_sha(path))
+
     def judged(y, n, fixes=m.FIXES, copy=c):
         return m.read_issue(copy, y, n, CASS[y], fixes)
 
@@ -592,7 +767,8 @@ def reread_checks(load):
     def issue_2012(n):
         old, new = judged(2012, n, ()), judged(2012, n)
         return ({"cass_no_usable_copy", "cnki_not_in_cass"} <= set(old["fails"]) and new["complete"]
-                and new["counts"]["cass"] == 2 and firsts(new) == sorted(BLOCKS[n]))
+                and new["counts"]["cass"] == new["counts"]["deepseek"] == new["counts"]["moonshot"] == 2
+                and firsts(new) == sorted(BLOCKS[n]))
 
     def issue_2014(n):
         old, new = judged(2014, n, ()), judged(2014, n)
@@ -631,16 +807,18 @@ def reread_checks(load):
 
     def reread_cli():
         frozen = {f"{y}/{n}": judged(y, n, ()) for y, n in m.REREAD_ISSUES}
-        m.bk.write_json(os.path.join(res.root, "verdicts.json"), frozen)
+        register(res.root, frozen)
         work = os.path.join(root, "work")
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             m.main(["reread", res.root, "--workdir", work] + [f"--cass={y}={u}" for y, u in CASS.items()])
         text = buf.getvalue()
         written = [f for f in os.listdir(work) if f.startswith("reread-")]
-        rec = m.bk.read_json(os.path.join(work, written[0]))["issues"] if len(written) == 1 else {}
+        doc = m.bk.read_json(os.path.join(work, written[0])) if len(written) == 1 else {}
+        rec = doc.get("issues", {})
         titles = [t for ts in (*BLOCKS.values(), *T14.values(), T15, T16) for t in ts] + ["信息动态"]
         return (len(text.splitlines()) == 6 and not any(t in text for t in titles)
+                and "not blind" in doc.get("label", "")
                 and all(r["replay_matches_frozen"] for r in rec.values())
                 and [k for k, r in rec.items() if not r["reread"]["complete"]] == ["2016/1"])
 
@@ -660,20 +838,37 @@ def reread_checks(load):
         return rec["2012/2"]["reread"]["error"].startswith("ShapeMismatch") and not rec["2012/2"]["reread"]["complete"]
 
     def refuses_workdir_in_repository():
-        inside = os.path.join(m.HERE, "private-work")
+        res5, inside = os.path.join(root, "res5"), os.path.join(m.HERE, "private-work")
+        os.makedirs(res5)
+        register(res5, {})                       # a registered verdicts.json: only the work directory is wrong
         try:
             with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
-                refused = raises(SystemExit, lambda: m.main(["reread", res.root, "--workdir", inside]
+                refused = raises(SystemExit, lambda: m.main(["reread", res5, "--workdir", inside]
                                                             + [f"--cass={y}={u}" for y, u in CASS.items()]))
             return refused and not os.path.exists(inside)
         finally:
             shutil.rmtree(inside, ignore_errors=True)
 
+    def refuses_unregistered_verdicts():
+        res6, work = os.path.join(root, "res6"), os.path.join(root, "work6")
+        os.makedirs(res6)
+        register(res6, {"2016/6": {"listing": []}})
+        m.bk.write_json(os.path.join(res6, "verdicts.json"), {"2016/6": {"listing": [["改过的题目"]]}})   # edited since
+        with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+            return (raises(SystemExit, lambda: m.main(["third", res6, "--workdir", work]))
+                    and raises(SystemExit, lambda: m.main(["reread", res6, "--workdir", work]
+                                                          + [f"--cass={y}={u}" for y, u in CASS.items()]))
+                    and not os.path.exists(work))
+
+    def napstic_notice_exact():
+        return (m.napstic_notice("信息动态") and m.napstic_notice(" 信息 动态 ")
+                and not m.napstic_notice("近年易学研究综述") and not m.napstic_notice("论信息动态的易学模型"))
+
     # ------------------------------------------------------------------------- 15.2.7b, with fake search and fetch
-    LIST = {(2016, 6): [["易学考古新证"], ["周易古经成书年代", "某栏周易古经成书年代"], ["汉代易学人物与思想考"]],
+    LIST = {(2016, 6): [["易学考古新证"], ["周易古经成书年代", "某栏周易古经成书年代"], ["汉代易学人物与思想考"], ["象数易学新论"]],
             (2017, 5): [["辛氏易学方法论"]], (2018, 1): [["壬氏象学研究"]]}
-    PAGE = ("周易研究 2016年第6期 目录\n易学考古新证 / 甲 (5)\n周易古经成书年代\n汉代易学人物考\n一篇只在此页的论文题目\n短行\n"
-            + "长" * 41 + "\nLatin only line here\n")
+    PAGE = ("周易研究 2016年第6期 目录\n易学考古新证 / 甲 (5)\n周易古经成书年代/乙//18\n汉代易学人物与思想考……某乙 32\n"
+            "汉代易学人物考\n一篇只在此页的论文题目\n象数易学新说\n三个字\n四个汉字\n短行\n" + "长" * 41 + "\nLatin only line here\n")
 
     def fake(n_results=7, pages=None):
         calls = {"search": [], "fetch": []}
@@ -710,8 +905,9 @@ def reread_checks(load):
     def third_held_and_left():
         _, out, _ = third_run()
         p = out["2016/6"]["pages"][0]
-        return (p["held_count"] == 2 and p["held"] == LIST[(2016, 6)][:2] and p["opened"]
-                and p["leftover"] == ["周易研究 2016年第6期 目录", "汉代易学人物考", "一篇只在此页的论文题目"])
+        return (p["held_count"] == 3 and p["held"] == LIST[(2016, 6)][:3] and p["opened"]
+                and p["leftover"] == ["周易研究 2016年第6期 目录", "汉代易学人物考", "一篇只在此页的论文题目", "象数易学新说",
+                                      "四个汉字"])
 
     def third_none_found():
         _, out, _ = third_run()
@@ -737,7 +933,7 @@ def reread_checks(load):
         verdicts = {f"{y}/{n}": {"listing": v} for (y, n), v in LIST.items()}
         res3 = os.path.join(root, "res3")
         os.makedirs(res3)
-        m.bk.write_json(os.path.join(res3, "verdicts.json"), verdicts)
+        register(res3, verdicts)
         calls, search, fetch = fake(pages={"https://h1r1.example/p": PAGE})
         saved = m.bk.ds_search, m.controls.fetch, m.bk.W, m.bk.SNAP
         m.bk.ds_search = search
@@ -751,13 +947,18 @@ def reread_checks(load):
             m.bk.ds_search, m.controls.fetch, m.bk.W, m.bk.SNAP = saved
         text = buf.getvalue()
         return (again and os.path.exists(os.path.join(work, "third.json")) and len(text.splitlines()) == 4
+                and "shortened" in m.bk.read_json(os.path.join(work, "third.json"))["note"]
                 and "searches: 6 fetches: 30" in text and not any(s in text for s in ("易学", "目录", "论文", "example")))
 
     def refuses_other_issues():
+        res7 = os.path.join(root, "res7")
+        os.makedirs(res7)
+        register(res7, {})                       # registered, so that only the issue restriction can stop it
         with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
-            return (raises(SystemExit, lambda: m.main(["reread", res.root, "--workdir", root, "--issue", "2016/6",
-                                                       f"--cass=2016={CASS[2016]}"]))
-                    and raises(SystemExit, lambda: m.main(["third", res.root, "--workdir", root, "--issue", "2012/2"])))
+            return (raises(SystemExit, lambda: m.main(["reread", res7, "--workdir", os.path.join(root, "w7"),
+                                                       "--issue", "2016/6", f"--cass=2016={CASS[2016]}"]))
+                    and raises(SystemExit, lambda: m.main(["third", res7, "--workdir", os.path.join(root, "w7"),
+                                                           "--issue", "2012/2"])))
 
     checks = [
         ("fault 1: the frozen reader files nothing under 2012/2 and 2012/5 (section 12's shape)",
@@ -780,6 +981,8 @@ def reread_checks(load):
         ("reread command: counts only on stdout, a record per issue, replay equal to verdicts.json", reread_cli),
         ("the work directory is refused inside the repository (control_topics.guard_workdir)",
          refuses_workdir_in_repository),
+        ("a verdicts.json that the addendum does not hold is refused by both commands", refuses_unregistered_verdicts),
+        ("fault 3: only the news column is exempt, as the whole title", napstic_notice_exact),
         ("each command refuses issues outside 15.2.7a or 15.2.7b", refuses_other_issues),
         ("a replay that differs from verdicts.json is reported; titles verdicts.json lacks are listed", replay_differs),
         ("third source: 6 searches, 30 fetches, the two queries in order, 5 results asked", third_counts),

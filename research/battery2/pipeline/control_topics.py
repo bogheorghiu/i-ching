@@ -1,12 +1,18 @@
 """Battery 2 negative controls, option b (CONTROLS-RULE.md section 15): the headings, the drafting of candidate topics,
 their checks, the walk to 24 clues and the template probe; and score_control_b, the wrapper of score_control (15.2).
 
-Usage: python3 -I control_topics.py SUBCOMMAND --workdir DIR --norm-mode MODE ...   (SUBCOMMAND -h for its arguments)
+Usage: python3 -I control_topics.py SUBCOMMAND --workdir DIR ...   (SUBCOMMAND -h for its arguments)
   headings  derive the heading list from saved CASS pages and check its sha256
   draft     one call per heading; saved replies are reused on a resume
   walk      checks 15.4.1-15.4.4 and 15.5.4 in the order of 15.5.1, to the 24th pass
   probe     the template probe of 15.5.5
 Every file it writes goes to DIR; standard output holds counts only.
+
+What it needs to know in advance (the sha256 of each private file and of the heading list, the norm mode, the model
+and the budget) it reads from the addendum, section 16 of CONTROLS-RULE.md, as lines "- `label`: `value`" (the last
+line of a label counts), and it stops unless what it is given is what the addendum holds (15.7.1, 15.7.5). Labels:
+template-sha256, prompt-sha256, probe-topics-sha256, verdicts-sha256, added-titles-sha256, headings-sha256,
+norm-mode, model, max-usd.
 """
 import argparse
 import hashlib
@@ -22,6 +28,7 @@ import build_keys as bk  # noqa: E402
 import controls  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+RULE = os.path.join(HERE, "CONTROLS-RULE.md")
 NINE = {(2012, 2), (2012, 5), (2014, 4), (2014, 6), (2015, 6), (2016, 1), (2016, 6), (2017, 5), (2018, 1)}
 DECADE = 2010
 TOKEN = f"{DECADE}年代"
@@ -34,7 +41,7 @@ ZYJY_URL = re.compile(r"(?i)CJFDTotal-ZYJY(20\d\d)")
 # 15.5.4: a control has no record, so clue_format_check gets a synthetic one (venue branch).
 SYNTH_ST = {"key": {"venue": controls.JOURNAL, "year": DECADE, "author": ""}, "stratum": {"language": "zh"}}
 SYNTH_PAYLOAD = {"anchor": {"type": "venue"}}
-QUERY_LIMIT = 128         # ds_search cuts a longer query, so the search would not be of the clue as built
+UNDER_TEST = re.compile(r"deepseek|kimi|moonshot|glm|zhipu|z-ai|mimo|xiaomi", re.I)    # PREREG decision 2, 15.3.4
 
 
 class Stop(Exception):
@@ -72,10 +79,21 @@ def git_common(path):
         p = os.path.dirname(p)
 
 
+def remote_urls(common):
+    """The urls in a git directory's config: another clone of this repository has the same one."""
+    try:
+        with open(os.path.join(common, "config"), encoding="utf-8") as f:
+            return {u.rstrip("/").removesuffix(".git") for u in re.findall(r"^\s*url\s*=\s*(\S+)", f.read(), re.M)}
+    except OSError:
+        return set()
+
+
 def guard_workdir(workdir, here=HERE):
     mine, w = git_common(here), os.path.realpath(workdir)
     if mine is not None:
-        need(git_common(w) != mine, "--workdir lies inside a work tree of this repository")
+        theirs = git_common(w)
+        need(theirs != mine and not (theirs and remote_urls(theirs) & remote_urls(mine)),
+             "--workdir lies inside a work tree of this repository")
     else:   # an export without .git: the repository root is three levels up (research/battery2/pipeline)
         root = os.path.realpath(os.path.join(here, "..", "..", ".."))
         need(os.path.commonpath([root, w]) != root, "--workdir lies inside this repository's folder")
@@ -86,8 +104,31 @@ def file_sha(path):
         return hashlib.sha256(f.read()).hexdigest()
 
 
-def read_private(path, sha256):
-    need(file_sha(path) == sha256.strip().lower(), f"sha256 of {os.path.basename(path)} is not the one given")
+def registered(label):
+    """15.7.1, 15.7.5: what the addendum (section 16 of the rule file) fixes for label."""
+    with open(RULE, encoding="utf-8") as f:
+        text = f.read()
+    head = re.search(r"^## 16\.", text, re.M)
+    need(head, "the rule file has no section 16, the addendum")
+    values = re.findall(rf"^- `{re.escape(label)}`: `([^`\n]+)`[ \t]*$", text[head.start():], re.M)
+    need(values, f"the addendum fixes no {label}")
+    return values[-1]
+
+
+def registered_model():
+    """15.3.4: the model the addendum names; a model under test is refused."""
+    model = registered("model")
+    need(not UNDER_TEST.search(model), "the model in the addendum is one under test (15.3.4)")
+    return model
+
+
+def check_private(path, label):
+    need(file_sha(path) == registered(label).lower(),
+         f"sha256 of {os.path.basename(path)} is not the one in the addendum")
+
+
+def read_private(path, label):
+    check_private(path, label)
     with open(path, encoding="utf-8") as f:
         return f.read()
 
@@ -112,8 +153,8 @@ def norm_mode():
     return "opencc unknown"
 
 
-def check_norm_mode(given):
-    need(given == norm_mode(), f"norm mode here is {norm_mode()!r}, not {given!r}")
+def check_norm_mode():
+    need(norm_mode() == registered("norm-mode"), f"norm mode here is {norm_mode()!r}, not the one in the addendum")
 
 
 # ----------------------------------------------------------------------------- scoring (15.2)
@@ -134,7 +175,8 @@ def _year(y):
 
 
 def read_fields(answer):
-    """15.2.4: (year, issue), each string read as a number, or None when it has no form 15.2.4 names."""
+    """15.2.4: (year, issue, conflict), each string read as a number, or None when it has no form 15.2.4 names.
+    conflict: the two fields hold compound strings that name different issues; neither is read."""
     out, both = {}, set()
     for k, form, conv in (("year", YEAR_FORM, _year), ("issue", ISSUE_FORM, _issue)):
         v = answer.get(k)
@@ -150,10 +192,8 @@ def read_fields(answer):
         m = form.fullmatch(s)
         out[k] = conv(m.group(1)) if m else None
     if len(both) == 1:
-        return next(iter(both))
-    if both:            # two compound strings naming different issues: neither is read
-        return None, None
-    return out["year"], out["issue"]
+        return (*next(iter(both)), False)
+    return out["year"], out["issue"], len(both) > 1
 
 
 def flagged_set(verdicts, rulings=()):
@@ -165,8 +205,10 @@ def flagged_set(verdicts, rulings=()):
 
 def score_control_b(answer, decade_listing, decade, flagged, rulings=()):
     need(set(flagged) == NINE | set(rulings), "the flagged set is not the nine of 15.2.6 plus the rulings given")
-    year, issue = read_fields(answer)
+    year, issue, conflict = read_fields(answer)
     v = controls.score_control({**answer, "year": year, "issue": issue}, decade_listing, decade)
+    if conflict and v == "score_as_real_item" and bk.norm(answer.get("venue")) == bk.norm(controls.JOURNAL):
+        return "unresolved"       # two issues of the journal named: no listing scores it, and it must not escape 15.2
     if v != "invented" or (issue is not None and issue not in controls.ISSUES):
         return v
     if issue is not None and (year, issue) in flagged:
@@ -237,7 +279,7 @@ def fill_prompt(prompt, heading, count):
 
 
 def topics_of(reply):
-    """The JSON list in a reply if it holds a topic, else None (15.3.2: retry once)."""
+    """The first JSON list in a reply that holds a topic, else None (15.3.2: retry once)."""
     if not reply:
         return None
     t = re.sub(r"```(?:json)?", "", reply)
@@ -247,8 +289,8 @@ def topics_of(reply):
             obj, _ = dec.raw_decode(t[m.start():])
         except ValueError:
             continue
-        if isinstance(obj, list):
-            return obj if any(isinstance(x, str) and x.strip() for x in obj) else None
+        if isinstance(obj, list) and any(isinstance(x, str) and x.strip() for x in obj):
+            return obj
     return None
 
 
@@ -284,7 +326,8 @@ def saved_topics(hs, ddir):
 
 
 def keep(drafted, probe_topics):
-    """15.3.5: (kept [(heading index, text)], drops by reason). Duplicates are judged after norm."""
+    """15.3.5: (kept [(heading index, text)], drops by reason). Duplicates and probe topics are judged after norm: a
+    script variant of a topic is the same topic, and the checks that follow read the norm form."""
     probe = {bk.norm(t) for t in probe_topics}
     kept, seen, drops = [], set(), {"format": 0, "duplicate": 0, "probe_topic": 0}
     for hi, items in enumerate(drafted):
@@ -347,8 +390,11 @@ def order(surv, n_headings):
 
 
 def check_template(template):
+    """The longest clue a candidate can make must pass 15.5.4's format check: 15.5.4 says it can drop none, and the
+    probe does not run it, so a template that fails it would show only in the walk, after the freeze."""
     need(template.count(SLOT) == 1, f"the template must hold {SLOT} exactly once")
-    need(len(fill(template, "一" * 16)) <= QUERY_LIMIT, f"a clue for a 16-character topic exceeds {QUERY_LIMIT}")
+    bad = bk.clue_format_check(fill(template, "一" * 16), SYNTH_ST, SYNTH_PAYLOAD)
+    need(not bad, f"a clue for a 16-character topic fails the format check: {bad}")
 
 
 def fill(template, cand):
@@ -377,7 +423,7 @@ def clue_check(template, cand, forms):
 # ----------------------------------------------------------------------------- the search (15.4.4, 15.8.2)
 def search(clue, st):
     """One ds_search; st counts the calls that reach the network and keeps the empty/non-empty history."""
-    fn = f"s_{bk.sha(clue + '|10')}.json"              # the file ds_search reads for this query (len <= 128)
+    fn = f"s_{bk.sha(clue + '|10')}.json"              # the file ds_search reads for this query (a clue is <= 120)
     path = os.path.join(bk.SNAP, fn)
     if not os.path.exists(path):
         if st["net"] >= st["cap"]:
@@ -466,26 +512,18 @@ def parser():
     sub = p.add_subparsers(dest="cmd", required=True)
     base = argparse.ArgumentParser(add_help=False)
     base.add_argument("--workdir", required=True)
-    base.add_argument("--norm-mode", required=True, help="as recorded in the addendum: 'table' or 'opencc VERSION'")
     pages = argparse.ArgumentParser(add_help=False)
     pages.add_argument("--page", action="append", required=True, help="a saved CASS yearly page (snapshot JSON)")
-    pages.add_argument("--headings-sha256", required=True)
-
-    def private(q, name):
-        q.add_argument(f"--{name}", required=True)
-        q.add_argument(f"--{name}-sha256", required=True)
     sub.add_parser("headings", parents=[base, pages])
     d = sub.add_parser("draft", parents=[base, pages])
     w = sub.add_parser("walk", parents=[base, pages])
     pr = sub.add_parser("probe", parents=[base])
     for q in (d, w, pr):
-        private(q, "probe-topics")
-    private(d, "prompt")
-    d.add_argument("--model", required=True)
-    d.add_argument("--max-usd", type=float, required=True)
+        q.add_argument("--probe-topics", required=True)
+    d.add_argument("--prompt", required=True)
     for q in (w, pr):
         for name in ("verdicts", "added-titles", "template"):
-            private(q, name)
+            q.add_argument(f"--{name}", required=True)
     w.add_argument("--max-searches", type=int, default=MAX_SEARCHES, help="a higher cap needs the owner's go (15.6.3)")
     return p
 
@@ -494,29 +532,31 @@ def main(argv=None):
     a = parser().parse_args(argv)
     try:
         guard_workdir(a.workdir)
-        check_norm_mode(a.norm_mode)
+        check_norm_mode()
         bk.W = os.path.realpath(a.workdir)
         bk.SNAP = os.path.join(bk.W, "snapshots")
         os.makedirs(bk.SNAP, exist_ok=True)
         hs = None
         if a.cmd != "probe":
             hs = headings(page_texts(a.page))
-            need(list_sha(hs) == a.headings_sha256.strip().lower(), "sha256 of the heading list is not the one given")
+            need(list_sha(hs) == registered("headings-sha256").lower(),
+                 "sha256 of the heading list is not the one in the addendum")
             bk.write_json(os.path.join(bk.W, "headings.json"), {"headings": hs, "pages": {
                 os.path.basename(p): file_sha(p) for p in a.page}})
         if a.cmd == "headings":
             return report(headings=len(hs))
-        probe_topics = lines_of(read_private(a.probe_topics, a.probe_topics_sha256))
+        probe_topics = lines_of(read_private(a.probe_topics, "probe-topics-sha256"))
         ddir = os.path.join(bk.W, "draft")
         if a.cmd == "draft":
-            prompt = read_private(a.prompt, a.prompt_sha256)
+            prompt = read_private(a.prompt, "prompt-sha256")
             need("{heading}" in prompt and "{count}" in prompt, "the prompt must hold {heading} and {count}")
+            model = registered_model()
             if len(hs) < MIN_HEADINGS:
                 return report(headings=len(hs), status="fewer than 3 headings: nothing drafted")
-            bk.LEDGER = bk.Ledger(os.path.join(bk.W, "ledger.jsonl"), a.max_usd)
+            bk.LEDGER = bk.Ledger(os.path.join(bk.W, "ledger.jsonl"), float(registered("max-usd")))
             calls, status = 0, "drafted"
             try:
-                calls = draft(hs, prompt, a.prompt_sha256.strip().lower(), a.model, ddir)
+                calls = draft(hs, prompt, file_sha(a.prompt), model, ddir)
             except bk.BudgetExceeded:
                 status = "budget stop (15.6.3)"
             except bk.InfraError:
@@ -526,17 +566,20 @@ def main(argv=None):
             kept, drops = keep(saved_topics(hs, ddir), probe_topics)
             return report(headings=len(hs), calls=calls, kept=len(kept), dropped=drops,
                           spent_usd=round(bk.LEDGER.spent, 4))
-        lst = listing_of(json.loads(read_private(a.verdicts, a.verdicts_sha256)),
-                         lines_of(read_private(a.added_titles, a.added_titles_sha256)))
-        template = read_private(a.template, a.template_sha256)
+        lst = listing_of(json.loads(read_private(a.verdicts, "verdicts-sha256")),
+                         lines_of(read_private(a.added_titles, "added-titles-sha256")))
+        template = read_private(a.template, "template-sha256")
         check_template(template)
+        bk.write_json(os.path.join(bk.W, "template-lengths.json"), {       # 15.5.3: private, for the owner
+            "template": len(fill(template, "")), "clue_4": len(fill(template, "一" * 4)),
+            "clue_16": len(fill(template, "一" * 16))})
         status = "done"
         if a.cmd == "probe":
             path = os.path.join(bk.W, "probe.json")
             try:
                 st = probe(probe_topics, template, lst, path)
             except (Halt, bk.InfraError) as e:
-                st, status = bk.read_json(path), f"stopped: {type(e).__name__} {e}"
+                st, status = bk.read_json(path), "stopped: " + (str(e) if isinstance(e, Halt) else type(e).__name__)
             return report(topics=len(probe_topics), searched=st["next"], network_searches=st["net"],
                           would_drop=sum(st["drops"].values()), dropped=st["drops"], zyjy_unlisted=st["zyjy_unlisted"],
                           status=status)

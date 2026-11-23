@@ -8,13 +8,15 @@ replaces neither controls.py nor any verdict of sections 7 and 12.
 
 Usage: python3 -I controls_reread.py reread RESULTS --workdir DIR --cass YEAR=URL [--cass ...] [--issue Y/N ...]
        python3 -I controls_reread.py third RESULTS --workdir DIR [--issue Y/N ...]
-RESULTS holds the re-run's verdicts.json and snapshots/. Detail goes to DIR, which must not lie inside a git work tree
-of this repository (15.1.4); standard output carries counts only.
+RESULTS holds the re-run's verdicts.json, whose sha256 the addendum fixes (label verdicts-sha256, as in
+control_topics.py), and snapshots/. Detail goes to DIR, which must not lie inside a git work tree of this repository
+(15.1.4); standard output carries counts only.
 """
 import argparse
 import hashlib
 import importlib.util
 import os
+import re
 import sys
 import types
 
@@ -35,6 +37,10 @@ QUERIES = ("周易研究 {y}年第{n}期 目录", "Zhouyi Yanjiu {y} No.{n}")
 TOP, MAX_SEARCHES, MAX_FETCHES = 5, 6, 30
 LEFTOVER_CJK = (4, 40)
 ROUTE = "controls: third source"
+PART = re.compile(r"[\s/|·•…、，,;；:：()（）\[\]【】<>《》\d]+")
+NOT_BLIND = ("not blind (15.2.7a): these pages were read before this reader was written, after the result; the fault 3 "
+             "exemption is a rule written after the result")
+SHORTENED = "a page that DeepSeek's fetch shortened can understate what its source holds (RERUN-PROTOCOL section 4)"
 
 
 class FetchAttempt(Exception):
@@ -110,10 +116,11 @@ def own_catalogue(text, title):
 
 
 def napstic_notice(title):
-    """Fault 3 (2015/6, 2016/1): a notice that napstic lists is exempt from the napstic check, as notices are from
-    agreement. Only the title is known: a marker word or a foreword, as for the custodians, or the news column that
-    section 12 names, as the whole title (narrow, as FOREWORD is)."""
-    return not controls.research({"forms": [title]}) or bk.norm(title) == bk.norm(NEWS_COLUMN)
+    """Fault 3 (2015/6, 2016/1): the news column that section 12 names, as the whole title, is exempt from the napstic
+    check, as a notice is from agreement. Section 12 names no other notice that napstic lists, and the marker words of
+    the custodians' notice test would exempt titles (综述, 会议) that it does not mention. A rule written after the
+    result, so not blind."""
+    return bk.norm(title) == bk.norm(NEWS_COLUMN)
 
 
 # ----------------------------------------------------------------------------- 15.2.7a: judging from saved pages
@@ -191,15 +198,22 @@ def page_lines(text):
     return [ln for ln in (controls._clean(r) for r in (text or "").splitlines()) if ln]
 
 
+def page_forms(ln):
+    """The line, and its parts: a contents page puts an author or a page number beside the title, and a whole line
+    with them fits no title at SIM_MATCH."""
+    return [ln] + [p for p in PART.split(ln) if p and p != ln]
+
+
 def held_and_left(text, listing):
     """listing: the issue's entries as verdicts.json holds them (a list of forms). Returns the entries the page holds
-    and the page's lines that fit none of them, by controls.best at controls.SIM_MATCH."""
+    and the page's lines that fit none of them, by controls.best at controls.SIM_MATCH, each line read whole and as
+    its parts."""
     lines = page_lines(text)
-    page, entries = [{"forms": [ln]} for ln in lines], [{"forms": f} for f in listing]
+    page, entries = [{"forms": page_forms(ln)} for ln in lines], [{"forms": f} for f in listing]
     held = [f for f in listing if controls.best(f, page) >= controls.SIM_MATCH]
     lo, hi = LEFTOVER_CJK
     left = [ln for ln in lines if lo <= sum(map(bk.has_cjk, ln)) <= hi
-            and controls.best([ln], entries) < controls.SIM_MATCH]
+            and controls.best(page_forms(ln), entries) < controls.SIM_MATCH]
     return held, left
 
 
@@ -255,6 +269,7 @@ def main(argv=None):
     work = os.path.abspath(a.workdir)
     try:
         control_topics.guard_workdir(work)
+        control_topics.check_private(os.path.join(a.results, "verdicts.json"), "verdicts-sha256")
     except control_topics.Stop as e:
         raise SystemExit(f"stopped: {e}")
     os.makedirs(work, exist_ok=True)
@@ -265,7 +280,8 @@ def main(argv=None):
         if {y for y, _ in issues} - set(cass):
             p.error("give --cass YEAR=URL for every year of the issues")
         out = reread(os.path.abspath(a.results), cass, issues)
-        write_new(os.path.join(work, f"reread-{stamp['ts'].replace(':', '')}.json"), {**stamp, "issues": out})
+        write_new(os.path.join(work, f"reread-{stamp['ts'].replace(':', '')}.json"),
+                  {**stamp, "label": NOT_BLIND, "issues": out})
         return
     verdicts = bk.read_json(os.path.join(a.results, "verdicts.json"), {}) or {}
     bk.W, bk.SNAP = work, os.path.join(work, "snapshots")
@@ -274,7 +290,7 @@ def main(argv=None):
     if os.path.exists(target):
         raise SystemExit("the third-source search runs once (15.2.7b); third.json exists")
     out, used = third_source(issues, {(y, n): verdicts[f"{y}/{n}"]["listing"] for y, n in issues})
-    bk.write_json(target, {**stamp, "used": used, "issues": out})
+    bk.write_json(target, {**stamp, "note": SHORTENED, "used": used, "issues": out})
     for key, r in out.items():
         print(key, "pages:", len(r["pages"]), "opened:", sum(x["opened"] for x in r["pages"]),
               "holding an entry:", sum(x["held_count"] > 0 for x in r["pages"]),
