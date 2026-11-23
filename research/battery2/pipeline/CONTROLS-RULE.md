@@ -532,17 +532,21 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
 4. The code takes `verdicts.json` by path; its sha256 is fixed in the addendum (15.7). Listing, abstracts, headings,
    the drafting prompt, the template, candidates and clues stay in private results; only counts enter the repository
    (issues, entries, abstracts, number of headings, candidates, drops per check, controls, calls, cost), and for each
-   private text its sha256 and length. Why: clues are items, kept private (final-design §F), and a public template or
-   prompt would show a future model which questions are controls.
+   private text its sha256. Why: clues are items, kept private (final-design §F), and a public template or prompt would
+   show a future model which questions are controls. Every file the code writes (drafting replies, search snapshots
+   and `tools.jsonl`, which hold clue text, the probe, the reading of 15.1.5, the evidence of 15.2.7) goes to one
+   private work directory; the code stops if that path is inside a git work tree of this repository.
 5. The 13 exempt entries. The 51 certifications rest in part on 13 entries that section 8 exempts and the other
    custodian lacks (9 in 2010, 1 each in 2014 and 2016, 2 in 2018), read as notices by the session that ran the
-   check, not blind (section 12). Section 10 asks for a second reader that is not this session only if the run
-   passes, which it did not; its reason holds here all the same. So before the freeze a fresh agent of another model
-   than this session's, with no context, reads the 13 titles from the private results, without journal, issue or
-   year, and says for each: book notice, news, plate, foreword, or research article. An entry read as a research
-   article by either reader goes to the owner, who rules as section 8 says (notice, or research article); a ruling
-   "research article" makes its issue not complete (section 8), so it joins the flagged set (15.2.6). The titles stay
-   in private results; counts enter the repository.
+   check, not blind (section 12). Section 10 asks for a second reader that is not this session, anonymised through
+   the courier, only if the run passes, which it did not; its reason holds here all the same. So before the freeze a
+   fresh Opus agent of this harness (not this session, no context; no outside model is sent the titles) reads the 13
+   titles from the private results, without journal, issue or year, and says for each: book notice, news, plate,
+   foreword, or research article; its prompt is kept in private results (sha256 in the addendum). As section 10 says,
+   the owner gets all 13 titles with both readings, and an entry on which the two readings differ goes to the owner as
+   one read as a research article. The owner rules on every entry either reader read as a research article, as
+   section 8 says (notice, or research article); a ruling "research article" makes its issue not complete, so it
+   joins the flagged set (15.2.6). The titles stay in private results; counts enter the repository.
 
 ### 15.2 Scoring an answer that names a flagged issue
 
@@ -561,36 +565,46 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
    owner's choice.
 4. An issue or a year given as a string is read as a number before scoring, for every answer, not only those that name
    a flagged issue (a departure from section 5; `controls.py` is not edited). The whole string, after NFKC and removal
-   of spaces, must match `第?X期?` for an issue, X being Arabic digits or a Chinese numeral from 一 to 十二, or `YYYY年?`
-   for a year (Arabic digits); it is then read as that number. Any other string is read as not given, never as an
-   impossible issue; a string that only contains a number ("2015年第3期" in the issue field) does not match. Why:
-   `score_control` converts only digit strings and scores any other issue string as impossible (section 11 limit 3),
-   so "第5期" would be invented before 15.2.1 runs; a year it cannot read leaves the decade branch and is scored as a
-   real item, so a fabricated title in a control would escape 15.2; and a string that is not a number says nothing
-   about whether an issue exists. The flagged-issue tests of 15.2.1 and 15.2.3 use the converted numbers.
+   of spaces, must match one of `第?X期?` (an issue), `YYYY年?` (a year) and `YYYY年第X期` (both), where X is Arabic
+   digits or a Chinese numeral for 1 to 12 (一 to 十, 十一, 十二) and YYYY is four Arabic digits or four of
+   〇零一二三四五六七八九. A string that matches is read as that number or, for the third form, as that year and
+   issue, whichever field holds it; the compound takes precedence over the other field. Any other string is read as
+   not given, never as an impossible issue; a string that only contains a number does not match. Why: `score_control`
+   converts only digit strings and scores any other issue string as impossible (section 11 limit 3), so "第5期" would
+   be invented before 15.2.1 runs; a year it cannot read leaves the decade branch and is scored as a real item, so a
+   fabricated title in a control would escape 15.2; and a string that is not a number says nothing about whether an
+   issue exists. The flagged-issue tests of 15.2.1 and 15.2.3 use the converted numbers.
 5. Counting (§D): `unresolved` is an existing category; the sensitivity rule counts it as a control failure in the
    worst case and not in the best. If the two put a model in different zones, it enters the adjudication queue;
    unadjudicated when the budget is spent, the model is indeterminate. No new counting rule is needed. Departures
    (PREREG deviation 8): §D's two-pass search is not run for these answers (the label is used for its sensitivity
    treatment; why: the search adds a cost and a second, unregistered path, and the sensitivity rule and the owner's
-   adjudication already decide them), and §D does not say whether the flag takes queue priority 1 or 2 (Gap; default
-   1, since in the worst case it is a failure). The queue holds 13 flags for all models together (15.9.6).
+   adjudication already decide them), and §D does not say whether the flag takes queue priority 1 or 2: this section
+   fixes it at 1, since in the worst case the flag is a failure. The queue holds 13 flags for all models together
+   (15.9.6).
 6. The flagged set is read from `verdicts.json` (`complete` false) and the owner's rulings under 15.1.5; the code
    stops unless it is the 9 named above plus the issues so ruled (none so far), which the addendum names.
-7. **Resolution afterwards (the owner's request, 2026-11-23, in chat).** Evidence for the owner's adjudication, never
-   a verdict, and bound before the run so that no answer can steer it.
-   a. Before the first model run a new reader, `controls_reread.py`, is written for the six reader and rule faults of
-      section 12 (2012/2, 2012/5, 2014/4, 2014/6, 2015/6, 2016/1), from section 12's description of each fault alone,
-      tested on the saved pages of those six issues only, reading saved pages and fetching nothing. Its sha256 goes in
-      the addendum, and after the run it is applied unchanged. It is labelled not blind twice, and it replaces neither
-      `controls.py` nor any verdict of sections 7 and 12.
-   b. After the run, for every answer scored `unresolved` by 15.2.1 or 15.2.3, the owner is shown the answer, the
-      issue's listing as the frozen code produced it and, for the six issues, the new reader's listing. For 2016/6,
-      2018/1 and 2017/5 a third source is looked for: an independent table of contents of that issue, not derived from
-      CNKI or CASS, shown with where it came from and compared with the listing by `best` at `SIM_MATCH`; what it
-      holds that the listing lacks, and the reverse, are listed. If none is found, that is reported.
-   c. An answer changes verdict only through that adjudication (§D). Nothing in this step changes the control set, a
-      topic, a check or any other verdict.
+7. **Resolution afterwards (the owner's request, 2026-11-23, in chat).** The evidence is gathered before the freeze,
+   from what is in the issues and not from any answer, so that no answer can steer it; it is shown to the owner after
+   the run and is never a verdict.
+   a. A new reader, `controls_reread.py`, is written for the six reader and rule faults of section 12 (2012/2, 2012/5,
+      2014/4, 2014/6, 2015/6, 2016/1), from section 12's description of each fault alone, tested on the saved pages of
+      those six issues only, reading saved pages and fetching nothing, then applied once to them: for each of the six
+      it records the issue's verdict (complete or not) and listing as the new reader gives them. Its sha256 and the six
+      results (counts and sha256; the listings are private) go in the addendum. It is labelled not blind twice, and it
+      replaces neither `controls.py` nor any verdict of sections 7 and 12.
+   b. For 2016/6, 2018/1 and 2017/5 a third source is looked for, once: an independent table of contents of that issue,
+      not derived from CNKI or CASS (a different publisher or aggregator, or the journal's own site or print table of
+      contents). The queries are two fixed ones per issue, `周易研究 YYYY年第N期 目录` and `Zhouyi Yanjiu YYYY No.N`, with
+      at most 20 searches and 20 fetches per issue (15.8.2); the first source that lists the issue's articles by title
+      is used, and its list is compared with the issue's listing by `best` at `SIM_MATCH`: the titles it holds that the
+      listing lacks, and the reverse, are recorded; if none is found, "none found" is recorded. It is evidence only and
+      not a record source, so RERUN-PROTOCOL section 4's check of a new site does not apply and nothing from it enters
+      the listing or an item. Its result goes in the addendum.
+   c. After the run, for every answer scored `unresolved` by 15.2.1 or 15.2.3, the owner is shown, blind to model
+      identity (§D), the answer and the evidence of a and b for the issue it names; for an answer that names only a
+      year, for every flagged issue of that year. An answer changes verdict only through that adjudication. Nothing in
+      this step changes the control set, a topic, a check or any other verdict.
 
 ### 15.3 Drafting candidates
 
@@ -606,15 +620,15 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
    records their number and the sha256 of the list, which is in private results). Fewer than 3 headings: nothing is
    drafted, the count goes to the owner.
 2. 1,000 candidates: `1000 // H` per heading, the remainder one each to the first headings in addendum order. One
-   call per heading; one retry if the reply does not parse, holds no topic or is None (an HTTP error). A reply is
+   call per heading; one retry if the reply does not parse, holds no topic or is None (an HTTP 400). A reply is
    used as returned, with more or fewer topics than asked; the request sets no temperature. An `InfraError` stops the
    stage: a resume reuses the saved replies and asks only the headings not yet answered. A budget stop in this stage
    is treated as in 15.6.3. Why 1,000 and not 500: see 15.9.1; the cost bound of 15.8 is per call, so more
    candidates cost almost nothing.
 3. The prompt holds only: the field (易学), the heading, the count, and that each topic is a Chinese noun phrase of 4-16
-   characters, without function words, that could plausibly appear under the heading, returned as JSON. Never an
-   item's record, a listing title, an abstract, a person's name, the purpose or the project. Why: a title in the prompt
-   would steer topics toward what was published, and nothing private goes to an outside model.
+   characters, without function words, that could plausibly appear under the heading, returned as a JSON list of
+   strings. Never an item's record, a listing title, an abstract, a person's name, the purpose or the project. Why: a
+   title in the prompt would steer topics toward what was published, and nothing private goes to an outside model.
 4. Model: open-weight, through the courier, zero-retention routing: the body `build_keys.openrouter_chat(...,
    anthropic=False)` builds (`provider.zdr = true`), reasoning cap 8,000, `max_tokens` 16,000; it logs generation id,
    status, tokens and cost, and `build_keys.Ledger` refuses a call once the spend has reached `--max-usd` (15.8.1).
@@ -625,7 +639,8 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
    (2026-11-23): `provider.zdr` is a request; the service's own record of honouring it was not read, which is why the
    prompt holds nothing private (15.3.3).
 5. Kept: 4-16 CJK characters after `norm`, no Latin letter or digit, not a duplicate of an earlier one (in addendum
-   order of heading, then reply order); drops counted.
+   order of heading, then reply order); drops counted. The slot of the clue takes the candidate as returned (NFKC,
+   spaces trimmed); `norm` serves the checks only.
 
 ### 15.4 Checks on a candidate (decidable in code; each can only drop)
 
@@ -641,16 +656,21 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
    can only drop it: the cost is yield, never a false absence.
 4. Identifiability (CONTROLS-DESIGN 3.3, narrowed to what code can recognise), on the final clue: `results, _ =
    build_keys.ds_search(clue, 10, "controls: identifiability")` (DeepSeek's search API, as the real items' check; it
-   returns the results and the snapshot file). Drop if a hit's URL matches `(?i)CJFDTotal-ZYJY(20\d\d)` with the four
-   digits a year in 2010-2019, or `build_keys.hit_rank(results, t, [])` finds a listing form `t` of at least 6
-   characters after `norm` (the floor `hit_rank` applies to a truncated hit title; a short notice such as 目录 would
-   match any page). 3.3 drops a clue that brings up "an article of the journal in that decade"; code recognises one
-   only by that URL or by a listing form, so an article of the journal on another host, with a short or truncated
-   title, passes (15.9.2). A hit with a ZYJY 2010-2019 URL whose title matches no listing form (`best` below
-   `SIM_MATCH`) is counted and reported: evidence about the listing, not a change to it. §C.3's other half, the
-   different-family model comparison, is not run: it was not run for the real items either (`build_keys.py`: "the
-   design's different-family comparison of the clue's top 10 (C3) is not run here"), and 3.3 does not use it. Control
-   clues go to DeepSeek's search API, as the real clues did. A departure, recorded in PREREG deviation 8.
+   returns the results and the snapshot file). A reply with no result at all is an infrastructure failure, not a pass
+   (`ds_search` returns `[]` for any reply shape it does not expect): the walk stops, and a resume reuses the cached
+   replies and starts again at that candidate; an `InfraError` stops it the same way. Drop if a hit's URL matches
+   `(?i)CJFDTotal-ZYJY(20\d\d)` with the four digits a year in 2010-2019, or `build_keys.hit_rank(results, t, [])`
+   finds a listing form `t` of at least 6 characters after `norm` (the floor `hit_rank` applies to a truncated hit
+   title; a short notice such as 目录 would match any page). 3.3 drops a clue that brings up "an article of the journal
+   in that decade"; code recognises one only by that URL or by a listing form, so an article of the journal on another
+   host, with a short or truncated title, passes (15.9.2). A hit with a ZYJY 2010-2019 URL whose title matches no
+   listing form (`best` below `SIM_MATCH`) is counted and reported: evidence about the listing, not a change to it.
+   §C.3's other half, the different-family model comparison, is not run: it was not run for the real items either
+   (`build_keys.py`: "the design's different-family comparison of the clue's top 10 (C3) is not run here"). That line
+   goes on: for the real items an Opus check could still drop a clue it flagged on the top 10 (`other_fitting_work`);
+   controls have no such check, which would send the clue and its results to a model and cost money, so a synonym that
+   the 3-character rule misses is not caught (15.9.2). Control clues go to DeepSeek's search API, as the real clues
+   did. Departures, recorded in PREREG deviation 8.
 
 ### 15.5 Choosing 24, and the clue
 
@@ -661,25 +681,27 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
 2. In that order code fills the template, checks the clue (15.5.4), searches it (15.4.4), and stops at the 24th pass.
 3. The clue is a fixed Chinese template with one slot, holding §C.1's parts: work type 期刊论文, field 易学, the venue
    周易研究 as the one anchor, the decade token 2010年代. Its text is written from the shape of accepted
-   venue-anchored clues, with no topic in it, and kept in private results (15.1.4); the addendum records its sha256,
-   its length in characters, and the length of a clue for a topic of 4 and of 16 characters, next to the real clues'
-   52 to 96 (median 69), and the owner sees the difference before the freeze. Why not a model paraphrase (§C.1): it
-   adds words never checked against the listing, and checking them would drop nearly every clue on framing words. The
-   owner asked on 2026-11-23 whether the real questions could be shortened to match instead; that would change
-   `final-design.md` §C and is a separate deviation, not decided here. Until then this form stands and 15.9.4 lists
-   its limit.
+   venue-anchored clues, with no topic in it, and kept in private results (15.1.4); the addendum records only its
+   sha256. Its length, and the length of a clue for a topic of 4 and of 16 characters, are kept in private results (a
+   public number would show which clues are controls), and the owner sees them next to the real clues' 52 to 96
+   (median 69) before the freeze. Why not a model paraphrase (§C.1): it adds words never checked against the listing,
+   and checking them would drop nearly every clue on framing words. The owner asked on 2026-11-23 whether the real
+   questions could be shortened to match instead; that would change `final-design.md` §C and is a separate deviation,
+   not decided here. Until then this form stands and 15.9.4 lists its limit.
 4. Final-clue checks: `build_keys.clue_format_check(clue, st, payload)` (venue branch) with a synthetic `st` (key:
    venue 周易研究, year 2010, author present and empty; stratum language zh) and `payload` (anchor type venue), which
    the function needs and a control has no record for; no digit outside the decade token; then `leak_reason` against
    every listing form on the slot's text (the clue is built by filling the slot, so the remainder is the candidate,
    not a `str.replace`). That repeats 15.4.1 and, for a candidate of CJK characters only (15.3.5), can drop none by
    the format rules; it stays because it tests the clue as built.
-5. Template probe, before the freeze: at most 20 searches (the check of 15.4.4) on clues built from hand-written
-   topics that are not candidates and are never used as one, kept in private results. The number of clues it would drop
-   goes to the owner with the budget question. Why: every clue carries the same anchor (期刊论文, 易学, 周易研究,
-   2010年代), and a search on it may bring up the journal's own pages whatever the topic, so 15.4.4 could drop nearly
-   every candidate; that is unmeasured. A high number relaxes nothing here: it is a reason to propose a new deviation
-   before the freeze.
+5. Template probe, before the freeze: at most 20 searches (the check of 15.4.4) on clues built from at most 20
+   hand-written topics that are not candidates and are never used as one, kept in private results. Before the first
+   probe search the sha256 of the template and of the probe topics is recorded in a commit (the first commit of the
+   addendum), and the probe runs on that template; a change to the template after the probe is a new deviation
+   recorded before the freeze. The number of clues the probe would drop goes to the owner with the budget question.
+   Why: every clue carries the same anchor (期刊论文, 易学, 周易研究, 2010年代), and a search on it may bring up the
+   journal's own pages whatever the topic, so 15.4.4 could drop nearly every candidate; that is unmeasured. A high
+   number relaxes nothing here: it is a reason to propose a new deviation before the freeze.
 
 ### 15.6 The bar
 
@@ -704,8 +726,9 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
    from `controls.py` `score_control`, `best`, `_clean`, `ISSUE_HEAD`, `ENGLISH_PART`, `NONRESEARCH`, `latin_line`, and
    from `build_keys.py` `norm`, `leak_reason`, `clue_format_check`, `hit_rank`, `ds_search`, `openrouter_chat`,
    `Ledger`. `controls.py` is not edited (frozen, blob `61e86d869ce8dcc18f943b46c4f2e88c5d888f15`).
-   `control_topics.py` reads the template, the prompt and the heading list from private files by path and stops unless
-   their sha256 is the one in the addendum; its checks use invented ones (15.1.4).
+   `control_topics.py` reads the template and the prompt from private files by path and stops unless their sha256 is
+   the one in the addendum; it derives the heading list itself (15.3.1) and stops unless that list's sha256 is the one
+   in the addendum; its checks use invented texts (15.1.4).
 2. Checks in `research/battery2/pipeline/check_control_topics.py`, synthetic data, `python3 -I`, non-zero exit on
    failure: per rule one case that must drop and one that must pass; per verdict of 15.2 one case; for
    `controls_reread.py`, per fault of section 12 that it fixes one synthetic page it must read right.
@@ -713,25 +736,28 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
    off; abstract rule off; abstract n-gram 4; a stoplist added; URL test off; `hit_rank` test off; 6-character floor
    removed; flagged branch off; one flagged issue removed; year-without-issue branch off; issue-string reading off;
    year-string reading off; the whole-string test relaxed to a substring test; Chinese numerals off; an unreadable
-   string scored impossible; `wrong_real` downgraded too; seed changed;
-   round-robin off; template stripping widened to the candidate; the three heading exclusions off; search count off;
-   `norm`-mode check off. A green mutant is written down as a weak check or as covered elsewhere. Gap: that rule's
+   string scored impossible; the compound string read for one field only; `wrong_real` downgraded too; seed changed;
+   round-robin off; slot text taken by `str.replace`; the three heading exclusions off; search count off; an empty
+   search result treated as a pass; `norm`-mode check off. A green mutant is written down as a weak check or as
+   covered elsewhere. Gap: that rule's
    `paths:` exclude `research/` and no workflow runs these checks; adding one touches an owned path.
 4. Blind review of the code and the addendum: a fresh agent with the diff, the private texts of the addendum (read
    from private results, never committed) and an export of `main`, no results, history or web, asked what is wrong;
    what blocks the merge is written before its report is read (as section 14).
-5. Addendum (a later section): model id and price; for the private texts (the prompt, the template, the heading
-   list) their sha256 and length, the number of headings, and the template's length for a topic of 4 and of 16
-   characters; the files the headings were read from (name and sha256); sha256 of `verdicts.json` and of
-   `controls_reread.py`; the flagged set (15.2.6); the mode of `norm` (OpenCC importable or not, and its version:
-   `norm` converts traditional to simplified with OpenCC when `build_keys._OCC` is set and with a fixed table
-   otherwise, so drops could differ by machine; the code stops unless the mode is the one recorded); budget. Its
-   commit freezes this section, the addendum and the code; the next commit, changing nothing else, records its hash
-   and the sha256 of the code files (section 13: a rebase can drop a commit). This section is registered from its
-   merge: a change after that, even before the freeze, is a new deviation.
-6. Order: this section and deviation 8 merged; code, checks; the template probe (15.5.5) and the second reading of
-   the 13 exempt entries (15.1.5); addendum written; blind review of code and addendum; the owner's go on the budget
-   (15.8); freeze, which is the addendum's commit; first call.
+5. Addendum (a later section; its first commit, before the template probe, records the sha256 of the template and of
+   the probe topics): model id and price; for the private texts (the prompt, the template, the heading list, the
+   reading prompt of 15.1.5) their sha256, and the number of headings; the files the headings were read from (name and
+   sha256); sha256 of `verdicts.json` and of `controls_reread.py`; the flagged set (15.2.6); the results of the
+   evidence of 15.2.7a-b (counts and sha256; the listings are private); the mode of `norm` (OpenCC importable or not,
+   and its version: `norm` converts traditional to simplified with OpenCC when `build_keys._OCC` is set and with a
+   fixed table otherwise, so drops could differ by machine; the code stops unless the mode is the one recorded);
+   budget. Its final commit freezes this section, the addendum and the code; the next commit, changing nothing else,
+   records its hash and the sha256 of the code files (section 13: a rebase can drop a commit). This section is
+   registered from its merge: a change after that, even before the freeze, is a new deviation.
+6. Order: this section and deviation 8 merged; code, checks; the first commit of the addendum; the owner's go on the
+   evidence before the freeze (15.8.3); the template probe (15.5.5), the second reading of the 13 exempt entries
+   (15.1.5) and the evidence of 15.2.7a-b; the rest of the addendum written; blind review of code and addendum; the
+   owner's go on drafting and the walk (15.8.3); freeze, which is the addendum's final commit; first call.
 
 ### 15.8 Cost (owner decides)
 
@@ -745,8 +771,13 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
    500: it exceeds the survivors the walk is likely to meet (15.9.1), so it binds only if far more survive than
    expected; running out of survivors before 24 passes is a null (15.6.2), not a budget stop. DeepSeek's search price
    is not in the repository (Gap); the addendum states it, dated, and the bound is 500 x that price. The template
-   probe (15.5.5) adds at most 20 calls. No fetch, and no model call besides 15.8.1 and the fresh agents of 15.1.5 and
-   15.7.4 (agents of this harness). The owner's go on this budget comes on a decision card.
+   probe (15.5.5) adds at most 20 searches, and the third-source search (15.2.7b) at most 60 searches and 60 fetches
+   (20 of each per issue; section 12's run made 713 fetches for at most USD 0.56). No other fetch, and no model call
+   besides 15.8.1 and the fresh agents of 15.1.5 and 15.7.4 (agents of this harness).
+3. The owner's go comes in two parts, each on a decision card: first for the evidence before the freeze (the probe of
+   15.5.5 and the searches and fetches of 15.2.7b: at most 80 searches and 60 fetches; the reading of 15.1.5 makes no
+   call outside this harness), before the first probe search; then for drafting and the walk (15.8.1 and 15.8.2), with
+   the probe's number (15.5.5).
 
 ### 15.9 What this cannot see, and what was checked before writing
 
@@ -761,16 +792,16 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
    nothing.
 2. Not seen: an on-topic article whose title and abstract show none of the topic's 3-character sequences (a synonym, a
    2-character term, a missing or `<正>` abstract), and an article of the journal that 15.4.4 does not recognise in
-   the search results (another host, a short or truncated title).
+   the search results (another host, a short or truncated title), the more so as the real items' Opus check of the top
+   10 is not run for controls.
 3. Not seen: an article neither custodian holds in a flagged issue: 15.2 keeps it from scoring invented; the topic
    checks miss it. The listing's limits (sections 5, 11, 12): an article neither custodian holds in a certified issue;
    ids after the last article not retried; a notice by form that is a research article (it stays in the listing).
 4. Not seen: whether the controls' form differs in style from the real questions. The 340 clues drafted in the
    four key-building runs are 52 to 96 characters, median 69 (counted 2026-11-23); a control's clue, a fixed template
-   around a topic of 4 to 16 characters, is probably about half as long (an estimate, not measured). Each item is
+   around a short topic, is shorter (its lengths are measured and kept in private results, 15.5.3). Each item is
    asked alone, so a model could only notice it within one question, but a short, plain topic could make "I don't
-   know" likelier on a control than on a real item and so understate invention. The addendum measures the template's
-   length (15.5.3).
+   know" likelier on a control than on a real item and so understate invention.
 5. Evidence: claims about the code are GROUNDED in `main` (2026-11-23); those about the 2012 and 2017 pages rest on
    section 12 and `verdicts.json` counts, not re-read; the courier, the search price and the model are Gaps.
 6. Not seen: how many answers will be scored unresolved. A year-only answer is unresolved for six of the ten years
@@ -780,3 +811,5 @@ is a drafted topic not yet checked; to *drop* is to remove a candidate. No check
    so. The rule validation of RERUN-PROTOCOL section 5 has not been run; it has to model unresolved control answers,
    or its admission probability overstates detection (Gap).
 7. Not seen: how often 15.4.4 drops a template-filled clue (15.5.5 measures it before the freeze).
+8. Not seen: the format in which the extractor (§D: an LLM extracts fields from the answers) returns an issue or a
+   year. How often it is one of the string forms of 15.2.4 is not known, and any other form is read as not given.
