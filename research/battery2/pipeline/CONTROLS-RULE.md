@@ -421,3 +421,27 @@ the development on 2013 and 2019 did not cover, show five kinds of failure (the 
 napstic check was not empty in 18 of the 60 issues (86 titles); in the other 42 it was empty, or its page 1 was not read.
 Under the pre-registered consequence nothing is built from this listing; what to do next is the owner's decision (board
 card `d-b2-controls-after-rerun`).
+
+## 13. After the result: GitHub rebased this branch (2026-11-22, 23:58Z)
+
+PR 48 was squash-merged at 23:58Z (`e454285` on `main`). Eight seconds after the merge request was accepted, GitHub
+rebased this branch onto it and force-pushed it (head `eea2a24` to `59d4d39`; the PR's timeline shows the force-push
+under the bot account, the rebased commits' committer is GitHub, and no session ran a push). Section 10 ("A squash
+merge") says the freeze commit stays reachable as `refs/pull/49/head`. After the rebase it does not, so that sentence no
+longer holds. Sections 9 and 10 are not edited; this section is the correction.
+
+- **The content is the same.** Eight commits, in the same order, with the same messages and author dates. The trees of
+  the old and the new head differ by three files that `main` gained in between (`RERUN-PROTOCOL.md`,
+  `CONTROLS-DESIGN.md`, `VERIFIER2-TRIAL.md`), and so do the trees of `0f48a50` and `69cb2cb` (`git diff --name-status`,
+  2026-11-23). No earlier section, no `controls.py` (git blob `61e86d869ce8dcc18f943b46c4f2e88c5d888f15`) and no check
+  file changed. GROUNDED.
+- **The hashes, old to new.** The freeze `0f48a50` to `69cb2cb`; the commit that records its hash, `794d0da`, to
+  `ea028c7`; the three drafts of the amendment `0101192`, `c6bbde8`, `1f9707c` to `7c21a59`, `8db5e7b`, `5003ad7`; then
+  `c42845e`, `caf131c`, `eea2a24` to `d83d8b3`, `4235f12`, `59d4d39`. Sections 9, 10 and 12 name the old ones; only the
+  new ones are on a branch. GitHub still served `0f48a50` by its hash on 2026-11-23, which is no promise for later.
+- **The freeze came before the first fetch.** The author date of `0f48a50` (02:26:30Z) is the committer's own word.
+  GitHub's clock agrees: it created the check suites of `0f48a50` at 02:26:32Z and those of `794d0da` at 02:26:45Z
+  (`commits/<hash>/check-suites`, read 2026-11-23). The first fetch of the run is 02:29:13Z, the CASS 2012 probe, the
+  first of the 713 rows of `snapshots/index.jsonl` (the run's own record). GROUNDED.
+- **Section 11's claim about the first freeze still holds.** `eff3325` is an ancestor of `refs/pull/48/head`
+  (`git merge-base --is-ancestor`, 2026-11-23). GROUNDED.
