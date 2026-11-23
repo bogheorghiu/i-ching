@@ -10,7 +10,7 @@ Design A is the one section 17 registers (17.5, 17.6); B and C are the two other
 from math import comb
 
 ALPHA = 0.10            # 17.6.3: a false pass is the costly error, so the bar for "can tell" is set low
-P_GRID = [0.30, 0.40, 0.50, 0.70, 0.90]
+P_GRID = [0.30, 0.35, 0.40, 0.50, 0.70, 0.90]
 FRAMES = 3              # 17.7: at most three frames are tried after the positive control
 
 
