@@ -1,7 +1,8 @@
 """Checks of the controls.py amendment (CONTROLS-RULE.md section 8) on synthetic pages: no network, no real page.
 Usage: python3 -I check_controls_amendment.py [PIPELINE_DIR]
 PIPELINE_DIR holds controls.py and build_keys.py; the default is this file's folder. Give a folder that holds the
-controls.py of the freeze before the amendment (eff3325) to see the checks fail there. Exit status 1 if one fails."""
+controls.py of the freeze before the amendment (eff3325) to see the checks of the amendment fail there (the rejection
+checks pass there, as they must). Exit status 1 if one fails."""
 import importlib.util
 import os
 import sys

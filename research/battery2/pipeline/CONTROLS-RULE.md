@@ -336,12 +336,14 @@ test result), the three changed files and an export of `main`, no history and no
 wrong. It raised fourteen points. The code is frozen, so none of them changes it. What each led to:
 
 - **Mutations.** It was right that nothing shown so far made the rule reject an incomplete issue; the checks only
-  showed that it did not reject a complete one. Nine checks in `pipeline/check_controls_amendment.py` now break one
-  thing in an issue that passes (a CNKI page missing, a CASS entry missing, a gap in the ids, an id that does not
-  open, no CASS copy that carries the issue, a copy whose start pages decrease, a napstic title not in the listing,
-  a different title in place of one) and require the verdict to name it. They pass 9 of 9 on the frozen code and on
-  the code of `eff3325`. Four mutants of the code were each caught: agreement off (3 checks fail), gap check off (1),
-  napstic check off (1), "a copy must serve the issue" off (2).
+  showed that it did not reject a complete one. Nine checks in `pipeline/check_controls_amendment.py` now do that: one
+  control, an issue that passes, and eight that each break one thing in it (a CNKI page missing, a CASS entry missing,
+  a gap in the ids, an id that does not open, no CASS copy that carries the issue, a copy whose start pages decrease,
+  a napstic title not in the listing, a different title in place of one) and require the verdict to name it. They pass
+  9 of 9 on the frozen code and on the code of `eff3325`. Four mutants of the code were each caught, counted over all
+  23 checks: agreement off (`unmatched` returns nothing; 5 fail, 3 of these nine and 2 of the 14 of section 10), gap
+  check off (1), napstic check off (1), and the failure for an issue that no CASS copy serves removed (2). Section 14
+  lists the mutants that are not caught.
 - **Numbers from the saved pages** (2026-11-22, offline). A title with a marker word (`NONRESEARCH`) is exempt from
   agreement. Of 718 CASS entries with an author in 2010-2019, 25 are exempt only by that word (研讨会 9, 综述 7, 目录 5,
   新书架 2, 简介 1, 论坛 1), and a literature review (综述) is a research article; they stay in the listing. A CNKI
@@ -390,10 +392,14 @@ stands next to this one (a null from a test that was not blind).
 **What the failures are** (read after the result; changes nothing above; GROUNDED means read from the saved pages,
 offline, on 2026-11-22):
 - *2012/2, 2012/5 (the reader).* The CASS 2012 page lists the headers of issues 5, 2 and 1 one after another and then
-  one block of entries; the reader files that block under issue 1, and the blocks of issues 2 and 5, which have no
-  header of their own, are dropped. Matched against CNKI's titles, the page's six blocks fall one on each issue and every
-  entry matches (13, 12, 12, 12, 14 and 15 entries): the entries are on the page, under the wrong header. The copies of
-  2026-11-09 parse the same way, in both fetchers. GROUNDED.
+  one block of entries; the reader files that block under issue 1, the last of the three. The blocks of issues 2 and 5
+  come later with no header of their own, after an English list that sets the issue being read to none, so
+  `cass_issues` skips them (it reads entries only under a header). Matched against CNKI's titles, the page's six
+  blocks fall, in page order, on issues 6, 1, 2, 3, 4 and 5, each on one issue only (13 of 14, 12 of 12, 12 of 12,
+  12 of 12, 14 of 14 and 15 of 15 entries match): the entries are on the page, under the wrong header or none. The
+  copies of 2026-11-09 parse the same way, in both fetchers. GROUNDED; on 2026-11-23 the frozen `cass_issues` was run
+  again on both saved copies: it reads the headers in the order 6; 5, 2, 1; 3; 4 and files 14, 13, 12 and 14 entries
+  under issues 6, 1, 3 and 4 and none under 2 and 5.
 - *2014/4, 2014/6 (the reader).* Both are plates (id 001) whose title is also the title of an article in another
   journal (2018, 2020). The code takes the first line of CNKI's "similar documents" list that has the page's title as the
   page's own catalogue line, without checking the journal. 2 of the 849 saved CNKI pages of 2010-2019 with such a line
@@ -408,16 +414,17 @@ offline, on 2026-11-22):
   The union listing holds them. Whether the source page lacks them or both converters drop them is UNRESOLVED; a third
   source would settle it (Gap).
 
-**The exempt entries.** 13 entries were exempt by section 8 and are not held by the other custodian: 9 in 2010 (as in
-the replay of section 8), 1 each in 2014 and 2016, 2 in 2018. By their titles all 13 are news, book notices, plates or a
-foreword; none looks like a research article (a reading by the session that ran the check, not blind). No ruling of the
-owner is open under section 8. The titles are in the private results.
+**The exempt entries.** 13 entries were exempt by section 8 and are not held by the other custodian: 9 in 2010, 1 each
+in 2014 and 2016, 2 in 2018 (counted from the `waived_unmatched` of `verdicts.json`, 2026-11-23). By their titles all
+13 are news, book notices, plates or a foreword; none looks like a research article (a reading by the session that ran
+the check, not blind). No ruling of the owner is open under section 8. The titles are in the private results.
 
 **What this does and does not show.** Six of the nine failures (2012/2, 2012/5, 2014/4, 2014/6, 2015/6, 2016/1) are
 faults of the reader or the rule on pages whose entries agree; two are holes in CNKI's numbering (2016/6, 2018/1); one is
 a real disagreement between the custodians (2017/5). The amendment of section 8 did what it was written for: the 12
 issues of 2010-2011 passed, with no fetch. The 36 issues of 2012 and 2014-2018, on which it was not written and which
-the development on 2013 and 2019 did not cover, show five kinds of failure (the five lines above), 9 issues in all. The
+the development on 2013 and 2019 did not cover (they were read before, for key building and for the rule of section 3,
+so none is unseen), show five kinds of failure (the five lines above), 9 issues in all. The
 napstic check was not empty in 18 of the 60 issues (86 titles); in the other 42 it was empty, or its page 1 was not read.
 Under the pre-registered consequence nothing is built from this listing; what to do next is the owner's decision (board
 card `d-b2-controls-after-rerun`).
@@ -425,23 +432,76 @@ card `d-b2-controls-after-rerun`).
 ## 13. After the result: GitHub rebased this branch (2026-11-22, 23:58Z)
 
 PR 48 was squash-merged at 23:58Z (`e454285` on `main`). Eight seconds after the merge request was accepted, GitHub
-rebased this branch onto it and force-pushed it (head `eea2a24` to `59d4d39`; the PR's timeline shows the force-push
-under the bot account, the rebased commits' committer is GitHub, and no session ran a push). Section 10 ("A squash
-merge") says the freeze commit stays reachable as `refs/pull/49/head`. After the rebase it does not, so that sentence no
-longer holds. Sections 9 and 10 are not edited; this section is the correction.
+rebased this branch onto it and force-pushed it (head `eea2a24` to `59d4d39`; the PR's timeline, `issues/49/timeline`,
+shows the event `head_ref_force_pushed` at 23:58:37Z under the bot account, the rebased commits' committer is GitHub,
+and no session ran a push). Section 10 ("A squash merge") says the freeze commit stays reachable as
+`refs/pull/49/head`. After the rebase it does not, so that sentence no longer holds. Sections 9 and 10 are not edited;
+this section is the correction.
 
 - **The content is the same.** Eight commits, in the same order, with the same messages and author dates. The trees of
-  the old and the new head differ by three files that `main` gained in between (`RERUN-PROTOCOL.md`,
-  `CONTROLS-DESIGN.md`, `VERIFIER2-TRIAL.md`), and so do the trees of `0f48a50` and `69cb2cb` (`git diff --name-status`,
-  2026-11-23). No earlier section, no `controls.py` (git blob `61e86d869ce8dcc18f943b46c4f2e88c5d888f15`) and no check
-  file changed. GROUNDED.
+  the old and the new head differ by three files that `main` gained in between (`research/battery2/RERUN-PROTOCOL.md`
+  and, in `research/battery2/pipeline/`, `CONTROLS-DESIGN.md` and `VERIFIER2-TRIAL.md`), and so do the trees of
+  `0f48a50` and `69cb2cb` (`git diff --name-status`, 2026-11-23). No earlier section, no `controls.py` (git blob
+  `61e86d869ce8dcc18f943b46c4f2e88c5d888f15`) and no check file changed. GROUNDED.
 - **The hashes, old to new.** The freeze `0f48a50` to `69cb2cb`; the commit that records its hash, `794d0da`, to
   `ea028c7`; the three drafts of the amendment `0101192`, `c6bbde8`, `1f9707c` to `7c21a59`, `8db5e7b`, `5003ad7`; then
-  `c42845e`, `caf131c`, `eea2a24` to `d83d8b3`, `4235f12`, `59d4d39`. Sections 9, 10 and 12 name the old ones; only the
-  new ones are on a branch. GitHub still served `0f48a50` by its hash on 2026-11-23, which is no promise for later.
+  `c42845e`, `caf131c`, `eea2a24` to `d83d8b3`, `4235f12`, `59d4d39`. Sections 9 and 10 name the old freeze commit
+  (section 12 names only the blob, which did not change); only the new hashes are on a branch. GitHub still served
+  `0f48a50` by its hash on 2026-11-23, which is no promise for later. After the squash merge the new ones should stay
+  reachable as `refs/pull/49/head`, as `eff3325` does as `refs/pull/48/head` (last bullet); that cannot be checked
+  before the merge.
 - **The freeze came before the first fetch.** The author date of `0f48a50` (02:26:30Z) is the committer's own word.
   GitHub's clock agrees: it created the check suites of `0f48a50` at 02:26:32Z and those of `794d0da` at 02:26:45Z
-  (`commits/<hash>/check-suites`, read 2026-11-23). The first fetch of the run is 02:29:13Z, the CASS 2012 probe, the
-  first of the 713 rows of `snapshots/index.jsonl` (the run's own record). GROUNDED.
+  (`commits/<hash>/check-suites`, read 2026-11-23). The first of the 713 fetch rows of `snapshots/index.jsonl` (the
+  run's own record) is 02:29:13Z: the probe of the CASS 2012 page of section 12, a 504 with no content, 17 seconds
+  before the launch at 02:29:30Z (private `run.meta.txt`); the next row, at 02:30:50Z, fetches the same page again.
+  GROUNDED.
 - **Section 11's claim about the first freeze still holds.** `eff3325` is an ancestor of `refs/pull/48/head`
   (`git merge-base --is-ancestor`, 2026-11-23). GROUNDED.
+
+## 14. Notes from the final blind review of this PR (2026-11-23)
+
+A fresh agent (asked for Opus; the model field of its transcript reads `claude-opus-5-5` on all 18 entries that carry
+one) was given the diff against `main`, the four changed files and an export of `main`, with no history, no results, no
+PR body and no web, and asked what is wrong with the pull request. What would block the merge was written down before
+its report was read: a false or unsupported statement of fact in the changed files, a change to registered or frozen
+text, or a check that passes without testing what it names (PR body). It raised 14 points. It found no line removed
+from either document and no change to registered or frozen text other than `controls.py`, which deviation 7 declares.
+Each point was checked against the files, not taken on its word:
+
+1. **Fixed.** Section 11 counted nine checks that "break one thing"; one of the nine is the control.
+2. **Fixed.** Section 11's mutant counts are now over all 23 checks (agreement off fails 5, not 3), and say which mutant
+   is meant. Turning the page-order rule off instead fails 1.
+3. **Kept as limits, no check added.** Seven mutants of `controls.py` pass all 23 checks (each run again on
+   2026-11-23): the foreword pattern unanchored; the foreword pattern without 〈; `waived()` listing every notice,
+   `<正>` pages included; the abstract test narrowed to `【引证文献】`; `foreword()` reading only the first form;
+   the catalogue-issue check off; the cap back at 600. The repository's rule is to find out whether the check is weak or
+   another layer covers the case, and to write it down. Here the checks are weak: the rejection group covers eight
+   breakages, not every way the rule rejects (no case for the catalogue line, `cnki_cap_reached` or `cnki_run_empty`).
+   The real run did use the catalogue-issue check (2014/4 and 2014/6 fail by it), and the code that ran is identified
+   by its blob (section 10). The code is frozen and the run is done, so a check added now would test a file nothing
+   will change; a second amendment (card option c) would write its own.
+4. **Not an error; clarified.** Section 9 gives "the foreword of section 7 is the second line of its entry" as the
+   reason `foreword` reads every form. That explains reading the second line (`forms[0]`). The joined reading is there
+   for a foreword whose title starts on the first line of a wrapped entry. On the ten saved CASS pages (both copies)
+   `foreword` fires on one entry only, 2010/6; `forms[0]` matches it and the joined form does not, so no saved page
+   needs the joined reading, and no check does either. Section 9 is registered and stays.
+5. **Fixed.** Section 13 said section 12 names old hashes; only sections 9 and 10 do.
+6. **Pointer added.** Deviation 7 says "the commit named in section 9", which is on no branch after the rebase. A note
+   at its end points to section 13; the registered text is not edited.
+7. **Fixed.** Sections 12 and 13 read as if the probe fetch were part of the run; section 13 now says what it was.
+8. **Fixed.** Section 12 pointed to a "replay of section 8" that section 8 does not contain. The 13 are counted from
+   `verdicts.json`.
+9. **Checked, and fixed in part.** The explanation of 2012/2 and 2012/5 does follow from the code: the frozen
+   `cass_issues` was run again on both saved copies, and section 12 now gives the mechanism. The same check found that
+   "every entry matches" was wrong for the first block (13 of 14 match); fixed.
+10. **Fixed.** Section 12 now says that the 36 issues were read before, so none is unseen.
+11. **Not changed.** Deviation 7's "Not checked before writing this" mixes two dates. It is registered text, and section
+    10 point 5 already says it is as of its first writing.
+12. **Nothing to change.** `controls.py` was edited after section 6's freeze: deviation 7 and section 8 declare it, and
+    section 11 gives the old blob. Section 9 cites synthetic checks that were committed after the freeze: section 10
+    says so.
+13. **Partly fixed.** The numbers of section 12 rest on private results, which stay private by the owner's rule.
+    Section 13 now names the GitHub calls that show its facts.
+14. **Fixed.** The path of `RERUN-PROTOCOL.md` in section 13, and the usage note of the check file. The KeyError after
+    `BudgetSpent` is disclosed in sections 10 and 11.
