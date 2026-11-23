@@ -848,51 +848,52 @@ and for the probe of 15.5.5.
 
 ### 17.1 What is tested, and what it can show
 
-1. Question: shown one control clue among real clues of the same kind, can a fresh judge pick out the control more
-   often than chance? Why this question: in the battery each item is asked alone (15.9.4), so what a model under test
-   could notice is a single clue that reads unlike a real one; the test puts that clue next to real ones so that the
+1. Question: shown one control clue among real clues of the same kind, can a fresh judge pick out the control more often
+   than chance? Why this question: in the battery each item is asked alone (15.9.4), so what a model under test could
+   notice is a single clue that reads unlike a real one; the test puts that clue next to real ones so that the
    difference, if any, shows.
 2. A frame *passes* when the test does not find that the judge can tell (17.6). A pass means "this test, with this
-   judge, found no difference"; it does not mean there is none (17.6.4 gives the power). A frame *fails* when the
-   judge can tell. Every later statement about the chosen frame carries the label **frame test passed: judge X, N
-   rounds, H hits (frame 0: H0)**, with its numbers.
+   judge, found no difference"; it does not mean there is none (17.6.4 gives the power). A frame *fails* when the judge
+   can tell. Every later statement about the chosen frame carries the label **frame test passed: judge X, N rounds, H
+   hits (frame 0: H0)**, with its numbers.
 3. What it does not test, so a pass does not cover it: a model under test (DeepSeek, Kimi, GLM, MiMo) might notice what
    an agent of this harness does not, since the judge is such an agent (17.5.2); the topics that ship are drafted by a
    model (15.3) and the test topics are hand-written, so a pass says nothing about how the shipped topics read; whether
    a control's answer is scored right (section 15 does that); whether the frame's words are absent from the listing (a
    second agent reads them, 17.4.5). The topic is a second cue: a trick topic shares no 3-character sequence with the
    journal's titles and abstracts (15.4.1-15.4.2), as the shipped topics do not, so a judge told what a trick is may
-   tell it by its topic and not by its frame. The test measures the whole control, frame and topic: a fail or a null
-   cannot say which cue the judge used, and a pass says that neither was enough for this judge. The judges' reasons
-   (17.5.3) are the only evidence about the cue. This errs toward a fail, which costs the owner a decision (17.7.3),
-   not a wrong template.
+   tell it by its topic and not by its frame. The test measures a stand-in for the whole control, the frame with a
+   hand-written topic that passes the same checks, not the control itself: a fail or a null cannot say which cue the
+   judge used, and a pass says that neither was enough for this judge. The judges' reasons (17.5.3) are the only
+   evidence about the cue. This errs toward a fail, which costs the owner a decision (17.7.3), not a wrong template.
 
 ### 17.2 The real clues: which, and how they are drawn
 
 1. Pool: the item ids that occur once across the four item files (that is, in one run only) and whose row is a Chinese
-   journal article (`stratum.type` `article`, `stratum.language` `zh`) with key venue 周易研究 and key year 2010-2019,
-   whose primary clue (the row's `clue`, from the writer named in `clue_writer`; `build_keys.item_record`) has
-   `anchor` `"venue"` in that writer's entry of `clues_by_writer`, and contains, after `norm`, 周易研究 and 2010年代.
-   Counted on 2026-11-23 on the private items: 90. Why only these: every control names 周易研究 and 2010年代 (15.5.3); a
-   real clue with another anchor or decade would let the judge tell by the anchor, a cue no model under test has,
-   since it sees each item alone. Why ids that occur in more than one run are left out: 7 ids occur in two runs (7 of
-   the 340 rows are the second occurrence of an id), each with a different clue in each run (2 of those ids meet the
-   rule, which is why 94 rows give 92 ids); which version the battery will ask is not decided here, so neither is
-   used, and no item can be drawn twice. The code reads the item files by path, records their names and sha256, and
-   stops unless the pool holds 90 (another count means other files or another rule, which needs the owner).
+   journal article (`stratum.type` `article`, `stratum.language` `zh`) with key venue 周易研究 and key year 2010-2019, whose
+   primary clue (the row's `clue`, from the writer named in `clue_writer`; `build_keys.item_record`) has `anchor`
+   `"venue"` in that writer's entry of `clues_by_writer`, and contains, after `norm`, 周易研究 and 2010年代. Counted on
+   2026-11-23 on the private items: 90. Why only these: every control names 周易研究 and 2010年代 (15.5.3); a real clue with
+   another anchor or decade would let the judge tell by the anchor, a cue no model under test has, since it sees each
+   item alone. Why ids that occur in more than one run are left out: 7 ids occur in two runs (7 of the 340 rows are the
+   second occurrence of an id), each with a different clue in each run (2 of those ids meet the rule, which is why 94
+   rows give 92 ids); which version the battery will ask is not decided here, so neither is used, and no item can be
+   drawn twice. The code reads the item files by path, records their names and sha256, and stops unless the pool holds
+   90 (another count means other files or another rule, which needs the owner).
 2. Draw, by code, after the topics record of 17.3.3 is merged and before any frame is written: pool sorted by item id;
-   `rng = random.Random("b2-frametest-2026-11-23:" + c)`, where `c` is the 40-character sha of the commit that merged
-   the topics record, created once; `drawn = rng.sample(pool, 80)`; then `rng.shuffle(topics)` on the 20 test topics
-   in the order of their file; then `pos = [0, 1, 2, 3, 4] * 4` and `rng.shuffle(pos)`. Round r (0 to 19) holds
-   `drawn[4r:4r+4]` in that order, with the trick clue (test topic r in the frame under test) inserted at index
-   `pos[r]`. The code stops unless `c` is a commit whose copy of this file holds the topics record's line with the
-   topics' hash. Why a seed: no person chooses which real clue sits next to which control. Why that commit: it is
-   unknown to everyone, the author included, until the record is merged, and the topics are fixed before the record,
-   so no list of topics can be written, reworded or chosen for the draw it will get. Why one draw for every frame: the
-   frames are then compared on the same real clues, topics and positions, so a difference between frames is the
-   frame's. Why the positions are balanced (each of the five holds the trick in 4 rounds) and not drawn one by one: a
-   judge with a habit of picking one position scores exactly 4 of 20, the chance level, so a habit cannot make a frame
-   fail.
+   `rng = random.Random("b2-frametest-2026-11-23:" + c)`, where `c` is the 40-character sha of the first commit on the
+   first-parent history of `main` whose copy of this file holds the topics record's line (the commit that merged the
+   record), found by the code itself and passed by no one, created once; `drawn = rng.sample(pool, 80)`; then
+   `rng.shuffle(topics)` on the 20 test topics in the order of their file; then `pos = [0, 1, 2, 3, 4] * 4` and
+   `rng.shuffle(pos)`. Round r (0 to 19) holds `drawn[4r:4r+4]` in that order, with the trick clue (test topic r in the
+   frame under test) inserted at index `pos[r]`. The code stops if no commit holds the line. Why a seed: no person
+   chooses which real clue sits next to which control. Why that commit: it is unknown to everyone, the author included,
+   until the record is merged, and the topics are fixed before the record, so no list of topics can be written, reworded
+   or chosen for the draw it will get; and it is the first commit that holds the line, so a later commit cannot be
+   picked to re-roll the draw. Why one draw for every frame: the frames are then compared on the same real clues, topics
+   and positions, so a difference between frames is the frame's. Why the positions are balanced (each of the five holds
+   the trick in 4 rounds) and not drawn one by one: a judge with a habit of picking one position scores exactly 4 of 20,
+   the chance level, so a habit cannot make a frame fail.
 3. Use: 80 of the 90 in the rounds, each in one round; the 10 not drawn go, sorted by id, to the frame writer (17.4.1)
    and to no round. All 90 are used, none in two roles. Why the writer gets only undrawn clues: a frame copied from a
    clue the judge also sees would echo it, a cue that has nothing to do with style.
@@ -902,226 +903,247 @@ and for the probe of 15.5.5.
 1. The 20 test topics are the probe topics of 15.5.5 (hand-written, never a candidate, never a control; 15.3.5 already
    drops a candidate equal to one, `control_topics.keep`). Why the same list: 20 is `PROBE_MAX`, one topic per round
    fits it, and no second list needs its own exclusion from the candidates (which would change `keep`).
-2. Each is 4-16 CJK characters (`control_topics.TOPIC`), five in each of the lengths 4-6, 7-9, 10-12 and 13-16, and
-   each survives 15.4.1 and 15.4.2 against the listing of 15.1.1 (`control_topics.survivors`; the titles that 15.2.7d
-   names come later and are not in it, and a test topic that shares a sequence with one is still a test topic). Why
-   the length bands: the frame must read like a real clue at every slot length a candidate can have. Why the two
-   checks: a test topic that a real article covers would read as real and make a frame look better than it will be
-   with the topics that ship, which all pass these checks. The author may rewrite a topic until it survives; this
-   happens before the topics record, so no rewriting can see which real clue a topic will meet, and uses counts only.
+2. Each is 4-16 CJK characters (`control_topics.TOPIC`), five in each of the lengths 4-6, 7-9, 10-12 and 13-16, and each
+   survives 15.4.1 and 15.4.2 against the listing of 15.1.1 (`control_topics.survivors`; the titles that 15.2.7d names
+   come later and are not in it, and a test topic that shares a sequence with one is still a test topic; the checks run
+   before section 16 exists, on the listing file as given, and the code checks that file's hash and the `norm` mode
+   against the topics record once it exists). Why the length bands: the frame must read like a real clue at every slot
+   length a candidate can have. Why the two checks: a test topic that a real article covers would read as real and make
+   a frame look better than it will be with the topics that ship, which all pass these checks. The author may rewrite a
+   topic until it survives; this happens before the topics record, so no rewriting can see which real clue a topic will
+   meet, and uses counts only.
 3. The list is a private file in one canonical form (UTF-8, one topic per line, LF, no blank line, no space round a
    topic, one final LF); the code refuses any other form, so that whitespace cannot change its hash. Its sha256 is
    recorded as `probe-topics-sha256`, the label 15.5.5 uses, in a record of its own, the *topics record*, with
-   `verdicts-sha256` and `norm-mode` (the listing and the rule for `norm` that the topic checks use); this record is
-   merged on its own before the draw, and its merge commit seeds the draw (17.2.2). The records of 17.8.2 and 15.5.5
-   repeat these labels unchanged. Before any record of this section is merged, a fresh agent recomputes each hash in
-   it from the private files and reports each as equal or not.
+   `verdicts-sha256` and `norm-mode` (the listing and the rule for `norm` that the topic checks use) and
+   `writer-prompt-sha256`, `checker-prompt-sha256` and `judge-prompt-sha256` (the prompts exist by then, reviewed with
+   the script, and are pinned before any agent is asked); this record is merged on its own before the draw, and its
+   merge commit seeds the draw (17.2.2). No later record repeats a label of this record, since the code takes the last
+   value of a label and compares nothing; the script stops if a label it reads stands twice with different values.
+   Before any record of this section is merged, a fresh agent recomputes each hash in it from the private files and
+   reports each as equal or not; one that is not is a stop (17.7.5).
 
 ### 17.4 The frames
 
 1. Writer: one fresh Opus agent of this harness (no knowledge of this test), given only: the four parts every frame
-   holds (周易研究 as the one anchor; 15.5.3); one slot `{topic}` for a Chinese noun phrase of 4-16 characters; the
-   length rule of 17.4.3; that the frame names no person, text, school, period or idea of 易学 and no topic (only words
-   for what an article does: examines, traces, compares, assesses, and the like); and the 10 undrawn real clues as
-   examples of style, with the instruction not to reuse any of their topic words. It returns frames 0-3 as a JSON list.
-   The writer's prompt is kept in private results, sha256 recorded (17.8.2). A later request to the writer (17.4.3,
-   17.4.5) is a new fresh agent given the same inputs and, for each frame to be rewritten, its number and the reason it
-   failed. Why an agent and not the author: the author's frame of 15.5.3 is the one under suspicion; a fresh writer
-   that sees only style examples carries no knowledge of the listing. No template text exists before this section is
-   carried out (15.5.3 has the author write one; none has been written), so the writer writes all four frames.
-2. The four frames. Frame 0 (positive control, 17.7.1): the plainest form 15.5.3 allows, the four parts and the slot
-   joined by punctuation only, with no other word. Frames 1-3: longer and richer, each in a different structure: frame
-   1 a plain sentence lengthened with one clause saying what the article does; frame 2 two such clauses; frame 3 the
-   topic not at the start of the clause that holds it, as abstract paraphrases often place it. Why three, and why they
-   differ in structure: the owner asked for longer and richer, which leaves the form open; three tries are enough to
-   find one if the idea works and few enough that the test stays small (17.6.5 gives the cost in false passes). These
+   holds (周易研究 as the one anchor; 15.5.3); one slot `{topic}` for a Chinese noun phrase of 4-16 characters; the length
+   rule of 17.4.3; that the frame names no person, text, school, period or idea of 易学 and no topic (only words for what
+   an article does: examines, traces, compares, assesses, and the like); and the 10 undrawn real clues as examples of
+   style, with the instruction not to reuse any of their topic words. It returns frames 0-3 as a JSON list. The writer's
+   prompt is kept in private results, sha256 recorded (17.8.2). A later request to the writer (17.4.3, 17.4.5) is a new
+   fresh agent given the same inputs and, for each frame to be rewritten, its number and the reason it failed. Why an
+   agent and not the author: the author's frame of 15.5.3 is the one under suspicion; a fresh writer that sees only
+   style examples carries no knowledge of the listing. No template text exists before this section is carried out
+   (15.5.3 has the author write one; none has been written), so the writer writes all four frames.
+2. The four frames. Frame 0 (positive control, 17.7.1): the short sentence 15.5.3 describes, the four parts and the slot
+   with the fewest ordinary words that make a sentence. Frames 1-3: longer and richer, each in a different structure:
+   frame 1 a plain sentence lengthened with one clause saying what the article does; frame 2 two such clauses; frame 3
+   the topic not at the start of the clause that holds it, as abstract paraphrases often place it. Why three, and why
+   they differ in structure: the owner asked for longer and richer, which leaves the form open; three tries are enough
+   to find one if the idea works and few enough that the test stays small (17.6.5 gives the cost in false passes). These
    descriptions of structure are public and carry no wording; the chosen frame is reported by its number only.
 3. Code checks each frame: `control_topics.check_template` (the slot exactly once; a 16-character topic passes
    `bk.clue_format_check`, which rejects a Chinese clue over 120 characters); the four parts all present; no digit
-   outside 2010年代 (as `clue_check`); the rest holds no title mark (《》〈〉) and no Latin letter; for frame 0 the rest
-   holds no CJK character, so that nothing but punctuation joins the parts; for frames 1-3 the fixed text is 56 to 72
-   characters. Why the title-mark and Latin rule: it stands where a "no second anchor" check would, since the venue
-   branch of `clue_format_check` looks only for an author and a control has none (15.5.4's synthetic key), so it
-   cannot fire; whether a frame names a person, another venue or a topic is for the checker (17.4.5). Why 56-72: the
-   clue for a topic of 10 characters, the middle of 4-16, is then 66 to 82 characters, about the median of the real
-   clues (72; the pool's 73; counted 2026-11-23), and the clue for any topic of 4-16 stays inside 60 to 88, inside
-   53 to 96, the range of the 160 venue-anchored accepted clues (all real clues: 52 to 96), and under the 128
-   characters at which `build_keys.ds_search` cuts a query, so the search of 15.4.4 never truncates it. Why the 160:
-   in the battery a control sits among all real items, and the venue-anchored clues are the real clues of a control's
-   kind. The bounds are public and equal what real clues show, so they tell a reader nothing about which clues are
-   controls; a frame's own length stays private (15.5.3). A frame that fails gets one new request to the writer; a
-   second failure drops it.
+   outside 2010年代 (as `clue_check`); the rest holds no title mark (《》〈〉) and no Latin letter; the frame ends with the
+   full stop 。 (all 90 clues of the pool do, none holds a Latin letter, and 83 write the venue between title marks,
+   which the rest rule allows round 周易研究 only); for frame 0 the fixed text is at most 40 characters, so that it is
+   short; for frames 1-3 it is 56 to 72 characters. Why the title-mark and Latin rule: it stands where a "no second
+   anchor" check would, since the venue branch of `clue_format_check` looks only for an author and a control has none
+   (15.5.4's synthetic key), so it cannot fire; whether a frame names a person, another venue or a topic is for the
+   checker (17.4.5). Why 56-72: the clue for a topic of 10 characters, the middle of 4-16, is then 66 to 82 characters,
+   about the median of the 160 venue-anchored accepted clues (72; the pool's 73; all real clues: 69; counted
+   2026-11-23), and the clue for any topic of 4-16 stays inside 60 to 88, inside 53 to 96, the range of the 160 (all
+   real clues: 52 to 96), and under the 128 characters at which `build_keys.ds_search` cuts a query, so the search of
+   15.4.4 never truncates it. Why the 160: in the battery a control sits among all real items, and the venue-anchored
+   clues are the real clues of a control's kind. The bounds are public and equal what real clues show, so they tell a
+   reader nothing about which clues are controls; a frame's own length stays private (15.5.3). A frame that fails gets
+   one new request to the writer; a second failure drops it.
 4. A second slot is not part of this test (17.9).
 5. The frame's fixed words are not checked by 15.4 or 15.5.4, which read only the slot's text (`clue_check` applies
    `title_hit` to `slot_text`; 15.5.4). A richer frame adds words that no check compares with the listing, the risk
    15.5.3 names. So code lists, privately, every 3-character CJK sequence of each frame's rest (a space where a part
    was, so that no sequence spans a join) that occurs in a listing title or abstract (the rules of 15.4.1-15.4.2), with
-   counts. A second fresh Opus agent of this harness (never the writer, never a judge) gets the frames, the content
-   rule of 17.4.1 and that list as data, and returns per frame a verdict (passes or flagged, with the reason) and an
-   English gloss of the fixed text; its prompt is kept in private results, sha256 recorded (17.8.2). A flagged frame is
-   treated as one that fails 17.4.3 (one new request to the writer, then the code checks and this check again; a
-   second failure drops it; a frame that was already rewritten for a failed code check is dropped when flagged). The
-   owner gets the glosses, the verdicts and the counts per frame, in English, in chat only (private, never in the
-   repository), and may ask to strike a frame before the record of 17.8.2; no one edits one. Why an agent and a
-   gloss: the owner reads no Chinese (chat, 2026-11-23), so the gloss is the only form in which a person can check a
-   frame; and a generic word (研究, 思想) will match titles, so a code rule would drop every frame, while a reader can
-   tell a word of method from a topic. Why words of method do not weaken the absence claim: they narrow which article
-   fits, they do not add a topic; a frame that adds a topic is the case the checker flags.
+   counts. A second fresh Opus agent of this harness (never the writer, never a judge) gets the frames, the content rule
+   of 17.4.1 and that list as data, and returns per frame a verdict (passes or flagged, with the reason) and an English
+   gloss of the fixed text; its prompt is kept in private results, sha256 recorded (17.8.2). A flagged frame is treated
+   as one that fails 17.4.3 (one new request to the writer, then the code checks and this check again; a second failure
+   drops it; a frame that was already rewritten for a failed code check is dropped when flagged). The owner gets the
+   glosses, the verdicts and the counts per frame, in English, in chat only (private, never in the repository), and may
+   ask to strike a frame before the record of 17.8.2; no one edits one. Why an agent and a gloss: the owner reads no
+   Chinese (chat, 2026-11-23), so the gloss is the only form in which a person can check a frame; and a generic word
+   (研究, 思想) will match titles, so a code rule would drop every frame, while a reader can tell a word of method from a
+   topic. Why words of method do not weaken the absence claim: they narrow which article fits, they do not add a topic;
+   a frame that adds a topic is the case the checker flags.
 6. Dropped and struck frames. A frame is dropped when it fails twice (17.4.3, 17.4.5) and struck when the owner strikes
-   it. If frame 0 is dropped or struck, the test stops before any judge call as **null: frame 0 not kept**; if no
-   longer frame is kept it stops before any judge call as **null: no longer frame kept**, since frame 0 alone shows
-   nothing about a longer one (17.7.3). Otherwise the frames kept are judged in their order (17.7).
+   it. If frame 0 is dropped or struck, the test stops before any judge call as **null: frame 0 not kept**; if no longer
+   frame is kept it stops before any judge call as **null: no longer frame kept**, since frame 0 alone shows nothing
+   about a longer one (17.7.3). Otherwise the frames kept are judged in their order (17.7).
 
 ### 17.5 A round
 
-1. Five questions: four real clues and one trick clue (the frame under test, filled with a test topic), as 17.2.2
-   orders them, numbered 1 to 5. Why one trick question and not the owner's first "2-3": all controls share the frame,
-   so two trick clues in one round would share its whole fixed text (56 characters or more for a longer frame), which
-   two real clues are unlikely to share (UNRESOLVED: not measured); the judge would find them by the repetition, a cue
-   no model under test has, since it sees each item alone (15.9.4). The owner chose this form in chat on 2026-11-23,
-   on a question that gave the reason and the numbers, and that offered two tricks of one frame and one trick from
-   each of three frames instead (the numbers of all three are in `frame_power.py`). Why five: four real questions are
-   "a few more" than one, 20 rounds then use 80 of the 90 real clues, and chance stays at 1 in 5.
-2. The judge: a fresh agent of this harness per round, never the writer: model `claude-opus-5-5`, effort `medium`
-   (the model and the effort the harness gave its agents on 2026-11-23, read from their transcripts); a judge of
-   another model or a lower effort is a change that needs a new deviation, since a weaker judge catches less and lets
-   frames pass. It is started by an `Agent` call of the default agent type with the model `opus` and no other option
-   (no `effort`, so the harness default applies, and its tools are not withdrawn: a tool call voids the round, 17.5.3),
-   whose whole prompt is the round's prompt as the script wrote it; it is never a continuation of another agent. Fresh
-   means no knowledge of this test or of an earlier round; it does carry the standing instructions the harness gives
-   every agent, which mention neither trick questions nor this test (the blind review of 17.8.1 reads them in a judge's
-   transcript). It is told: these five questions each ask a model to name a journal article; four describe real
-   articles that 周易研究 published in 2010-2019; exactly one is a trick question, describing a topic on which 周易研究
-   published nothing in 2010-2019, so it has no correct answer; answer from the text alone, without tools or search;
-   return JSON `{"pick": n, "reason": "one sentence in English"}` (English because the owner reads it, 17.5.3).
-   Nothing else: no listing, no frame, no word about how trick questions are made. Why tell it the count and the
-   definition: a known count makes chance exact (1 in 5), and the definition is that of section 1 (a topic on which
-   the journal published nothing in the decade), so the judge looks for what a control is. A model under test is told
-   no such thing (§C.4: fakes are not mentioned), so a judge that is looking is the harder case: a frame that passes
-   has passed more than the battery asks, and a frame that fails may still go unnoticed by a model that is not looking.
-   The prompt around the questions is kept in private results, sha256 recorded (17.8.2).
-3. What counts is read in code from the artifacts: the judge's returned text (parsed for `pick`) and its transcript
-   (tool calls; model and effort per turn; first user message). A round is void if the judge made any tool call, if
-   its model or effort is not the one of 17.5.2, if the first user message of its transcript is not the round's
-   prompt, or if `pick` is not an integer from 1 to 5 (not 0, 6 or a string). A void round is run once more, once, with
-   a new fresh agent. A second void counts against what the frame is for: as a hit for frames 1-3 (it can only make a
-   frame fail) and as a miss for frame 0 (it can only make the positive control fail). More than 3 of a frame's 20
-   rounds void at the first attempt is a stop (17.7.5): nothing is scored for that frame, since it is the judge or the
-   harness that is failing and not the frame. If a transcript lacks a field the rules read (the model, the effort, the
-   tool-call blocks, the first user message), scoring stops too and does not call the round void (the fields were
-   present in the transcripts of this session's agents on 2026-11-23). The `reason` is kept privately, shown to the
-   owner after the result, and decides nothing; a frame designed from the reasons is data-driven and needs a new
-   deviation.
+1. Five questions: four real clues and one trick clue (the frame under test, filled with a test topic), as 17.2.2 orders
+   them, numbered 1 to 5. Why one trick question and not the owner's first "2-3": all controls share the frame, so two
+   trick clues in one round would share its whole fixed text (56 characters or more for a longer frame), which two real
+   clues are unlikely to share (UNRESOLVED: not measured); the judge would find them by the repetition, a cue no model
+   under test has, since it sees each item alone (15.9.4). The owner chose this form in chat on 2026-11-23, on a
+   question that gave the reason and the numbers, and that offered two tricks of one frame and one trick from each of
+   three frames instead (the numbers of all three are in `frame_power.py`). Why five: four real questions are "a few
+   more" than one, 20 rounds then use 80 of the 90 real clues, and chance stays at 1 in 5.
+2. The judge: a fresh agent of this harness per round, never the writer: model `claude-opus-5-5`, effort `medium` (the
+   model and the effort the harness gave its agents on 2026-11-23, read from their transcripts); a judge of another
+   model or a lower effort is a change that needs a new deviation, since a weaker judge catches less and lets frames
+   pass. It is started by an `Agent` call of the default agent type with the model `opus` and no other option (no
+   `effort`, so the harness default applies, and its tools are not withdrawn: a tool call other than its return channel
+   voids the round, 17.5.3), whose whole prompt is the round's prompt as the script wrote it; it is never a continuation
+   of another agent. Fresh means no knowledge of this test or of an earlier round; it does carry the standing
+   instructions the harness gives every agent, which the blind review of 17.8.1 reads in a judge's transcript (whether
+   they bear on this test is a Gap until then, 17.11.5). It is told: these five questions each ask a model to name a
+   journal article; four describe real articles that 周易研究 published in 2010-2019; exactly one is a trick question,
+   describing a topic on which 周易研究 published nothing in 2010-2019, so it has no correct answer; answer from the text
+   alone, without tools or search; return JSON `{"pick": n, "reason": "one sentence in English"}` (English because the
+   owner reads it, 17.5.3). Nothing else: no listing, no frame, no word about how trick questions are made. Why tell it
+   the count and the definition: a known count makes chance exact (1 in 5), and the definition is that of section 1 (a
+   topic on which the journal published nothing in the decade), so the judge looks for what a control is. A model under
+   test is told no such thing (§C.4: fakes are not mentioned), so a judge that is looking is the harder case: a frame
+   that passes has passed more than the battery asks, and a frame that fails may still go unnoticed by a model that is
+   not looking. The prompt around the questions is kept in private results, sha256 recorded (17.8.2).
+3. What counts is read in code from the artifacts, the judge's transcript (tool calls; model and effort per turn; first
+   user message; answer). The first user message is the `message.content` string of the transcript's first row of type
+   `user`; the harness keeps its own reminders in separate rows. An agent hands its answer back through a tool call of
+   its own, `SubagentHandback`, whose `message` is the answer; the answer is that of the last such call, or the text of
+   the agent's last turn if it made none, and the ledger's copy of it must equal it (17.5.4). A round is void if the
+   judge made any tool call other than `SubagentHandback`, if its model or effort is not the one of 17.5.2, if the first
+   user message is not the round's prompt, or if `pick` in the answer is not an integer from 1 to 5 (not 0, 6 or a
+   string). A void round is run once more, once, with a new fresh agent. A second void counts against what the frame is
+   for: as a hit for frames 1-3 (it can only make a frame fail) and as a miss for frame 0 (it can only make the positive
+   control fail). More than 3 of a frame's 20 rounds void at the first attempt is a stop (17.7.5): nothing is scored for
+   that frame, since it is the judge or the harness that is failing and not the frame. If a transcript lacks a field the
+   rules read (the model, the effort, the tool-call blocks, the first user message), scoring stops too and does not call
+   the round void (the fields were present in the transcripts of this session's agents on 2026-11-23). The `reason` is
+   kept privately, shown to the owner after the result, and decides nothing; a frame designed from the reasons is
+   data-driven and needs a new deviation.
 4. Every run is accounted for, the judges', the writer's and the checker's. The script writes the prompt of each round
-   and of each request to the writer and the checker; each run is recorded as it ends in a private ledger (what it
-   was for, agent id, time, reply), whose sha256 is reported with the counts. Scoring (for the writer and the checker,
-   the closing of the frames) stops unless the transcripts folder holds one transcript for each recorded run and no
-   other transcript whose first user message is one of the test's prompts: a run left out of the ledger, such as a
-   frame run twice with one result kept or a writer asked again until the frames suit, would show. This catches
-   accidents, not intent: the folder is the harness's, held by the person who runs the test, and the repository gets
-   only counts and the ledger's hash, so the check is for the private results' reader. Why: only counts are public, so
-   the ledger and the transcripts must let a reader of the private results rebuild H.
+   and of each request to the writer and the checker; each run is recorded as it ends in a private ledger (what it was
+   for, agent id, time, reply), whose sha256 is reported with the counts. Scoring (for the writer and the checker, the
+   closing of the frames) stops unless the transcripts folder holds one transcript for each recorded run and no other
+   transcript whose first user message is one of the test's prompts: a run left out of the ledger, such as a frame run
+   twice with one result kept or a writer asked again until the frames suit, would show. The first user message of each
+   writer and checker transcript must equal the request the script wrote, so that a prompt changed after the review
+   shows. This catches accidents, not intent: the folder is the harness's, held by the person who runs the test, and the
+   repository gets only counts and the ledger's hash, so the check is for the private results' reader. Why: only counts
+   are public, so the ledger and the transcripts must let a reader of the private results rebuild H.
 
 ### 17.6 The statistic and the decision rule
 
 1. Per frame: H = hits in 20 rounds. Chance: 1/5 per round, so H is binomial(20, 0.2) if the judge cannot tell.
-2. The judge can tell, and the frame fails, iff H >= 7. Otherwise the frame passes. `frame_power.py` computes 7 as
-   the smallest t with P(H >= t) <= 0.10 at chance (P = 0.087; at 6 it is 0.196); the script recomputes it from that
-   file and stops unless it is 7.
-3. Why 0.10 and not 0.05: the costly error is a false pass, a frame that a model could notice used in all 24 controls;
-   a frame wrongly failed costs only a try of the next one. A lower bar for "can tell" buys power against that error.
+2. The judge can tell, and the frame fails, iff H >= 7. Otherwise the frame passes. `frame_power.py` computes 7 as the
+   smallest t with P(H >= t) <= 0.10 at chance (P = 0.087; at 6 it is 0.196); the script recomputes it from that file
+   and stops unless it is 7.
+3. Why 0.10 and not 0.05: the costly error is a false pass, a frame that a model could notice used in all 24 controls; a
+   frame wrongly failed costs only a try of the next one. A lower bar for "can tell" buys power against that error.
 4. Power (`frame_power.py`): a judge whose pick is the trick 30%, 40%, 50%, 70% or 90% of the time is caught with
    probability 0.39, 0.75, 0.94, 0.9997, 1.0000. So a judge right 70% or 90% of the time is all but certain to be
-   caught; one right 40% of the time (twice chance) passes a frame one time in four. A pass therefore excludes a
-   strong difference, not a weak one; the label of 17.1.2 carries H so a reader can judge.
+   caught; one right 40% of the time (twice chance) passes a frame one time in four. A pass therefore excludes a strong
+   difference, not a weak one; the label of 17.1.2 carries H so a reader can judge.
 5. Trying up to three frames: if each were as detectable as a 40% judge, the chance that at least one passes is 0.58
    (0.16 at 50%). The stopping rule of 17.7 (first pass wins, no choosing among passes) avoids picking the luckiest of
    several, but not this. Stated, not corrected: a larger test is not what the owner asked for.
-6. Nothing else enters the decision: not the reasons, not which real clues were picked when wrong, not a comparison
-   of frames. Why: the rule must not read any real clue's content, and every extra reading is a new chance to call a
-   frame good. H is reported as it comes, with frame 0's beside each other frame's. A very low H (1 or none of 20;
-   chance 0.07) would show a cue read the wrong way round; it changes no rule, and the owner is told.
+6. Nothing else enters the decision: not the reasons, not which real clues were picked when wrong, not a comparison of
+   frames. Why: the rule must not read any real clue's content, and every extra reading is a new chance to call a frame
+   good. H is reported as it comes, with frame 0's beside each other frame's. A very low H (1 or none of 20; chance
+   0.07) would show a cue read the wrong way round; it changes no rule, and the owner is told.
 
 ### 17.7 Order, stopping, and a null
 
-1. Frame 0 first (positive control). It is the plainest form 15.5.3 allows, the case the owner said a model might
+1. Frame 0 first (positive control). It is the short sentence 15.5.3 describes, the case the owner said a model might
    notice. If H < 7 for frame 0, the test cannot see the difference it was set up to see: it stops, frames 1-3 are not
    judged, and this is **null: frame 0 not caught** (17.7.3). Why: without it, a pass of a long frame could mean only
-   that this judge cannot tell even the plainest one apart. It shows that the test can see a difference between a
+   that this judge cannot tell even the short one apart. It shows that the test can see a difference between a
    control and real clues, not that the frame is its cause (17.1.3), and not a small one: a judge right 35% of the time
    catches frame 0 with probability 0.58, and a frame as detectable as frame 0 then passes with probability 0.42
    (`frame_power.py`); so a pass whose H is near frame 0's is no evidence that the frame is better, and the label of
    17.1.2 carries both.
-2. Then frames 1, 2, 3 in that order, 20 rounds each, the next only if the one before fails. The first frame that
-   passes is chosen and no later frame is judged. Why a fixed order and first pass: choosing the best of several
-   results would pick the luckiest. The script enforces the order from its own record of scores: a frame is not
-   offered unless the frames before it have the scores this rule needs, since the judge calls are agent calls that it
-   cannot make itself.
-3. A null chooses nothing. There are four: **null: frame 0 not kept** and **null: no longer frame kept** (17.4.6, before
-   any judge call), **null: frame 0 not caught** (17.7.1), and **null: no longer frame passed** (every longer frame
-   judged failed). Each goes to the owner with H for each judged frame. No frame is edited, written anew, or judged
-   again, no threshold or round form changes, and no further frame is tried without a new deviation recorded before
-   its data. The owner decides the route: frame 0 as the template of 15.5.3, where it was kept, with the limit of
-   15.9.4 and this test's numbers beside it (section 15 as it stood before this section; after *no longer frame
-   passed* it is a frame the judge could tell, so the limit is stated with every result; after *frame 0 not caught*
-   the test showed nothing about it); the second slot (17.9); a test of the topics alone, in which the trick is a real
-   clue with its topic replaced by a test topic, which says whether any frame could pass (17.1.3; a new deviation);
-   shortening the real clues, which the owner asked about and did not choose; or no controls.
-4. A change after the first judge call (a judge failing to start, the harness changing model) is recorded in the PR
-   with its reason before the rounds it affects are scored.
-5. A stop is the script's refusal to go on, not a null, and nothing is scored: the pool is not 90 (17.2.1); the record
-   of 17.8.2 or the topics record does not match the files; a transcript lacks a field the scorer reads (17.5.3); the
-   ledger and the transcripts disagree (17.5.4); more than 3 rounds of a frame void (17.5.3). The cause is written in
-   the PR. A cause in the infrastructure (the harness changed its model or effort; a judge cannot run) may be put right
-   and the frame's 20 rounds run again from the start, only under a deviation recorded before them (17.7.4), the
-   earlier runs staying in the ledger; any other cause goes to the owner.
+2. Then frames 1, 2, 3 in that order, 20 rounds each, the next only if the one before fails. The first frame that passes
+   is chosen and no later frame is judged. Why a fixed order and first pass: choosing the best of several results would
+   pick the luckiest. The script enforces the order from its own record of scores: a frame is not offered unless the
+   frames before it have the scores this rule needs, since the judge calls are agent calls that it cannot make itself.
+3. A null chooses nothing. There are five: **null: frame 0 not kept** and **null: no longer frame kept** (17.4.6, before
+   any judge call), **null: frame 0 not caught** (17.7.1), **null: no longer frame passed** (every longer frame judged
+   failed) and **null: stopped** (17.7.5). Each goes to the owner with H for each judged frame. No frame is edited,
+   written anew, or judged again, no threshold or round form changes, and no further frame is tried without a new
+   deviation recorded before its data. The owner decides the route: frame 0 as the template of 15.5.3, where it was
+   kept, with the limit of 15.9.4 and this test's numbers beside it (section 15 as it stood before this section; after
+   *no longer frame passed* it is a frame the judge could tell, so the limit is stated with every result; after *frame 0
+   not caught* the test showed nothing about it); the second slot (17.9); a test of the topics alone, in which the trick
+   is a real clue with its topic replaced by a test topic, which says whether any frame could pass (17.1.3; a new
+   deviation); shortening the real clues, which the owner asked about and did not choose; or no controls.
+4. A change after the first judge call (a judge failing to start, the harness changing model) is recorded as a new
+   deviation in `PREREG.md`, with its reason, in a pull request merged before the rounds it affects are run or scored.
+5. A stop is the script's refusal to go on, not a null, and nothing is scored or chosen. The stops: the pool is not 90
+   (17.2.1); the topics file is not in its canonical form or fails its checks (17.3); no commit holds the topics
+   record's line (17.2.2); the threshold recomputed from `frame_power.py` is not 7 (17.6.2); a record's hash is not
+   equal to its file, whether the script or the fresh agent of 17.3.3 finds it (17.3.3, 17.8.2); a transcript lacks a
+   field the scorer reads, or the ledger's copy of an answer differs from the transcript's (17.5.3); the ledger and the
+   transcripts disagree (17.5.4); more than 3 of a frame's 20 rounds are void at the first attempt (17.5.3). The cause
+   is written in the PR. A cause in the infrastructure (the harness changed its model or effort; a judge cannot run) may
+   be put right and the frame's 20 rounds run again from the start, only under a deviation merged before them (17.7.4),
+   the earlier runs staying in the ledger; any other cause goes to the owner. A stop that is not put right, and the
+   owner's withholding of the go on the judge calls (17.8.1), end the test as **null: stopped**, with the cause, and the
+   owner decides the route as after any null (17.7.3).
 
 ### 17.8 Where this sits in 15.7.6, and what a pass changes
 
 1. Order (inserted into 15.7.6 between "code, checks" and "the first record of the addendum"): this section and
-   deviation 9 merged; the script of this test, its checks, and the three prompts (writer, checker, judge, with their
-   placeholders) written, blind-reviewed as 15.7.4 says (the reviewer is given the prompts, from private results, and a
-   judge's standing instructions as a transcript shows them), and merged; the 20 test topics written and checked
-   (17.3); the topics record (17.3.3) merged; the draw (17.2.2); the frames written and checked (17.4.1-17.4.3) and
-   read by the second agent (17.4.5); the owner reads the English glosses and counts in chat and gives the go for the
-   judge calls, on a decision card; the record of 17.8.2, merged on its own; frame 0, then frames 1-3 as 17.7 says; the
-   result, counts only, to the PR and the owner. On a pass, 15.7.6 continues at "the first record of the addendum",
-   with the chosen frame as the template.
+   deviation 9 merged, and the code of 15.7.1, which the script imports; the script of this test, its checks, and the
+   three prompts (writer, checker, judge, with their placeholders) written, blind-reviewed as 15.7.4 says (the reviewer
+   is given the prompts, from private results, and a judge's standing instructions as a transcript shows them), and
+   merged; the 20 test topics written and checked (17.3); the topics record (17.3.3) merged; the draw (17.2.2); the
+   frames written and checked (17.4.1-17.4.3) and read by the second agent (17.4.5); one dry round, a judge started as
+   17.5.2 says on invented clues, whose transcript the script's reader must find valid (so that the rules of 17.5.3 are
+   known to fit this harness before any real round); the owner reads the English glosses and counts in chat and gives
+   the go for the judge calls, on a decision card; the record of 17.8.2, merged on its own; frame 0, then frames 1-3 as
+   17.7 says; the result, counts only, to the PR and the owner. On a pass, 15.7.6 continues at "the first record of the
+   addendum", with the chosen frame as the template.
 2. The record, before the first judge call, as lines `- \`label\`: \`value\`` after the topics record in section 16 (the
-   form `control_topics.registered` reads, and the `## 16.` heading is written with the topics record, which makes
-   that the first record of section 16, this one the second, and the one 15.5.5 and 15.7.5 describe the third, merged
-   on its own before the probe as 15.5.5 says). Labels: `seed-commit` (the commit of 17.2.2), `drawn-sha256` (the drawn
-   ids in draw order, one per line), `pool-file-1-sha256` to `pool-file-4-sha256` (the item files), `pool-count` (90),
-   `frame-0-sha256` to `frame-3-sha256` (each frame kept), `writer-prompt-sha256`, `checker-prompt-sha256`,
-   `judge-prompt-sha256`, `judge-model`, `judge-effort` and `threshold` (7). The seed is the one of 17.2.2. What exists
-   only after the judge calls (the ledger, the results, the transcripts) is reported with the counts (17.5.4), not
-   recorded here. The record is merged on its own: a squash keeps the content, and the merge before the first call is
-   the proof of order (as 15.5.5).
+   form `control_topics.registered` reads, and the `## 16.` heading is written with the topics record, which makes that
+   the first record of section 16, this one the second, and the one 15.5.5 and 15.7.5 describe the third, merged on its
+   own before the probe as 15.5.5 says). Labels: `seed-commit` (the commit of 17.2.2), `drawn-sha256` (the drawn ids in
+   draw order, one per line), `pool-file-1-sha256` to `pool-file-4-sha256` (the item files), `pool-count` (90),
+   `frame-0-sha256` to `frame-3-sha256` (each frame kept), `judge-model`, `judge-effort` and `threshold` (7); the
+   prompts' hashes stand in the topics record (17.3.3). The seed is the one of 17.2.2. What exists only after the judge
+   calls (the ledger, the results, the transcripts) is reported with the counts (17.5.4), not recorded here. The record
+   is merged on its own: a squash keeps the content, and the merge before the first call is the proof of order (as
+   15.5.5).
 3. A pass: the chosen frame becomes the template of the third record (15.5.5, 15.7.5); its `template-sha256` there must
-   equal the `frame-N-sha256` recorded for it in 17.8.2. Its lengths go to the owner next to the real clues' (15.5.3).
+   equal the `frame-N-sha256` recorded for it in 17.8.2, which the script checks before the probe. Its lengths go to the
+   owner next to the real clues' (15.5.3).
 4. Unchanged for the chosen frame: the template probe of 15.5.5 (at most 20 searches on clues from the probe topics,
    which are the test topics; the number of clues 15.4.4 would drop goes to the owner with the budget question; a high
    number is a reason for a new deviation before the freeze, never a relaxation); 15.5.4; 15.4.4 (a longer clue is a
-   different search, so the probe's number may differ from what the short frame would give); every check of 15.4 on
-   the slot's text; the walk, the seed and the bar of 15.6. A template change after the probe needs the owner's
-   decision and a new probe on new topics (15.5.5); the new topics are also test topics, so it needs a new test of
-   this section on the new frame with them.
+   different search, so the probe's number may differ from what the short frame would give); every check of 15.4 on the
+   slot's text; the walk, the seed and the bar of 15.6. A template change after the probe needs the owner's decision and
+   a new probe on new topics (15.5.5); the new topics are also test topics, so it needs a new test of this section on
+   the new frame with them.
 5. Checks for the test's script: synthetic data, no network, `python3 -I`, non-zero exit on failure; per rule of
    17.2-17.7 one case that must pass and one that must fail. Mutations, each shown red and recorded in the PR
-   (`.claude/rules/verify-a-check-by-breaking-it.md`): pool count not enforced; an id kept that occurs in two runs; the
-   topics file accepted in another form; the seed without the commit; the commit not checked; the draw with
-   replacement; positions drawn one by one; a round with two tricks; a real clue in two rounds; an undrawn clue in a
-   round; the length bounds off; frame 0's no-word rule off; the four-parts check off; the digit check off; the
-   title-mark and Latin rule off; `check_template` off; a frame kept after its second failure; a frame kept that the
-   checker flagged; a frame already rewritten and then flagged kept; a struck frame kept; frame 0 judged when no longer
-   frame is kept; frames 1-3 judged after frame 0 was not caught; a frame judged after an earlier one passed; frames
-   out of order; a second void counted as a miss for frames 1-3, or as a hit for frame 0; more than one re-run of a void
-   round; a `pick` of 0, 6 or a string accepted; a tool call not voiding; a wrong model, a wrong effort or a wrong
-   first message not voiding; a missing transcript field counted as a void; more than 3 void rounds scored; a run left
-   out of the ledger not caught, for a judge, the writer or the checker; a recorded run without a transcript not
-   caught; the threshold not recomputed, or 8 for 7; a verdict not read from the count of hits; scoring that reads clue
-   text. The scorer checks the order of frames from its own record, since the judge calls are not the script's. A green
-   mutant is written down as a weak check or as covered elsewhere.
+   (`.claude/rules/verify-a-check-by-breaking-it.md`): pool count not enforced; an id kept that occurs in two runs; a
+   pool condition off (the stratum, the venue, the year, the anchor, or either string after `norm`); the topics file
+   accepted in another form; the five-per-band rule off; the survivors check off; the seed without the commit; the seed
+   taken from a later commit; the draw with replacement; positions drawn one by one; a round with two tricks; a real
+   clue in two rounds; an undrawn clue in a round; the length bounds off, for frame 0 and for frames 1-3; the full-stop
+   rule off; the four-parts check off; the digit check off; the title-mark and Latin rule off; a 3-character sequence
+   taken across a join; `check_template` off; a frame kept after its second failure; a frame kept that the checker
+   flagged; a frame already rewritten and then flagged kept; a struck frame kept; frame 0 judged when no longer frame is
+   kept; frames 1-3 judged after frame 0 was not caught; a frame judged after an earlier one passed; frames out of
+   order; a second void counted as a miss for frames 1-3, or as a hit for frame 0; more than one re-run of a void round;
+   a `pick` of 0, 6, a string or a boolean accepted; a tool call not voiding; `SubagentHandback` voiding; a wrong model,
+   a wrong effort or a wrong first message not voiding; the answer taken from the ledger and not the transcript; a
+   missing transcript field counted as a void; more than 3 void rounds scored; a run left out of the ledger not caught,
+   for a judge, the writer or the checker; the first message of a writer or checker transcript not compared; a recorded
+   run without a transcript not caught; a label stated twice with different values accepted; the threshold not
+   recomputed, or 8 for 7; a verdict not read from the count of hits; scoring that reads clue text. The scorer checks
+   the order of frames from its own record, since the judge calls are not the script's. A green mutant is written down
+   as a weak check or as covered elsewhere.
 
 ### 17.9 Fallback: a second slot (not part of this test; the owner's decision)
 
@@ -1135,15 +1157,16 @@ and order a clue from one slot. It needs its own test of this section on new fra
 
 1. Private (the work directory of 15.1.4, which the code refuses inside a work tree of this repository,
    `control_topics.guard_workdir`): the test topics, the frames, the writer's, checker's and judge's prompts, the 90
-   pool clues and the draw, every round as shown, every judge reply and transcript, the ledger and the results, the
-   list of 17.4.5, the checker's verdicts and glosses (the glosses reach the owner in chat only, since a gloss
-   restates the frame). The repository gets counts (pool, drawn, frames dropped by code, by the checker or by the
-   owner, rounds, voids, H per frame) and each private text's sha256. Why: a public frame or topic would show a future
-   model which clues are controls (15.1.4).
+   pool clues and the draw, every round as shown, every judge reply and transcript, the ledger and the results, the list
+   of 17.4.5, the checker's verdicts and glosses (the glosses reach the owner in chat only, since a gloss restates the
+   frame). The repository gets counts (pool, drawn, frames dropped by code, by the checker or by the owner, rounds,
+   voids, H per frame) and each private text's sha256. Why: a public frame or topic would show a future model which
+   clues are controls (15.1.4).
 2. No outside model sees a real clue. Calls, all agents of this harness: the writer 1 (at most 5, with one new request
    per frame, 17.4.3); the checker 1 (at most 5, with the re-checks of 17.4.5); judge rounds 20 for frame 0 plus 20 per
-   frame tried, at most 80, and at most one re-run per round, so at most 160; at most 170 in all. No money is spent
-   outside the harness.
+   frame tried, at most 80, and at most one re-run per round, so at most 160; at most 170 in all, besides one dry round
+   (17.8.1), one fresh agent per record to recompute its hashes (17.3.3; at most three) and the blind reviewers of
+   17.8.1 (15.7.4's). No money is spent outside the harness.
 
 ### 17.11 What was checked before writing, and what was not
 
@@ -1151,17 +1174,20 @@ Dated 2026-11-23; no frame, topic or judge exists. The scripts named here are ke
 sha256 in PR 54.
 1. GROUNDED (counted on the private item files with the rule of 17.2.1 as written; counts only): the pool is 90; 7 ids
    occur in two runs, each with a different clue; 94 rows meet the rule and give 92 ids; the 160 venue-anchored clues
-   are 53 to 96 characters (median 72), the 90 of the pool 54 to 96 (median 73).
-2. GROUNDED: the bar and the power are the exact sums of `frame_power.py`, recomputed by direct tail sums and by
-   400,000 simulated tests; a judge with a fixed position habit scores exactly 4 of 20 under the balanced positions of
-   17.2.2, and a lopsided one fails a frame less often than chance (0.070 against 0.087, simulated).
+   are 53 to 96 characters (median 72), the 90 of the pool 54 to 96 (median 73); all 90 carry 期刊论文, 85 carry 易学, 83
+   write the venue between title marks, all 90 end with 。 and none holds a Latin letter.
+2. GROUNDED: the bar and the power are the exact sums of `frame_power.py`, recomputed by direct tail sums and by 400,000
+   simulated tests; a judge with a fixed position habit scores exactly 4 of 20 under the balanced positions of 17.2.2,
+   and a lopsided one fails a frame less often than chance (0.070 against 0.087, simulated).
 3. GROUNDED: the names this section cites exist in the code of PR 53 (read 2026-11-23: `control_topics.py`,
-   `build_keys.py`); the transcripts of this session's agents hold `message.model`, `effort` and `perTurnEffort`
-   (model `claude-opus-5-5`, effort `medium`) and a first user message equal to the prompt (read 2026-11-23).
+   `build_keys.py`); the transcripts of this session's agents hold `message.model`, `effort` and `perTurnEffort` (model
+   `claude-opus-5-5`, effort `medium`); the first row of type `user` of a transcript holds the prompt as a string and
+   equals it, the harness's reminders being separate rows of type `attachment`; an agent returns its answer through a
+   `SubagentHandback` call whose input is `message` (read 2026-11-23 on the transcripts of four agents).
 4. UNRESOLVED: whether 5 topics of each length band survive 15.4.1-15.4.2. A pilot of the same day, with topics the
    author wrote for it and then discarded, found survivors against the real listing in every band when it kept clear of
-   the journal's own vocabulary (10 of 12 candidates at 4-6 characters, 19 of 27 at 7-9, 11 of 19 at 10-12, 10 of 18
-   at 13-16); the topics that ship were drafted by another route.
+   the journal's own vocabulary (10 of 12 candidates at 4-6 characters, 19 of 27 at 7-9, 11 of 19 at 10-12, 10 of 18 at
+   13-16); the topics that ship were drafted by another route.
 5. Gap: how a model under test reads the frames; how much of a judge's pick is the topic and how much the frame
    (17.1.3); that the code finds a pool of 90 in the files it reads (it stops unless it does); what the harness's
    standing instructions for agents hold (the blind review reads them).
