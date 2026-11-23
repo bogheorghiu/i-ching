@@ -1136,7 +1136,15 @@ def reread_checks(load):
         notices = [["目录"], ["编后记"], ["某某研究文章"]]
         out, _ = m.third_source(((2016, 6),), {(2016, 6): notices}, search, lambda url: "另一刊物 目录\n目录\n编后记")
         r = out["2016/6"]
-        return contained and r["none_found"] and r["forms_under_floor"] == 2
+        short = (m.held_and_left("编后记小记", [["编后记小记"]]) == ([], [])          # not held, not left over
+                 and m.held_and_left("周易研究 2016年第6期 目录", [["目录"]]) == ([], ["周易研究 2016年第6期 目录"]))
+        return contained and short and r["none_found"] and r["forms_under_floor"] == 2
+
+    def near_title_parts():
+        near = "汉代易学人物及思想考"                    # one character from the entry: fits at SIM_MATCH, not contained
+        entry = [["汉代易学人物与思想考"]]
+        lines = [near + "..........张三丰  5", near + "／张三丰", near + "——张三丰", near + " / 张三丰 (5)"]
+        return all(m.held_and_left(ln, entry) == (entry, []) for ln in lines)
 
     def no_url_recorded():
         def search(query, count, route):
@@ -1295,6 +1303,8 @@ def reread_checks(load):
         ("third source: a form under 6 characters is never held, and counted; a title the line contains is held",
          floor_and_containment),
         ("third source: a result with no url is recorded as a page not opened", no_url_recorded),
+        ("third source: a near title beside an author or a page is held through its part, and not left over",
+         near_title_parts),
         ("third source: the 7th search is refused", search_cap),
         ("third source: the 31st fetch is refused", fetch_cap),
         ("third command: counts only on stdout, third.json written, a second run refused", third_cli),
