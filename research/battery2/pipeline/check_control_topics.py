@@ -14,6 +14,7 @@ import re
 import shutil
 import sys
 import tempfile
+import types
 
 d = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__)))
 
@@ -64,6 +65,17 @@ def score(title=FAKE, year=2015, issue=None, venue="周易研究", flagged=NINE,
 
 V_NINE = {**{f"{y}/{i}": {"complete": True} for y in range(2010, 2020) for i in range(1, 7)},
           **{f"{y}/{i}": {"complete": False} for y, i in NINE}}
+
+
+def case_rulings():
+    m.RULE = addendum(rulings="none")
+    none = m.flagged_set(V_NINE) == NINE and m.registered_rulings() == set()
+    m.RULE = addendum(rulings="2011/2,2013/4")
+    two = m.registered_rulings() == {(2011, 2), (2013, 4)} and m.flagged_set(V_NINE) == NINE | {(2011, 2), (2013, 4)}
+    return (none and two and m.certified_label(NINE) == "listing certified for 51 of 60 issues, not blind"
+            and m.certified_label(NINE | {(2011, 2)}) == "listing certified for 50 of 60 issues, not blind")
+
+
 SCORING = [
     ("each flagged issue, issue given: unresolved",
      lambda: all(score(year=y, issue=i) == "unresolved" for y, i in NINE)),
@@ -82,7 +94,7 @@ SCORING = [
     ("year string 2015年 is read", lambda: score(year="2015年", issue=6) == "unresolved"),
     ("Chinese numeral issue 第三期 is read", lambda: score(issue="第三期") == "invented"),
     ("Chinese numeral issue 十二 is read (impossible)", lambda: score(issue="十二") == "invented"
-     and m.read_fields({"issue": "十二"})[1] == 12),
+     and m.read_fields({"issue": "十二"}) == [(None, 12)]),
     ("Chinese year 二〇一三年 is read", lambda: score(year="二〇一三年", issue=3) == "invented"),
     ("a string only containing a number is not read", lambda: score(issue="大约第3期") == "unresolved"),
     ("an unreadable issue string is not given, not impossible", lambda: score(issue="某期") == "unresolved"
@@ -92,23 +104,27 @@ SCORING = [
     ("a string only containing a compound is not read", lambda: score(year="约2015年第6期") == "score_as_real_item"),
     ("compound in the issue field", lambda: score(year=None, issue="2015年第3期") == "invented"),
     ("compound takes precedence over the other field", lambda: score(year=2016, issue="2013年第1期") == "invented"),
-    ("two compounds naming different issues: unresolved for the journal, never a real item",
-     lambda: score(year="2013年第3期", issue="2013年第4期") == "unresolved"
+    ("two compounds naming different issues: the verdict under each reading, unresolved only if they differ",
+     lambda: score(year="2013年第3期", issue="2013年第4期") == "invented"
+     and score(year="2013年第3期", issue="2013年第4期", title="易道广大悉备论") == "wrong_real"
+     and score(year="2012年第2期", issue="2012年第3期") == "unresolved"
+     and score(year="2012年第3期", issue="2012年第2期") == "unresolved"
      and score(year="2013年第3期", issue="2013年第4期", venue="哲学研究") == "score_as_real_item"
      and score(year="2013年第3期", issue="2013年第4期", title="") == "abstain"
-     and m.read_fields({"year": "2013年第3期", "issue": "2013年第4期"}) == (None, None, True)),
-    ("the same compound in both fields is read", lambda: m.read_fields(
-        {"year": "2013年第3期", "issue": "2013年第3期"}) == (2013, 3, False)),
+     and m.read_fields({"year": "2013年第3期", "issue": "2013年第4期"}) == [(2013, 3), (2013, 4)]),
+    ("the same compound in both fields is one reading", lambda: m.read_fields(
+        {"year": "2013年第3期", "issue": "2013年第3期"}) == [(2013, 3)]),
     ("spaces and full-width digits are read", lambda: m.read_fields({"year": " ２０１５ 年", "issue": "第 ６ 期"})
-     == (2015, 6, False)),
+     == [(2015, 6)]),
     # 15.2.6
-    ("flagged guard accepts the nine", lambda: m.flagged_set(V_NINE) == NINE),
+    ("flagged guard accepts the nine", lambda: m.flagged_set(V_NINE, ()) == NINE),
     ("flagged guard reads verdicts.json: an extra incomplete issue stops it", lambda: raises(lambda: m.flagged_set(
-        {**V_NINE, "2011/2": {"complete": False}}))),
+        {**V_NINE, "2011/2": {"complete": False}}, ()))),
     ("flagged guard reads verdicts.json: a complete one of the nine stops it", lambda: raises(lambda: m.flagged_set(
-        {**V_NINE, "2018/1": {"complete": True}}))),
+        {**V_NINE, "2018/1": {"complete": True}}, ()))),
     ("flagged guard: a ruling joins the flagged set", lambda: m.flagged_set(V_NINE, rulings=[(2011, 2)])
      == NINE | {(2011, 2)}),
+    ("flagged guard: the rulings are the addendum's, and the label counts them", case_rulings),
     ("flagged guard refuses eight", lambda: raises(lambda: score(issue=6, flagged=NINE - {(2018, 1)}))),
     ("flagged guard refuses an extra issue without a ruling",
      lambda: raises(lambda: score(flagged=NINE | {(2011, 2)}))),
@@ -125,28 +141,28 @@ def page(year, blocks, english=None):
     return "\n".join(out)
 
 
-COMMON = ["编辑：某某", "免责声明", "其他", "书讯", "易学哲学", "某某研究/甲//5"]
+COMMON = ["编辑：某某", "免责声明", "其他", "书讯", "栏目甲", "某某研究/甲//5"]
 PAGE_A = page(2010, {
-    1: COMMON + ["义理新解", "出土文献", "儒道会通", "考古新知", "这是一条超过十二个字的很长很长的行"],
-    2: COMMON + ["义理新解", "出土文献", "儒道会通", "考古新知", "这是一条超过十二个字的很长很长的行"],
-    3: COMMON + ["义理新解", "考古新知", "这是一条超过十二个字的很长很长的行"],
-    4: ["易学哲学"]}, english=["考古新知", "出土文献"])
-PAGE_B = page(2011, {1: COMMON + ["出土文献"]}) + "\n" + page(2010, {1: ["儒道会通"], 2: ["儒道会通"]})
+    1: COMMON + ["栏目丁", "栏目丙", "栏目戊", "栏目乙", "这是一条超过十二个字的很长很长的行"],
+    2: COMMON + ["栏目丁", "栏目丙", "栏目戊", "栏目乙", "这是一条超过十二个字的很长很长的行"],
+    3: COMMON + ["栏目丁", "栏目乙", "这是一条超过十二个字的很长很长的行"],
+    4: ["栏目甲"]}, english=["栏目乙", "栏目丙"])
+PAGE_B = page(2011, {1: COMMON + ["栏目丙"]}) + "\n" + page(2010, {1: ["栏目戊"], 2: ["栏目戊"]})
 
 
 def case_headings():
-    return m.headings([PAGE_A, PAGE_B]) == ["易学哲学", "义理新解", "出土文献", "考古新知"]
+    return m.headings([PAGE_A, PAGE_B]) == ["栏目甲", "栏目丁", "栏目丙", "栏目乙"]
 
 
 def case_heading_cap():
     names = ["专题" + a + b for a in "甲乙丙丁戊" for b in "子丑寅卯辰"][:22]
-    text = page(2012, {i: (names if i <= 3 else []) + ["象数之学"] for i in range(1, 5)})
+    text = page(2012, {i: (names if i <= 3 else []) + ["栏目庚"] for i in range(1, 5)})
     hs = m.headings([text])
-    return len(hs) == 20 and hs[0] == "象数之学" and hs[1:] == sorted(bk.norm(n) for n in names)[:19]
+    return len(hs) == 20 and hs[0] == "栏目庚" and hs[1:] == sorted(bk.norm(n) for n in names)[:19]
 
 
 def case_latin_ends_issue():
-    text = "《周易研究》2010年第1期\nZhou Yi Studies Paper/周某//5\n易学哲学\n" + page(2010, {2: ["易学哲学"], 3: ["易学哲学"]})
+    text = "《周易研究》2010年第1期\nZhou Yi Studies Paper/周某//5\n栏目甲\n" + page(2010, {2: ["栏目甲"], 3: ["栏目甲"]})
     return m.headings([text]) == []
 
 
@@ -175,7 +191,7 @@ def fake_chat(replies, log):
     return chat
 
 
-PROMPT = "易学：为栏目{heading}拟{count}个题目"
+PROMPT = "【测试】{heading}｜{count}"
 
 
 def run_draft(hs, replies, ddir=None):
@@ -188,7 +204,7 @@ def run_draft(hs, replies, ddir=None):
 
 def case_retry():
     calls, log, ddir = run_draft(["甲", "乙", "丙"], ["not json", '["天地人和"]', None, '["山泽通气"]', "[]", '[""]'])
-    return (calls == 6 and m.saved_topics(["甲", "乙", "丙"], ddir) == [["天地人和"], ["山泽通气"], []]
+    return (calls == 6 and m.saved_topics(["甲", "乙", "丙"], ddir, "some/model", "x") == [["天地人和"], ["山泽通气"], []]
             and all(c[1:4] == (False, 16000, 8000) for c in log) and "334" in log[0][4] and "333" in log[4][4])
 
 
@@ -208,11 +224,20 @@ def case_allocation():
 
 
 def case_keep():
-    items = ["天地人和", " 天地人和", "　易學思想史　", "易学思想史", "abc天地", "天地 人和", "天地", "五" * 17, 5,
-             "探索未知", "山泽通气"]
+    items = ["天地人和", " 天地人和", "　易學思想史　", "易学思想史", "abc天地", "天地 人和", "天地", "天地人", "五" * 17, 5,
+             "䷀䷁䷂䷃", "探索未知", "山泽通气", "五" * 16]
     kept, drops = m.keep([items], ["探索未知"])
-    return kept == [(0, "天地人和"), (0, "易學思想史"), (0, "山泽通气")] and drops == {
-        "format": 5, "duplicate": 2, "probe_topic": 1}
+    return kept == [(0, "天地人和"), (0, "易學思想史"), (0, "山泽通气"), (0, "五" * 16)] and drops == {
+        "format": 7, "duplicate": 2, "probe_topic": 1}
+
+
+def case_saved_replies_checked():
+    _, _, ddir = run_draft(["甲", "乙", "丙"], ['["天地人和"]'] * 3)
+    hs = ["甲", "乙", "丙"]
+    return (m.saved_topics(hs, ddir, "some/model", "x") == [["天地人和"]] * 3
+            and raises(lambda: m.saved_topics(hs, ddir, "other/model", "x"))
+            and raises(lambda: m.saved_topics(hs, ddir, "some/model", "y"))
+            and raises(lambda: m.saved_topics(["甲", "乙", "丁"], ddir, "some/model", "x")))
 
 
 def case_topics_of():
@@ -240,6 +265,7 @@ def case_model_guard():
 DRAFTING = [
     ("topics_of: the first list that holds a topic, from fences or prose", case_topics_of),
     ("drafting: the first reply is saved before the retry is asked", case_reply_saved_before_retry),
+    ("drafting: saved replies are used only if the registered model and prompt made them", case_saved_replies_checked),
     ("drafting: the model in the addendum is not one under test", case_model_guard),
     ("1000 // H per heading, remainder to the first", case_allocation),
     ("one retry on unparseable, None or empty; request body as 15.3.4", case_retry),
@@ -284,10 +310,10 @@ ORDER = [
 ]
 
 # ----------------------------------------------------------------------------- 15.5.4 clue
-TEMPLATE = "一篇2010年代发表于《周易研究》的易学期刊论文，讨论{topic}。"
+TEMPLATE = "期刊论文·易学·《周易研究》·2010年代：{topic}"
 CLUE = [
     ("clue passes for a clean topic", lambda: m.clue_check(TEMPLATE, "天地人和", LST["forms"])[1] is None),
-    ("clue: a digit outside the decade token drops", lambda: m.clue_check(TEMPLATE.replace("一篇", "第1篇"), "天地人和",
+    ("clue: a digit outside the decade token drops", lambda: m.clue_check(TEMPLATE.replace("期刊论文", "期刊论文1"), "天地人和",
                                                                          LST["forms"])[1] == "digit"),
     ("clue: no venue drops", lambda: m.clue_check(TEMPLATE.replace("周易研究", "某刊"), "天地人和", [])[1]
      == "format:anchor_missing"),
@@ -493,11 +519,11 @@ def fake_repo(root, linked=False):
 
 def case_guard():
     base = tempfile.mkdtemp(dir=TMP)
-    repo, other, clone = (os.path.join(base, n) for n in ("repo", "other", "clone"))
+    repo, other, clone, clone_ssh = (os.path.join(base, n) for n in ("repo", "other", "clone", "clone-ssh"))
     here = os.path.join(repo, "research", "battery2", "pipeline")
     os.makedirs(here)
     for root, url in ((repo, "https://example.org/o/r.git"), (clone, "https://example.org/o/r/"),
-                      (other, "https://example.org/o/x")):
+                      (clone_ssh, "git@Example.org:o/R.git"), (other, "https://example.org/o/x")):
         fake_repo(root)
         with open(os.path.join(root, ".git", "config"), "w", encoding="utf-8") as f:
             f.write(f'[remote "origin"]\n\turl = {url}\n')
@@ -508,7 +534,15 @@ def case_guard():
             and m.guard_workdir(os.path.join(base, "plain"), here) is None
             and raises(lambda: m.guard_workdir(os.path.join(wt, "w"), here2))
             and raises(lambda: m.guard_workdir(os.path.join(clone, "w"), here))
+            and raises(lambda: m.guard_workdir(os.path.join(clone_ssh, "w"), here))
             and raises(lambda: m.guard_workdir(os.path.join(m.HERE, "w"))))
+
+
+def case_repo_key():
+    forms = ["https://github.com/Owner/Repo.git", "git@github.com:owner/repo.git", "ssh://git@github.com/owner/repo/",
+             "https://user:tok@GitHub.com/owner/repo"]
+    return (len({m.repo_key(f) for f in forms}) == 1
+            and m.repo_key("https://github.com/owner/other") != m.repo_key(forms[0]))
 
 
 def case_registered():
@@ -518,10 +552,15 @@ def case_registered():
         f.write("- `model`: `x/z`\n")
     later = m.registered("model") == "x/z"                      # the last line of a label counts
     unknown = raises(lambda: m.registered("prompt-sha256"))
+    section_end = os.path.join(TMP, "section-end.md")
+    open(section_end, "w", encoding="utf-8").write(
+        "## 16. Addendum\n- `model`: `a`\n\n## 17. A test\n- `model`: `b`\n- `prompt-sha256`: `c`\n")
+    m.RULE = section_end
+    ended = m.registered("model") == "a" and raises(lambda: m.registered("prompt-sha256"))
     no_section = os.path.join(TMP, "no-section.md")
     open(no_section, "w", encoding="utf-8").write("# Rule\n- `model`: `a`\n")
     m.RULE = no_section
-    return first and later and unknown and raises(lambda: m.registered("model"))
+    return first and later and unknown and ended and raises(lambda: m.registered("model"))
 
 
 def case_hash():
@@ -560,72 +599,148 @@ def case_cli_headings():
     return out.getvalue() == f"headings: {len(hs)}\n" and bad and wrong_mode
 
 
-def case_cli_pipeline():
-    """The four subcommands end to end on invented files, with the network functions replaced: every private input is
-    checked against the addendum, standard output holds counts only, an InfraError's text never reaches it."""
+CLI = {}
+
+
+def pipeline_fixture():
+    """Invented files for the four subcommands, the addendum facts that fix them, and a work directory in which
+    headings, draft and walk have run; the network functions are replaced by fakes. Built once."""
+    if CLI:
+        return CLI["fx"]
     T = tempfile.mkdtemp(dir=TMP)
 
     def write(name, text):
         path = os.path.join(T, name)
         open(path, "w", encoding="utf-8").write(text)
         return path, hashlib.sha256(text.encode()).hexdigest()
-    pages = []
-    for y in range(2010, 2013):
-        text = "\n".join(f"《周易研究》{y}年第{i}期\n易学哲学\n象数专题\n出土文献\n某某研究/甲//5" for i in range(1, 7))
-        pages.append(os.path.join(T, f"cd_{y}.json"))
-        json.dump({"status": 200, "response": {"content": text}}, open(pages[-1], "w", encoding="utf-8"))
-    hs = m.headings([json.load(open(p, encoding="utf-8"))["response"]["content"] for p in pages])
+
+    def page_files(tag, names):
+        out = []
+        for y in range(2010, 2013):
+            text = "\n".join(f"《周易研究》{y}年第{i}期\n" + "\n".join(names) + "\n某某研究/甲//5" for i in range(1, 7))
+            out.append(os.path.join(T, f"{tag}_{y}.json"))
+            json.dump({"status": 200, "response": {"content": text}}, open(out[-1], "w", encoding="utf-8"))
+        return out
+    pages, pages2 = page_files("cd", ["栏目甲", "栏目己", "栏目丙"]), page_files("two", ["栏目甲", "栏目己"])
+
+    def heads(files):
+        return m.headings([json.load(open(f, encoding="utf-8"))["response"]["content"] for f in files])
     ver = {f"{y}/{i}": {"complete": (y, i) not in NINE, "listing": [["论易学研究之方法"]], "abstracts": ["本文论五行说。"]}
            for y in range(2010, 2020) for i in range(1, 7)}
-    verdicts_p, verdicts_s = write("verdicts.json", json.dumps(ver, ensure_ascii=False))
-    added_p, added_s = write("added.txt", "")
-    template_p, template_s = write("template.txt", TEMPLATE)
-    probe_p, probe_s = write("probe.txt", "探索未知\n山川草木\n")
-    prompt_p, prompt_s = write("prompt.txt", "易学：为栏目{heading}拟{count}个题目，JSON")
-    m.RULE = addendum(norm_mode=m.norm_mode(), headings_sha256=m.list_sha(hs), probe_topics_sha256=probe_s,
-                      prompt_sha256=prompt_s, verdicts_sha256=verdicts_s, added_titles_sha256=added_s,
-                      template_sha256=template_s, model="qwen/qwen3-235b-a22b:exacto", max_usd="1")
-    rnd = random.Random(1)
+    files = {"verdicts": write("verdicts.json", json.dumps(ver, ensure_ascii=False)), "added": write("added.txt", ""),
+             "template": write("template.txt", TEMPLATE), "probe": write("probe.txt", "探索未知\n山川草木\n"),
+             "prompt": write("prompt.txt", PROMPT), "bad_template": write("bad-template.txt", "只有{topic}"),
+             "bad_prompt": write("bad-prompt.txt", "没有占位符"),
+             "verdicts2": write("verdicts2.json", json.dumps({**ver, "2011/2": {**ver["2011/2"], "complete": False}},
+                                                           ensure_ascii=False))}
+    facts = dict(norm_mode=m.norm_mode(), headings_sha256=m.list_sha(heads(pages)),
+                 probe_topics_sha256=files["probe"][1],
+                 prompt_sha256=files["prompt"][1], verdicts_sha256=files["verdicts"][1],
+                 added_titles_sha256=files["added"][1], template_sha256=files["template"][1],
+                 model="qwen/qwen3-235b-a22b:exacto", max_usd="1", rulings="none")
+    calls, rnd = [], random.Random(1)
     pool = "天地人和山泽通气雷风相薄水火不射日月星辰金木土石草花鸟兽虫鱼"
-    bk.openrouter_chat = lambda model, messages, purpose, anthropic, max_tokens=None, reasoning_tokens=None: json.dumps(
-        ["".join(rnd.choice(pool) for _ in range(5)) for _ in range(400)], ensure_ascii=False)
-    work = os.path.join(T, "work")
-    base, pg = ["--workdir", work], sum([["--page", p] for p in pages], [])
-    pr = ["--probe-topics", probe_p]
-    lst = ["--verdicts", verdicts_p, "--added-titles", added_p, "--template", template_p]
 
-    def run(args):
+    def chat(model, messages, purpose, anthropic, max_tokens=None, reasoning_tokens=None):
+        bk.LEDGER.check()                                        # as openrouter_chat does before it posts
+        calls.append(model)
+        return json.dumps(["".join(rnd.choice(pool) for _ in range(5)) for _ in range(400)], ensure_ascii=False)
+    bk.openrouter_chat, bk.ds_search = chat, fake_search(lambda q, n: OK, [])
+
+    def cmd(name, work, pg=pages, **paths):
+        f = {k: v[0] for k, v in files.items()} | paths
+        pages_ = sum([["--page", p] for p in pg], [])
+        lst = ["--verdicts", f["verdicts"], "--added-titles", f["added"], "--template", f["template"]]
+        return {"headings": ["headings", "--workdir", work, *pages_],
+                "draft": ["draft", "--workdir", work, *pages_, "--probe-topics", f["probe"], "--prompt", f["prompt"]],
+                "walk": ["walk", "--workdir", work, *pages_, "--probe-topics", f["probe"], *lst],
+                "probe": ["probe", "--workdir", work, "--probe-topics", f["probe"], *lst]}[name]
+
+    def run(args, **over):
+        m.RULE = addendum(**{**facts, **over})
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             m.main(args)
         return out.getvalue()
-    outs = [run(a) for a in (["headings", *base, *pg], ["draft", *base, *pg, *pr, "--prompt", prompt_p],
-                             ["walk", *base, *pg, *pr, *lst])]
+
+    def stops(args, **over):
+        return raises(lambda: run(args, **over), SystemExit)
+    work = os.path.join(T, "work")
+    fx = types.SimpleNamespace(T=T, files=files, facts=facts, calls=calls, cmd=cmd, run=run, stops=stops, work=work,
+                               pages2=pages2, heads2=heads(pages2), ds=bk.ds_search,
+                               outs=[run(cmd(n, work)) for n in ("headings", "draft", "walk")])
+    CLI["fx"] = fx
+    return fx
+
+
+def case_cli_pipeline():
+    """The four subcommands end to end: counts only on standard output, an InfraError's text never reaches it, the
+    label of 15.6.4, the lengths for the owner, a resume that changes nothing."""
+    fx = pipeline_fixture()
     bk.ds_search = lambda *a: (_ for _ in ()).throw(bk.InfraError("the reply repeats 探索未知"))
-    probed = run(["probe", *base, *pr, *lst])
-    again = run(["walk", *base, *pg, *pr, *lst])                    # a resume at the 24th pass changes nothing
-    lengths = json.load(open(os.path.join(work, "template-lengths.json")))
-    counts_only = all(re.fullmatch(r"[a-z_.0-9]+: [^\u3400-\u9fff]*", ln) for o in (*outs, probed, again)
+    try:
+        probed = fx.run(fx.cmd("probe", fx.work))
+    finally:
+        bk.ds_search = fx.ds
+    again = fx.run(fx.cmd("walk", fx.work))                          # a resume at the 24th pass changes nothing
+    lengths = json.load(open(os.path.join(fx.work, "template-lengths.json")))
+    counts_only = all(re.fullmatch(r"[a-z_.0-9]+: [^\u3400-\u9fff]*", ln) for o in (*fx.outs, probed, again)
                       for ln in o.splitlines())
-    m.RULE = addendum(norm_mode=m.norm_mode(), headings_sha256=m.list_sha(hs), probe_topics_sha256=probe_s,
-                      prompt_sha256=prompt_s, model="deepseek/deepseek-chat", max_usd="1")
-    under_test = raises(lambda: run(["draft", *base, *pg, *pr, "--prompt", prompt_p]), SystemExit)
-    return (outs[0] == f"headings: {len(hs)}\n" and "calls: 3" in outs[1] and "controls: 24" in outs[2]
-            and "status: pass" in outs[2] and again == outs[2] and counts_only
-            and "status: stopped: InfraError" in probed and "探索未知" not in probed
+    return (fx.outs[0] == "headings: 3\n" and "calls: 3" in fx.outs[1] and "controls: 24" in fx.outs[2]
+            and "status: pass" in fx.outs[2] and "label: listing certified for 51 of 60 issues, not blind" in fx.outs[2]
+            and again == fx.outs[2] and counts_only and "status: stopped: InfraError" in probed
+            and "探索未知" not in probed
             and lengths == {"template": len(TEMPLATE) - len("{topic}"), "clue_4": len(TEMPLATE) - 3,
-                            "clue_16": len(TEMPLATE) + 9}
-            and under_test)
+                            "clue_16": len(TEMPLATE) + 9})
+
+
+def case_cli_guards():
+    """Each input the code is given is checked against the addendum, one wrong value at a time, in a work directory
+    where the same command has just run: nothing else can be what stops it."""
+    fx = pipeline_fixture()
+    bad = "0" * 64
+    wrong = [("draft", "prompt_sha256", bad), ("draft", "probe_topics_sha256", bad), ("draft", "headings_sha256", bad),
+             ("draft", "norm_mode", "not-this-mode"), ("draft", "model", "deepseek/deepseek-chat"),
+             ("walk", "probe_topics_sha256", bad), ("walk", "verdicts_sha256", bad),
+             ("walk", "added_titles_sha256", bad), ("walk", "template_sha256", bad), ("walk", "headings_sha256", bad),
+             ("walk", "prompt_sha256", bad), ("walk", "model", "other/model"), ("walk", "rulings", "none,"),
+             ("walk", "rulings", "2011/9"), ("walk", "rulings", "2012/2"),
+             ("probe", "probe_topics_sha256", bad), ("probe", "verdicts_sha256", bad),
+             ("probe", "added_titles_sha256", bad), ("probe", "template_sha256", bad)]
+    each = [n + " " + k for n, k, v in wrong if not fx.stops(fx.cmd(n, fx.work), **{k: v})]
+    before = len(fx.calls)
+    w_budget = fx.run(fx.cmd("draft", os.path.join(fx.T, "w-budget")), max_usd="0")
+    bad_t, bad_p = fx.files["bad_template"], fx.files["bad_prompt"]
+    v2 = fx.files["verdicts2"]
+    few = fx.run(fx.cmd("draft", os.path.join(fx.T, "w-few"), pg=fx.pages2), headings_sha256=m.list_sha(fx.heads2))
+    ruled = fx.run(fx.cmd("walk", fx.work, verdicts=v2[0]), verdicts_sha256=v2[1], rulings="2011/2")
+    return (not each and "calls: 0" in w_budget and "status: budget stop" in w_budget and len(fx.calls) == before
+            and fx.stops(fx.cmd("walk", fx.work, template=bad_t[0]), template_sha256=bad_t[1])
+            and fx.stops(fx.cmd("probe", fx.work, template=bad_t[0]), template_sha256=bad_t[1])
+            and fx.stops(fx.cmd("draft", os.path.join(fx.T, "w-prompt"), prompt=bad_p[0]), prompt_sha256=bad_p[1])
+            and "fewer than 3 headings" in few and len(fx.calls) == before
+            and fx.stops(fx.cmd("walk", fx.work, verdicts=v2[0]), verdicts_sha256=v2[1])
+            and "label: listing certified for 50 of 60 issues, not blind" in ruled)
+
+
+def case_run_key():
+    path = os.path.join(TMP, "key-state.json")
+    m.run([1, 2], lambda item, st: "pass", path, 500, "k1")
+    return raises(lambda: m.run([3, 4], lambda item, st: "pass", path, 500, "k2"))
 
 
 GUARDS = [
-    ("workdir guard: this repository refused, others and plain folders fine", case_guard),
+    ("workdir guard: this repository refused, others and plain folders fine, a clone by any url form", case_guard),
+    ("remote urls: the ssh and https forms of one repository agree", case_repo_key),
     ("addendum: the last line of a label in section 16, nothing before it, nothing without it", case_registered),
     ("hash guard: the sha256 in the addendum reads, another stops", case_hash),
     ("norm-mode guard: the mode in the addendum passes, another stops", case_norm_mode),
     ("command line: counts only on stdout; heading-list hash and norm mode checked", case_cli_headings),
-    ("command line: the four subcommands end to end; counts only; no InfraError text; a model under test stops",
+    ("command line: the four subcommands end to end; counts only; no InfraError text; the label and the lengths",
      case_cli_pipeline),
+    ("command line: every input is checked against the addendum, the model, the budget, the template, the prompt, "
+     "the flagged set and the saved replies", case_cli_guards),
+    ("walk and probe: a saved state belongs to its own list of items", case_run_key),
 ]
 
 
@@ -740,7 +855,8 @@ def reread_checks(load):
         """verdicts.json in a results folder, and an addendum that fixes its sha256."""
         path = os.path.join(results_root, "verdicts.json")
         m.bk.write_json(path, verdicts)
-        m.control_topics.RULE = addendum(verdicts_sha256=m.control_topics.file_sha(path))
+        m.control_topics.RULE = addendum(verdicts_sha256=m.control_topics.file_sha(path),
+                                         norm_mode=m.control_topics.norm_mode())
 
     def judged(y, n, fixes=m.FIXES, copy=c):
         return m.read_issue(copy, y, n, CASS[y], fixes)
@@ -860,6 +976,25 @@ def reread_checks(load):
                                                           + [f"--cass={y}={u}" for y, u in CASS.items()]))
                     and not os.path.exists(work))
 
+    def parts_and_floor():
+        lines = ["易学考古新证..........张三丰  5", "易学考古新证／张三丰", "易学考古新证——张三丰", "易学考古新证 / 张三丰 (5)"]
+        entry = [["易学考古新证"]]
+        notice = m.held_and_left("目录", [["目录"]])[0] == [["目录"]]               # a whole line is compared as it is
+        return (all(m.held_and_left(ln, entry)[0] == entry for ln in lines) and notice
+                and m.held_and_left("周易研究 2016年第6期 目录", [["目录"]])[0] == [])   # a part under 6 characters is not
+
+    def other_year_header():
+        return raises(m.ShapeMismatch, lambda: m.file_blocks(page_2012().replace(head(2012, 3), head(2013, 3)), 2012))
+
+    def refuses_other_norm_mode():
+        res8, work = os.path.join(root, "res8"), os.path.join(root, "work8")
+        os.makedirs(res8)
+        register(res8, {})
+        m.control_topics.RULE = addendum(verdicts_sha256=m.control_topics.file_sha(os.path.join(res8, "verdicts.json")),
+                                         norm_mode="opencc 0.0")
+        with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+            return raises(SystemExit, lambda: m.main(["third", res8, "--workdir", work])) and not os.path.exists(work)
+
     def napstic_notice_exact():
         return (m.napstic_notice("信息动态") and m.napstic_notice(" 信息 动态 ")
                 and not m.napstic_notice("近年易学研究综述") and not m.napstic_notice("论信息动态的易学模型"))
@@ -868,7 +1003,8 @@ def reread_checks(load):
     LIST = {(2016, 6): [["易学考古新证"], ["周易古经成书年代", "某栏周易古经成书年代"], ["汉代易学人物与思想考"], ["象数易学新论"]],
             (2017, 5): [["辛氏易学方法论"]], (2018, 1): [["壬氏象学研究"]]}
     PAGE = ("周易研究 2016年第6期 目录\n易学考古新证 / 甲 (5)\n周易古经成书年代/乙//18\n汉代易学人物与思想考……某乙 32\n"
-            "汉代易学人物考\n一篇只在此页的论文题目\n象数易学新说\n三个字\n四个汉字\n短行\n" + "长" * 41 + "\nLatin only line here\n")
+            "汉代易学人物考\n一篇只在此页的论文题目\n象数易学新说\n三个字\n四个汉字\n短行\n" + "宽" * 40 + "\n" + "长" * 41
+            + "\nLatin only line here\n")
 
     def fake(n_results=7, pages=None):
         calls = {"search": [], "fetch": []}
@@ -907,7 +1043,7 @@ def reread_checks(load):
         p = out["2016/6"]["pages"][0]
         return (p["held_count"] == 3 and p["held"] == LIST[(2016, 6)][:3] and p["opened"]
                 and p["leftover"] == ["周易研究 2016年第6期 目录", "汉代易学人物考", "一篇只在此页的论文题目", "象数易学新说",
-                                      "四个汉字"])
+                                      "四个汉字", "宽" * 40])
 
     def third_none_found():
         _, out, _ = third_run()
@@ -983,6 +1119,10 @@ def reread_checks(load):
          refuses_workdir_in_repository),
         ("a verdicts.json that the addendum does not hold is refused by both commands", refuses_unregistered_verdicts),
         ("fault 3: only the news column is exempt, as the whole title", napstic_notice_exact),
+        ("third source: a title beside an author or a page is held; a part under 6 characters is not read",
+         parts_and_floor),
+        ("fault 1: a header of another year stops the fix", other_year_header),
+        ("a norm mode that the addendum does not hold is refused", refuses_other_norm_mode),
         ("each command refuses issues outside 15.2.7a or 15.2.7b", refuses_other_issues),
         ("a replay that differs from verdicts.json is reported; titles verdicts.json lacks are listed", replay_differs),
         ("third source: 6 searches, 30 fetches, the two queries in order, 5 results asked", third_counts),

@@ -12,7 +12,7 @@ What it needs to know in advance (the sha256 of each private file and of the hea
 and the budget) it reads from the addendum, section 16 of CONTROLS-RULE.md, as lines "- `label`: `value`" (the last
 line of a label counts), and it stops unless what it is given is what the addendum holds (15.7.1, 15.7.5). Labels:
 template-sha256, prompt-sha256, probe-topics-sha256, verdicts-sha256, added-titles-sha256, headings-sha256,
-norm-mode, model, max-usd.
+norm-mode, model, max-usd, rulings ("none", or issues as "2011/2,2013/4").
 """
 import argparse
 import hashlib
@@ -36,7 +36,7 @@ SEED = "b2-controls-optionb-2026-11-23"
 N_CANDIDATES, N_CONTROLS, MAX_HEADINGS, MIN_HEADINGS, MIN_ISSUES, MAX_HEADING_LEN = 1000, 24, 20, 3, 3, 12
 MAX_SEARCHES, PROBE_MAX, EMPTY_WINDOW, FLOOR = 500, 20, 20, 6
 SLOT = "{topic}"
-TOPIC = re.compile("[㐀-鿿豈-﫿]{4,16}")
+TOPIC = re.compile("[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]{4,16}")    # not the hexagram symbols (4DC0-4DFF)
 ZYJY_URL = re.compile(r"(?i)CJFDTotal-ZYJY(20\d\d)")
 # 15.5.4: a control has no record, so clue_format_check gets a synthetic one (venue branch).
 SYNTH_ST = {"key": {"venue": controls.JOURNAL, "year": DECADE, "author": ""}, "stratum": {"language": "zh"}}
@@ -79,11 +79,18 @@ def git_common(path):
         p = os.path.dirname(p)
 
 
+def repo_key(url):
+    """A remote url without scheme, user, case and trailing .git: the ssh and https forms of one repository agree."""
+    u = re.sub(r"^[a-z][a-z0-9+.-]*://", "", url.strip().lower())
+    u = re.sub(r"^[^/@]*@", "", u)
+    return u.replace(":", "/", 1).rstrip("/").removesuffix(".git").rstrip("/")
+
+
 def remote_urls(common):
-    """The urls in a git directory's config: another clone of this repository has the same one."""
+    """The urls in a git directory's config as repo_key reads them: another clone of this repository has the same."""
     try:
         with open(os.path.join(common, "config"), encoding="utf-8") as f:
-            return {u.rstrip("/").removesuffix(".git") for u in re.findall(r"^\s*url\s*=\s*(\S+)", f.read(), re.M)}
+            return {repo_key(u) for u in re.findall(r"^\s*url\s*=\s*(\S+)", f.read(), re.M)}
     except OSError:
         return set()
 
@@ -110,7 +117,9 @@ def registered(label):
         text = f.read()
     head = re.search(r"^## 16\.", text, re.M)
     need(head, "the rule file has no section 16, the addendum")
-    values = re.findall(rf"^- `{re.escape(label)}`: `([^`\n]+)`[ \t]*$", text[head.start():], re.M)
+    after = re.search(r"^## ", text[head.end():], re.M)       # section 16 ends at the next section
+    section = text[head.start():head.end() + after.start()] if after else text[head.start():]
+    values = re.findall(rf"^- `{re.escape(label)}`: `([^`\n]+)`[ \t]*$", section, re.M)
     need(values, f"the addendum fixes no {label}")
     return values[-1]
 
@@ -175,9 +184,11 @@ def _year(y):
 
 
 def read_fields(answer):
-    """15.2.4: (year, issue, conflict), each string read as a number, or None when it has no form 15.2.4 names.
-    conflict: the two fields hold compound strings that name different issues; neither is read."""
-    out, both = {}, set()
+    """15.2.4: the readings of the answer's year and issue, each string read as a number, or None when it has no form
+    15.2.4 names. Normally one (year, issue); two when the fields hold compound strings that name different issues
+    (the text says a compound takes precedence over the other field, which cannot hold for two), the year field's
+    first."""
+    out, both = {}, []
     for k, form, conv in (("year", YEAR_FORM, _year), ("issue", ISSUE_FORM, _issue)):
         v = answer.get(k)
         if not isinstance(v, str):
@@ -186,29 +197,44 @@ def read_fields(answer):
         s = re.sub(r"\s+", "", unicodedata.normalize("NFKC", v))
         m = BOTH_FORM.fullmatch(s)
         if m:
-            both.add((_year(m.group(1)), _issue(m.group(2))))
+            reading = (_year(m.group(1)), _issue(m.group(2)))
+            both += [reading] * (reading not in both)
             out[k] = None
             continue
         m = form.fullmatch(s)
         out[k] = conv(m.group(1)) if m else None
-    if len(both) == 1:
-        return (*next(iter(both)), False)
-    return out["year"], out["issue"], len(both) > 1
+    return both or [(out["year"], out["issue"])]
 
 
-def flagged_set(verdicts, rulings=()):
-    """15.2.6: the issues verdicts.json holds as not complete, plus the owner's rulings under 15.1.5."""
-    got = {tuple(map(int, k.split("/"))) for k, v in verdicts.items() if not v.get("complete")} | set(rulings)
-    need(got == NINE | set(rulings), "the flagged set is not the nine of 15.2.6 plus the rulings given")
+def registered_rulings():
+    """15.2.6: the issues the owner ruled not complete under 15.1.5, as the addendum names them."""
+    value = registered("rulings").strip().lower()
+    if value == "none":
+        return set()
+    need(re.fullmatch(r"\d{4}/\d(,\d{4}/\d)*", value),
+         "the addendum's rulings are not 'none' or issues like 2011/2,2013/4")
+    ruled = {tuple(map(int, x.split("/"))) for x in value.split(",")}
+    need(all(DECADE <= y < DECADE + 10 and i in controls.ISSUES for y, i in ruled) and not ruled & NINE,
+         "a ruling is not an issue of the decade that is outside the nine")
+    return ruled
+
+
+def flagged_set(verdicts, rulings=None):
+    """15.2.6: the issues verdicts.json holds as not complete, plus the rulings (the addendum's, if not given); the
+    code stops unless that is the nine plus the rulings."""
+    rulings = registered_rulings() if rulings is None else set(rulings)
+    got = {tuple(map(int, k.split("/"))) for k, v in verdicts.items() if not v.get("complete")} | rulings
+    need(got == NINE | rulings, "the flagged set is not the nine of 15.2.6 plus the rulings")
     return got
 
 
-def score_control_b(answer, decade_listing, decade, flagged, rulings=()):
-    need(set(flagged) == NINE | set(rulings), "the flagged set is not the nine of 15.2.6 plus the rulings given")
-    year, issue, conflict = read_fields(answer)
+def certified_label(flagged):
+    """15.6.4: the label every statement about the controls carries."""
+    return f"listing certified for {60 - len(flagged)} of 60 issues, not blind"
+
+
+def score_reading(answer, year, issue, decade_listing, decade, flagged):
     v = controls.score_control({**answer, "year": year, "issue": issue}, decade_listing, decade)
-    if conflict and v == "score_as_real_item" and bk.norm(answer.get("venue")) == bk.norm(controls.JOURNAL):
-        return "unresolved"       # two issues of the journal named: no listing scores it, and it must not escape 15.2
     if v != "invented" or (issue is not None and issue not in controls.ISSUES):
         return v
     if issue is not None and (year, issue) in flagged:
@@ -216,6 +242,14 @@ def score_control_b(answer, decade_listing, decade, flagged, rulings=()):
     if issue is None and year in {y for y, _ in flagged}:
         return "unresolved"                                                       # 15.2.3
     return v
+
+
+def score_control_b(answer, decade_listing, decade, flagged, rulings=()):
+    """The verdict under each reading of the answer's year and issue; unresolved when two readings differ, since then
+    the listing cannot say which issue the answer names."""
+    need(set(flagged) == NINE | set(rulings), "the flagged set is not the nine of 15.2.6 plus the rulings given")
+    verdicts = {score_reading(answer, y, i, decade_listing, decade, flagged) for y, i in read_fields(answer)}
+    return verdicts.pop() if len(verdicts) == 1 else "unresolved"
 
 
 # ----------------------------------------------------------------------------- headings (15.3.1)
@@ -303,8 +337,7 @@ def draft(hs, prompt, prompt_sha, model, ddir):
         path = os.path.join(ddir, f"{i:02d}.json")
         rec = bk.read_json(path) or {"heading": h, "count": n, "model": model, "prompt_sha256": prompt_sha,
                                      "replies": []}
-        need((rec["heading"], rec["count"], rec["model"], rec["prompt_sha256"]) == (h, n, model, prompt_sha),
-             f"saved reply {i:02d} was asked for another heading, count, model or prompt")
+        check_saved(rec, i, h, n, model, prompt_sha)
         while len(rec["replies"]) < 2 and (not rec["replies"] or topics_of(rec["replies"][-1]) is None):
             rec["replies"].append(bk.openrouter_chat(
                 model, [{"role": "user", "content": fill_prompt(prompt, h, n)}], f"controls: draft {i:02d}",
@@ -314,11 +347,18 @@ def draft(hs, prompt, prompt_sha, model, ddir):
     return calls
 
 
-def saved_topics(hs, ddir):
+def check_saved(rec, i, h, n, model, prompt_sha):
+    need((rec["heading"], rec["count"], rec["model"], rec["prompt_sha256"]) == (h, n, model, prompt_sha),
+         f"saved reply {i:02d} was asked for another heading, count, model or prompt")
+
+
+def saved_topics(hs, ddir, model, prompt_sha):
+    """The topics of the saved replies, which must be those the addendum's model and prompt gave (15.3.4)."""
     out = []
-    for i, h in enumerate(hs):
+    for i, (h, n) in enumerate(zip(hs, allocation(len(hs)))):
         rec = bk.read_json(os.path.join(ddir, f"{i:02d}.json"))
-        need(rec is not None and rec["heading"] == h, f"heading {i:02d} has not been drafted")
+        need(rec is not None, f"heading {i:02d} has not been drafted")
+        check_saved(rec, i, h, n, model, prompt_sha)
         ok = topics_of(rec["replies"][-1]) if rec["replies"] else None
         need(ok is not None or len(rec["replies"]) == 2, f"heading {i:02d} has not been drafted")
         out.append(ok or [])
@@ -563,11 +603,12 @@ def main(argv=None):
                 status = "infrastructure error: resume asks the headings not yet answered"
             if status != "drafted":
                 return report(headings=len(hs), calls=calls, status=status, spent_usd=round(bk.LEDGER.spent, 4))
-            kept, drops = keep(saved_topics(hs, ddir), probe_topics)
+            kept, drops = keep(saved_topics(hs, ddir, model, file_sha(a.prompt)), probe_topics)
             return report(headings=len(hs), calls=calls, kept=len(kept), dropped=drops,
                           spent_usd=round(bk.LEDGER.spent, 4))
-        lst = listing_of(json.loads(read_private(a.verdicts, "verdicts-sha256")),
-                         lines_of(read_private(a.added_titles, "added-titles-sha256")))
+        verdicts = json.loads(read_private(a.verdicts, "verdicts-sha256"))
+        flagged = flagged_set(verdicts)
+        lst = listing_of(verdicts, lines_of(read_private(a.added_titles, "added-titles-sha256")))
         template = read_private(a.template, "template-sha256")
         check_template(template)
         bk.write_json(os.path.join(bk.W, "template-lengths.json"), {       # 15.5.3: private, for the owner
@@ -583,7 +624,8 @@ def main(argv=None):
             return report(topics=len(probe_topics), searched=st["next"], network_searches=st["net"],
                           would_drop=sum(st["drops"].values()), dropped=st["drops"], zyjy_unlisted=st["zyjy_unlisted"],
                           status=status)
-        kept, kdrops = keep(saved_topics(hs, ddir), probe_topics)
+        kept, kdrops = keep(saved_topics(hs, ddir, registered_model(), registered("prompt-sha256").lower()),
+                            probe_topics)
         surv, sdrops = survivors(kept, lst)
         path = os.path.join(bk.W, "walk.json")
         try:
@@ -596,7 +638,7 @@ def main(argv=None):
             st, status = bk.read_json(path), "infrastructure error: resume starts at the same candidate"
         return report(kept=len(kept), dropped=kdrops, survivors=len(surv), checks=sdrops, walked=st["next"],
                       walk_drops=st["drops"], zyjy_unlisted=st["zyjy_unlisted"], network_searches=st["net"],
-                      controls=len(st["passes"]), status=status)
+                      controls=len(st["passes"]), status=status, label=certified_label(flagged))
     except Stop as e:
         sys.exit(f"stopped: {e}")
 

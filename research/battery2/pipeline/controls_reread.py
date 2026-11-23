@@ -37,7 +37,7 @@ QUERIES = ("周易研究 {y}年第{n}期 目录", "Zhouyi Yanjiu {y} No.{n}")
 TOP, MAX_SEARCHES, MAX_FETCHES = 5, 6, 30
 LEFTOVER_CJK = (4, 40)
 ROUTE = "controls: third source"
-PART = re.compile(r"[\s/|·•…、，,;；:：()（）\[\]【】<>《》\d]+")
+PART = re.compile(r"[\s/／|｜·•.．…、，,;；:：()（）\[\]【】<>《》\d—–~～-]+")
 NOT_BLIND = ("not blind (15.2.7a): these pages were read before this reader was written, after the result; the fault 3 "
              "exemption is a rule written after the result")
 SHORTENED = "a page that DeepSeek's fetch shortened can understate what its source holds (RERUN-PROTOCOL section 4)"
@@ -199,9 +199,10 @@ def page_lines(text):
 
 
 def page_forms(ln):
-    """The line, and its parts: a contents page puts an author or a page number beside the title, and a whole line
-    with them fits no title at SIM_MATCH."""
-    return [ln] + [p for p in PART.split(ln) if p and p != ln]
+    """The line, and its parts of at least FLOOR characters: a contents page puts an author or a page number beside
+    the title, and a whole line with them fits no title at SIM_MATCH. A shorter part (目录) would match any notice
+    in the listing, the reason 15.4.4 gives for its floor; a whole line is compared as it is."""
+    return [ln] + [p for p in PART.split(ln) if p != ln and len(bk.norm(p)) >= control_topics.FLOOR]
 
 
 def held_and_left(text, listing):
@@ -269,6 +270,7 @@ def main(argv=None):
     work = os.path.abspath(a.workdir)
     try:
         control_topics.guard_workdir(work)
+        control_topics.check_norm_mode()
         control_topics.check_private(os.path.join(a.results, "verdicts.json"), "verdicts-sha256")
     except control_topics.Stop as e:
         raise SystemExit(f"stopped: {e}")
