@@ -1,5 +1,5 @@
 """Battery 2 negative controls: decide in code whether an issue of 周易研究 is completely listed, by the rule
-of pipeline/CONTROLS-RULE.md (PREREG deviation 6). Fetches only; no model call.
+of pipeline/CONTROLS-RULE.md (PREREG deviations 6 and 7). Fetches only; no model call.
 
 Usage: python3 -I controls.py --workdir DIR --year Y --cass URL [--year Y --cass URL ...]
 Writes DIR/verdicts.json (per issue: verdict, failures, the listing and CNKI abstracts) and DIR/snapshots/.
@@ -22,13 +22,15 @@ CNKI_MARGIN, CNKI_TAIL, CNKI_CAP = 5, 4, 60
 GAP_RETRIES, GAP_WAIT_S = 3, 30
 NAPSTIC_PAGES = 5
 PAGE_TRIES, PAGE_WAIT_S = 3, 600         # the CASS page, per fetcher
-MAX_FETCHES = 600
+MAX_FETCHES = 1500
 INFRA_FAILS = {"cass_page_not_opened", "cass_no_usable_copy_unopened", "cnki_gap_unopened", "fetch_budget_spent"}
 _fetches = 0
 # Not research articles: such an entry may be missing from one custodian without breaking agreement.
 # It stays in the listing that answers and topics are checked against.
 NONRESEARCH = re.compile("书讯|简介|新书架|选题|征订|稿约|目录|启事|悼念|纪念|讣告|综述|会议|论坛|研讨会|致辞|"
                          "开幕|闭幕|贺信|题词|合影|编者|编后|获奖|名单|更正|勘误")
+# Narrow on purpose: 序 also sits inside research titles (卦序, 序卦), and a marker word would exempt those.
+FOREWORD = re.compile(r"^序\s*[《〈]")
 ISSUE_HEAD = re.compile(rf"《{JOURNAL}》\s*(\d{{4}})\s*年\s*第\s*0?(\d)\s*期")
 START_PAGE = re.compile(r"(?://|[（(])\s*(\d{1,3})\s*[)）]?\s*$")
 ENGLISH_PART = re.compile(r"TABLE OF CONTENTS|STUDIES OF ZHOUYI\s*/", re.I)
@@ -177,7 +179,8 @@ def cnki_page(year, issue, seq, force=False):
         return "untitled", None
     e = {"forms": [title], "seq": seq, "url": url}
     ab = re.search(r"【摘要】[:：]?\s*(.*)", text)
-    e["abstract"] = ab.group(1).strip() if ab else ""
+    # With no abstract the pattern runs on to the next heading (【引证文献】), which is not an abstract.
+    e["abstract"] = "" if not ab or ab.group(1).startswith("【") else ab.group(1).strip()
     # CNKI marks a body excerpt standing in for a missing abstract with <正>: news, book notices, plates.
     e["notice"] = not e["abstract"] or e["abstract"].startswith("<正>")
     k = text.find("相似文献")          # CNKI's own catalogue line: the one under 相似文献 whose title is this title
@@ -237,10 +240,19 @@ def napstic_titles(year, issue):
 
 
 # ----------------------------------------------------------------------------- the verdict
+def foreword(e):
+    return any(FOREWORD.search(f) for f in e["forms"])
+
+
+def waived(e):
+    """Exempt by CONTROLS-RULE.md section 8: a foreword, or a CNKI page with an empty abstract."""
+    return foreword(e) or e.get("abstract") == ""
+
+
 def research(e):
-    """A notice: an entry with no author on the CASS page, a CNKI page whose abstract is CNKI's <正> excerpt, or a
-    marker title."""
-    return not e.get("notice") and not NONRESEARCH.search(e["forms"][0])
+    """A notice: an entry with no author on the CASS page, a CNKI page whose abstract is empty or CNKI's <正>
+    excerpt, a marker title, or a foreword (CONTROLS-RULE.md section 8)."""
+    return not e.get("notice") and not NONRESEARCH.search(e["forms"][0]) and not foreword(e)
 
 
 def unmatched(a, b):
@@ -288,10 +300,15 @@ def issue_verdict(year, issue, copies, cnki, gaps, capped, nap, nap_health):
     miss = [t for t in nap if best([t], listing) < SIM_MATCH]
     if miss:
         fails["napstic_not_in_listing"] = miss
+    # The longest form: forms[0] of a title the CASS page wraps is only its second line; the joined reading is last.
+    waived_alone = [[side, max(e["forms"], key=len)]
+                    for side, a, b in (("cass", cass, cnki), ("cnki", cnki, cass)) for e in a
+                    if waived(e) and best(e["forms"], b) < SIM_MATCH]
     return {"complete": not fails, "fails": fails, "infra_only": bool(fails) and set(fails) <= INFRA_FAILS,
             "napstic_health": nap_health, "set_aside": notes.get("cass_copy_set_aside", []),
             "counts": {**{n: len(c or []) for n, c in copies.items()}, "cass": len(cass), "cnki": len(cnki),
-                       "napstic": len(nap)},
+                       "napstic": len(nap), "waived_unmatched": len(waived_alone)},
+            "waived_unmatched": waived_alone,
             "listing": [e["forms"] for e in listing], "abstracts": [e["abstract"] for e in cnki if not e["notice"]]}
 
 
