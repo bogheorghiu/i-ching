@@ -12,7 +12,7 @@ What it needs to know in advance (the sha256 of each private file and of the hea
 and the budget) it reads from the addendum, section 16 of CONTROLS-RULE.md, as lines "- `label`: `value`" (the last
 line of a label counts), and it stops unless what it is given is what the addendum holds (15.7.1, 15.7.5). Labels:
 template-sha256, prompt-sha256, probe-topics-sha256, verdicts-sha256, added-titles-sha256, headings-sha256,
-norm-mode, model, max-usd, rulings ("none", or issues as "2011/2,2013/4").
+norm-mode, model, max-usd, rulings ("none", or issues as "2011/2,2013/4"), and max-searches for a walk cap above 500.
 """
 import argparse
 import hashlib
@@ -20,6 +20,7 @@ import json
 import os
 import random
 import re
+import subprocess
 import sys
 import unicodedata
 
@@ -95,12 +96,22 @@ def remote_urls(common):
         return set()
 
 
+def history(common):
+    """The commits of every ref in a git directory. A clone whose remote is written another way (a local path, a
+    proxy url) is still this repository, and so is a public copy of it: each shares commits with this history."""
+    r = subprocess.run(["git", "--git-dir", common, "rev-list", "--all"], capture_output=True, text=True)
+    need(r.returncode == 0, "the history of a git work tree could not be read, so --workdir cannot be checked")
+    return set(r.stdout.split())
+
+
 def guard_workdir(workdir, here=HERE):
     mine, w = git_common(here), os.path.realpath(workdir)
     if mine is not None:
         theirs = git_common(w)
         need(theirs != mine and not (theirs and remote_urls(theirs) & remote_urls(mine)),
              "--workdir lies inside a work tree of this repository")
+        need(not (theirs and history(theirs) & history(mine)),
+             "--workdir lies inside a work tree that shares commits with this repository")
     else:   # an export without .git: the repository root is three levels up (research/battery2/pipeline)
         root = os.path.realpath(os.path.join(here, "..", "..", ".."))
         need(os.path.commonpath([root, w]) != root, "--workdir lies inside this repository's folder")
@@ -244,10 +255,11 @@ def score_reading(answer, year, issue, decade_listing, decade, flagged):
     return v
 
 
-def score_control_b(answer, decade_listing, decade, flagged, rulings=()):
+def score_control_b(answer, decade_listing, decade, flagged):
     """The verdict under each reading of the answer's year and issue; unresolved when two readings differ, since then
     the listing cannot say which issue the answer names."""
-    need(set(flagged) == NINE | set(rulings), "the flagged set is not the nine of 15.2.6 plus the rulings given")
+    need(set(flagged) == NINE | registered_rulings(),
+         "the flagged set is not the nine of 15.2.6 plus the addendum's rulings")
     verdicts = {score_reading(answer, y, i, decade_listing, decade, flagged) for y, i in read_fields(answer)}
     return verdicts.pop() if len(verdicts) == 1 else "unresolved"
 
@@ -430,11 +442,13 @@ def order(surv, n_headings):
 
 
 def check_template(template):
-    """The longest clue a candidate can make must pass 15.5.4's format check: 15.5.4 says it can drop none, and the
-    probe does not run it, so a template that fails it would show only in the walk, after the freeze."""
+    """The longest clue a candidate can make must pass 15.5.4's format and digit checks: 15.5.4 says they can drop
+    none, and the probe does not run them, so a template that fails one would show only in the walk, after the
+    freeze."""
     need(template.count(SLOT) == 1, f"the template must hold {SLOT} exactly once")
     bad = bk.clue_format_check(fill(template, "一" * 16), SYNTH_ST, SYNTH_PAYLOAD)
     need(not bad, f"a clue for a 16-character topic fails the format check: {bad}")
+    need(not stray_digit(fill(template, "一" * 16)), "the template holds a digit outside the decade token")
 
 
 def fill(template, cand):
@@ -447,13 +461,18 @@ def slot_text(template, clue):
     return clue[len(pre):len(clue) - len(post)]
 
 
+def stray_digit(clue):
+    """15.5.4: a digit outside the decade token."""
+    return bool(re.search(r"\d", unicodedata.normalize("NFKC", clue).replace(TOKEN, "", 1)))
+
+
 def clue_check(template, cand, forms):
     """15.5.4 on the clue as built: (clue, None) or (clue, reason)."""
     clue = fill(template, cand)
     bad = bk.clue_format_check(clue, SYNTH_ST, SYNTH_PAYLOAD)
     if bad:
         return clue, "format:" + bad
-    if re.search(r"\d", unicodedata.normalize("NFKC", clue).replace(TOKEN, "", 1)):
+    if stray_digit(clue):
         return clue, "digit"
     if title_hit(slot_text(template, clue), forms):
         return clue, "final_title"
@@ -528,7 +547,8 @@ def walk(items, template, lst, path, cap=MAX_SEARCHES):
     def step(item, st):
         clue, bad = clue_check(template, item[1], lst["forms"])
         return bad or ident(clue, lst, st)
-    return run(items, step, path, cap, hashlib.sha256(json.dumps(items).encode()).hexdigest(), stop_at=N_CONTROLS)
+    key = hashlib.sha256(json.dumps([items, template, lst], ensure_ascii=False).encode()).hexdigest()
+    return run(items, step, path, cap, key, stop_at=N_CONTROLS)
 
 
 def probe(topics, template, lst, path):
@@ -628,6 +648,8 @@ def main(argv=None):
                             probe_topics)
         surv, sdrops = survivors(kept, lst)
         path = os.path.join(bk.W, "walk.json")
+        if a.max_searches > MAX_SEARCHES:       # 15.6.3: the owner's go on a higher cap is recorded in the addendum
+            need(registered("max-searches") == str(a.max_searches), "--max-searches is not the addendum's max-searches")
         try:
             st = walk(order(surv, len(hs)), template, lst, path, a.max_searches)
             status = "pass" if len(st["passes"]) >= N_CONTROLS else "null: survivors exhausted (15.6.2)"

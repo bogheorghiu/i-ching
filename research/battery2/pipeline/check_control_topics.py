@@ -12,6 +12,7 @@ import os
 import random
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -58,9 +59,12 @@ LISTING = [["易道广大悉备论"], ["某某卦变说之研究"]]
 FAKE = "完全无关的虚构文章题目"
 
 
-def score(title=FAKE, year=2015, issue=None, venue="周易研究", flagged=NINE, rulings=()):
-    return m.score_control_b({"title": title, "venue": venue, "year": year, "issue": issue}, LISTING, 2010,
-                             flagged, rulings)
+RULINGS = {}
+
+
+def score(title=FAKE, year=2015, issue=None, venue="周易研究", flagged=NINE, rulings="none"):
+    m.RULE = RULINGS.get(rulings) or RULINGS.setdefault(rulings, addendum(rulings=rulings))
+    return m.score_control_b({"title": title, "venue": venue, "year": year, "issue": issue}, LISTING, 2010, flagged)
 
 
 V_NINE = {**{f"{y}/{i}": {"complete": True} for y in range(2010, 2020) for i in range(1, 7)},
@@ -87,8 +91,10 @@ SCORING = [
     ("ambiguous stays in a flagged issue", lambda: score(title="易道广大悉备论之新解", issue=6) == "ambiguous"),
     ("abstain stays", lambda: score(title="", issue=6) == "abstain"),
     ("another venue is scored as a real item", lambda: score(venue="哲学研究", issue=6) == "score_as_real_item"),
-    ("a ruling adds an issue", lambda: score(year=2011, issue=2, flagged=NINE | {(2011, 2)}, rulings=[(2011, 2)])
+    ("a ruling adds an issue", lambda: score(year=2011, issue=2, flagged=NINE | {(2011, 2)}, rulings="2011/2")
      == "unresolved"),
+    ("the flagged set given must be the nine plus the addendum's rulings", lambda: raises(
+        lambda: score(year=2011, issue=2, flagged=NINE, rulings="2011/2"))),
     # 15.2.4
     ("issue string 第6期 is read", lambda: score(year="2015", issue="第6期") == "unresolved"),
     ("year string 2015年 is read", lambda: score(year="2015年", issue=6) == "unresolved"),
@@ -103,6 +109,12 @@ SCORING = [
     ("compound in the year field", lambda: score(year="2015年第6期") == "unresolved"),
     ("a string only containing a compound is not read", lambda: score(year="约2015年第6期") == "score_as_real_item"),
     ("compound in the issue field", lambda: score(year=None, issue="2015年第3期") == "invented"),
+    ("a compound without 第 is read", lambda: score(year=None, issue="2015年3期") == "invented"
+     and m.read_fields({"issue": "2015年3期"}) == [(2015, 3)]),
+    ("Arabic digits of any number are read: 第13期 is issue 13, impossible",
+     lambda: score(issue="第13期") == "invented" and m.read_fields({"issue": "第13期"}) == [(None, 13)]),
+    ("a Chinese numeral above 12 is not read: 十三期 is not given",
+     lambda: score(issue="十三期") == "unresolved" and m.read_fields({"issue": "十三期"}) == [(None, None)]),
     ("compound takes precedence over the other field", lambda: score(year=2016, issue="2013年第1期") == "invented"),
     ("two compounds naming different issues: the verdict under each reading, unresolved only if they differ",
      lambda: score(year="2013年第3期", issue="2013年第4期") == "invented"
@@ -171,8 +183,17 @@ def case_heading_length():
     return m.headings([page(2010, {i: [twelve, thirteen] for i in range(1, 4)})]) == [twelve]
 
 
+def case_page_not_ok():
+    p = os.path.join(tempfile.mkdtemp(dir=TMP), "cd_x.json")
+    json.dump({"status": 500, "response": {"content": PAGE_A}}, open(p, "w", encoding="utf-8"))
+    refused = raises(lambda: m.page_texts([p]))
+    json.dump({"status": 200, "response": {"content": PAGE_A}}, open(p, "w", encoding="utf-8"))
+    return refused and m.page_texts([p]) == [PAGE_A]
+
+
 HEADINGS = [
     ("headings: 12 characters in, 13 out", case_heading_length),
+    ("headings: a saved page that did not open is refused", case_page_not_ok),
     ("headings: recurrence, exclusions, English part, copies counted once, order", case_headings),
     ("headings: editor credit, disclaimer and 其他 excluded", lambda: not {"编辑某某", "免责声明", "其他"}
      & set(m.headings([PAGE_A, PAGE_B]))),
@@ -262,7 +283,33 @@ def case_model_guard():
         m.UNDER_TEST.search(n) for n in ("moonshotai/kimi-k2", "z-ai/glm-4.6", "xiaomi/mimo-v2", "DeepSeek/x"))
 
 
+def case_each_model_under_test():
+    refused = []
+    for name in ("acme/deepseek-x", "acme/kimi-x", "acme/moonshot-x", "acme/glm-x", "acme/zhipu-x", "z-ai/x",
+                 "acme/mimo-x", "Xiaomi/x"):
+        m.RULE = addendum(model=name)
+        refused.append(raises(m.registered_model))
+    return all(refused)
+
+
+def case_not_drafted():
+    ddir = tempfile.mkdtemp(dir=TMP)
+    missing = raises(lambda: m.saved_topics(["甲"], ddir, "some/model", "x"))
+    bk.write_json(os.path.join(ddir, "00.json"), {"heading": "甲", "count": 1000, "model": "some/model",
+                                                  "prompt_sha256": "x", "replies": ["not json"]})
+    return missing and raises(lambda: m.saved_topics(["甲"], ddir, "some/model", "x"))
+
+
+def case_keep_variants():
+    kept, drops = m.keep([["易学研究方法", "象數思想研究", "\uf90a木水火", "金木水火"]], ["易學研究方法", "象数思想研究"])
+    return kept == [(0, "金木水火")] and drops == {"format": 0, "duplicate": 1, "probe_topic": 2}
+
+
 DRAFTING = [
+    ("drafting: each family name under test in the addendum's model stops the run", case_each_model_under_test),
+    ("drafting: a heading with no reply, or one unparseable reply and no retry, is not drafted", case_not_drafted),
+    ("keep rule: a compatibility or traditional variant of a probe or earlier topic is that topic",
+     case_keep_variants),
     ("topics_of: the first list that holds a topic, from fences or prose", case_topics_of),
     ("drafting: the first reply is saved before the retry is asked", case_reply_saved_before_retry),
     ("drafting: saved replies are used only if the registered model and prompt made them", case_saved_replies_checked),
@@ -310,10 +357,10 @@ ORDER = [
 ]
 
 # ----------------------------------------------------------------------------- 15.5.4 clue
-TEMPLATE = "期刊论文·易学·《周易研究》·2010年代：{topic}"
+TEMPLATE = "{topic}：2010年代见于周易研究的易学文章"        # a specimen, not the registered frame (15.1.4)
 CLUE = [
     ("clue passes for a clean topic", lambda: m.clue_check(TEMPLATE, "天地人和", LST["forms"])[1] is None),
-    ("clue: a digit outside the decade token drops", lambda: m.clue_check(TEMPLATE.replace("期刊论文", "期刊论文1"), "天地人和",
+    ("clue: a digit outside the decade token drops", lambda: m.clue_check(TEMPLATE.replace("文章", "文章1"), "天地人和",
                                                                          LST["forms"])[1] == "digit"),
     ("clue: no venue drops", lambda: m.clue_check(TEMPLATE.replace("周易研究", "某刊"), "天地人和", [])[1]
      == "format:anchor_missing"),
@@ -325,6 +372,9 @@ CLUE = [
      lambda: raises(lambda: m.check_template("{topic}{topic}"))
      and raises(lambda: m.check_template("易" * 120 + "{topic}"))
      and raises(lambda: m.check_template(TEMPLATE.replace("周易研究", "某刊"))) and m.check_template(TEMPLATE) is None),
+    ("template: a digit outside the decade token is refused before the walk",
+     lambda: raises(lambda: m.check_template(TEMPLATE.replace("文章", "文章1")))
+     and raises(lambda: m.check_template(TEMPLATE.replace("文章", "文章①")))),
     ("template: a clue of 120 characters with a 16-character topic passes, 121 does not",
      lambda: m.check_template("2010年代周易研究" + "易" * 94 + "{topic}") is None
      and raises(lambda: m.check_template("2010年代周易研究" + "易" * 95 + "{topic}"))),
@@ -461,6 +511,21 @@ def case_probe_cap():
     return raises(lambda: m.probe(TOPICS[:15], TEMPLATE, WLST, path), m.Halt) and json.load(open(path))["net"] == 20
 
 
+def case_walk_key():
+    _, path = walk_env(lambda q, n: OK)
+    m.walk(ITEMS[:2], TEMPLATE, WLST, path)
+    other_listing = m.listing_of(verdicts(), ["另一篇补入的文章题目"])
+    return (raises(lambda: m.walk(ITEMS[:2], TEMPLATE.replace("文章", "论文"), WLST, path))
+            and raises(lambda: m.walk(ITEMS[:2], TEMPLATE, other_listing, path))
+            and m.walk(ITEMS[:2], TEMPLATE, WLST, path)["next"] == 2)
+
+
+def case_snapshot_name():
+    walk_env(lambda q, n: OK)
+    bk.ds_search = lambda query, count, route: (OK, "s_another_name.json")
+    return raises(lambda: m.walk(ITEMS[:1], TEMPLATE, WLST, os.path.join(bk.W, "walk.json")))
+
+
 def case_state_saved_after_each_item():
     _, path = walk_env(lambda q, n: OK)
     seen = []
@@ -473,6 +538,10 @@ WALK = [
     ("walk stops at the 24th pass", case_stop_24),
     ("walk: a ZYJY 2010-2019 URL drops, and an unlisted title is counted", lambda: (lambda st, net: st["drops"] == {
         "url": 1} and st["zyjy_unlisted"] == 1)(*one([[{"url": URL_ZYJY, "title": "某篇不在目录中的文章"}]]))),
+    ("walk: the ZYJY URL test ignores case", lambda: one([[{"url": URL_ZYJY.lower(), "title": "x"}]])[0]["drops"]
+     == {"url": 1}),
+    ("walk: a state saved under another template or listing is refused", case_walk_key),
+    ("walk: a snapshot named otherwise than ds_search names it stops the walk", case_snapshot_name),
     ("walk: a ZYJY URL of another decade passes", lambda: one([[{"url": URL_ZYJY.replace("2014", "2009"),
                                                                   "title": "x"}]])[0]["passes"] == ITEMS[:1]),
     *LISTING_CASES,
@@ -505,37 +574,104 @@ WALK = [
 ]
 
 # ----------------------------------------------------------------------------- guards
-def fake_repo(root, linked=False):
-    os.makedirs(os.path.join(root, ".git"))
-    if linked:          # a linked work tree of the same repository
-        wt, gd = os.path.join(root, "..", os.path.basename(root) + "-wt"), os.path.join(root, ".git", "worktrees", "w")
-        os.makedirs(wt)
-        os.makedirs(gd)
-        open(os.path.join(wt, ".git"), "w").write(f"gitdir: {gd}\n")
-        open(os.path.join(gd, "commondir"), "w").write("../..\n")
-        return wt
+GIT_ENV = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+
+
+def git(*args):
+    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.org", *args], check=True,
+                   capture_output=True, env=GIT_ENV)
+
+
+def git_repo(root, url=None):
+    """A git repository with one commit of its own (the file names the folder, so no two share a commit)."""
+    os.makedirs(root, exist_ok=True)
+    git("init", "-q", root)
+    open(os.path.join(root, "own.txt"), "w", encoding="utf-8").write(root)
+    git("-C", root, "add", "-A")
+    git("-C", root, "commit", "-q", "-m", "own")
+    if url:
+        git("-C", root, "remote", "add", "origin", url)
     return root
 
 
 def case_guard():
     base = tempfile.mkdtemp(dir=TMP)
-    repo, other, clone, clone_ssh = (os.path.join(base, n) for n in ("repo", "other", "clone", "clone-ssh"))
+    repo = git_repo(os.path.join(base, "repo"), "https://example.org/o/r.git")
     here = os.path.join(repo, "research", "battery2", "pipeline")
     os.makedirs(here)
-    for root, url in ((repo, "https://example.org/o/r.git"), (clone, "https://example.org/o/r/"),
-                      (clone_ssh, "git@Example.org:o/R.git"), (other, "https://example.org/o/x")):
-        fake_repo(root)
-        with open(os.path.join(root, ".git", "config"), "w", encoding="utf-8") as f:
-            f.write(f'[remote "origin"]\n\turl = {url}\n')
-    wt = fake_repo(os.path.join(base, "repo2"), linked=True)
-    here2 = os.path.join(base, "repo2", "x")
+    other = git_repo(os.path.join(base, "other"), "https://example.org/o/x")
+    clone = git_repo(os.path.join(base, "clone"), "https://example.org/o/r/")         # same url, no shared commit
+    clone_ssh = git_repo(os.path.join(base, "clone-ssh"), "git@Example.org:o/R.git")
+    wt, by_path, by_proxy = (os.path.join(base, n) for n in ("repo-wt", "by-path", "by-proxy"))
+    git("-C", repo, "worktree", "add", "-q", wt)
+    git("clone", "-q", repo, by_path)                                                  # origin: a local path
+    git("clone", "-q", repo, by_proxy)
+    git("-C", by_proxy, "remote", "set-url", "origin", "http://proxy@127.0.0.1:9/git/o/r")
+    unreadable = os.path.join(base, "unreadable")
+    os.makedirs(os.path.join(unreadable, ".git"))                                      # git cannot read its history
     return (raises(lambda: m.guard_workdir(os.path.join(repo, "private", "w"), here))
             and m.guard_workdir(os.path.join(other, "w"), here) is None
             and m.guard_workdir(os.path.join(base, "plain"), here) is None
-            and raises(lambda: m.guard_workdir(os.path.join(wt, "w"), here2))
+            and raises(lambda: m.guard_workdir(os.path.join(wt, "w"), here))
             and raises(lambda: m.guard_workdir(os.path.join(clone, "w"), here))
             and raises(lambda: m.guard_workdir(os.path.join(clone_ssh, "w"), here))
+            and raises(lambda: m.guard_workdir(os.path.join(by_path, "w"), here))
+            and raises(lambda: m.guard_workdir(os.path.join(by_proxy, "w"), here))
+            and raises(lambda: m.guard_workdir(os.path.join(unreadable, "w"), here))
             and raises(lambda: m.guard_workdir(os.path.join(m.HERE, "w"))))
+
+
+GUARD_CLI = {}
+
+
+def synthetic_clone():
+    """A synthetic repository holding the pipeline under test, committed, and a clone of it whose origin is a local
+    path: the commands, run from the repository, must refuse a work directory in the clone."""
+    if not GUARD_CLI:
+        base = tempfile.mkdtemp(dir=TMP)
+        repo, clone = os.path.join(base, "repo"), os.path.join(base, "clone")
+        pipe = os.path.join(repo, "research", "battery2", "pipeline")
+        os.makedirs(pipe)
+        for f in ("control_topics.py", "controls_reread.py", "controls.py", "build_keys.py"):
+            shutil.copy(os.path.join(d, f), pipe)
+        git_repo(repo)
+        git("clone", "-q", repo, clone)
+        names = ("control_topics", "controls_reread")      # controls_reread imports this control_topics by name
+        saved = {n: sys.modules.get(n) for n in names}
+        try:
+            for name in names:
+                spec = importlib.util.spec_from_file_location(name, os.path.join(pipe, f"{name}.py"))
+                mod = sys.modules[name] = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                GUARD_CLI[name] = mod
+        finally:
+            while pipe in sys.path:
+                sys.path.remove(pipe)
+            for n, mod in saved.items():
+                if mod is None:
+                    sys.modules.pop(n, None)
+                else:
+                    sys.modules[n] = mod
+        GUARD_CLI["clone"] = clone
+    return GUARD_CLI
+
+
+def case_cli_guard_clone():
+    g = synthetic_clone()
+    ct, work = g["control_topics"], os.path.join(g["clone"], "private", "w")
+    ct.RULE = addendum(norm_mode=ct.norm_mode())
+    return (raises(lambda: ct.main(["headings", "--workdir", work, "--page", os.path.join(TMP, "none.json")]),
+                   SystemExit) and not os.path.exists(os.path.dirname(work)))
+
+
+def case_reread_guard_clone():
+    g = synthetic_clone()
+    ct, rr, work = g["control_topics"], g["controls_reread"], os.path.join(g["clone"], "private", "w3")
+    results = tempfile.mkdtemp(dir=TMP)
+    bk.write_json(os.path.join(results, "verdicts.json"), {})
+    ct.RULE = addendum(norm_mode=ct.norm_mode(), verdicts_sha256=ct.file_sha(os.path.join(results, "verdicts.json")))
+    with contextlib.redirect_stderr(io.StringIO()):
+        return raises(lambda: rr.main(["third", results, "--workdir", work]), SystemExit) and not os.path.exists(work)
 
 
 def case_repo_key():
@@ -714,13 +850,16 @@ def case_cli_guards():
     v2 = fx.files["verdicts2"]
     few = fx.run(fx.cmd("draft", os.path.join(fx.T, "w-few"), pg=fx.pages2), headings_sha256=m.list_sha(fx.heads2))
     ruled = fx.run(fx.cmd("walk", fx.work, verdicts=v2[0]), verdicts_sha256=v2[1], rulings="2011/2")
+    walk, cap = fx.cmd("walk", fx.work), "--max-searches"
+    caps = (fx.stops(walk + [cap, "501"]) and not fx.stops(walk + [cap, "501"], max_searches="501")
+            and fx.stops(walk + [cap, "600"], max_searches="501") and not fx.stops(walk + [cap, "3"]))
     return (not each and "calls: 0" in w_budget and "status: budget stop" in w_budget and len(fx.calls) == before
             and fx.stops(fx.cmd("walk", fx.work, template=bad_t[0]), template_sha256=bad_t[1])
             and fx.stops(fx.cmd("probe", fx.work, template=bad_t[0]), template_sha256=bad_t[1])
             and fx.stops(fx.cmd("draft", os.path.join(fx.T, "w-prompt"), prompt=bad_p[0]), prompt_sha256=bad_p[1])
             and "fewer than 3 headings" in few and len(fx.calls) == before
             and fx.stops(fx.cmd("walk", fx.work, verdicts=v2[0]), verdicts_sha256=v2[1])
-            and "label: listing certified for 50 of 60 issues, not blind" in ruled)
+            and "label: listing certified for 50 of 60 issues, not blind" in ruled and caps)
 
 
 def case_run_key():
@@ -730,7 +869,12 @@ def case_run_key():
 
 
 GUARDS = [
-    ("workdir guard: this repository refused, others and plain folders fine, a clone by any url form", case_guard),
+    ("workdir guard: this repository refused, others and plain folders fine, a clone by any url form or by shared "
+     "commits", case_guard),
+    ("command line: control_topics refuses a work directory in a clone whose origin is a local path",
+     case_cli_guard_clone),
+    ("command line: controls_reread refuses a work directory in a clone whose origin is a local path",
+     case_reread_guard_clone),
     ("remote urls: the ssh and https forms of one repository agree", case_repo_key),
     ("addendum: the last line of a label in section 16, nothing before it, nothing without it", case_registered),
     ("hash guard: the sha256 in the addendum reads, another stops", case_hash),
@@ -739,7 +883,7 @@ GUARDS = [
     ("command line: the four subcommands end to end; counts only; no InfraError text; the label and the lengths",
      case_cli_pipeline),
     ("command line: every input is checked against the addendum, the model, the budget, the template, the prompt, "
-     "the flagged set and the saved replies", case_cli_guards),
+     "the flagged set, the saved replies and a search cap above 500", case_cli_guards),
     ("walk and probe: a saved state belongs to its own list of items", case_run_key),
 ]
 
@@ -979,9 +1123,28 @@ def reread_checks(load):
     def parts_and_floor():
         lines = ["易学考古新证..........张三丰  5", "易学考古新证／张三丰", "易学考古新证——张三丰", "易学考古新证 / 张三丰 (5)"]
         entry = [["易学考古新证"]]
-        notice = m.held_and_left("目录", [["目录"]])[0] == [["目录"]]               # a whole line is compared as it is
+        notice = m.held_and_left("目录", [["目录"]])[0] == []                       # a form under 6 is never held
         return (all(m.held_and_left(ln, entry)[0] == entry for ln in lines) and notice
                 and m.held_and_left("周易研究 2016年第6期 目录", [["目录"]])[0] == [])   # a part under 6 characters is not
+
+    def floor_and_containment():
+        title = "论某卦的时间观——兼论卦序问题"
+        lines = [title + " 张三 李四 123-130", title + "……张三（12）", "“某”的三义：简易、变易 王五 33"]
+        listing = [[title], ["“某”的三义：简易、变易"]]
+        contained = all(m.held_and_left(ln, listing) == ([listing[k > 1]], []) for k, ln in enumerate(lines))
+        _, search, _ = fake(n_results=1)
+        notices = [["目录"], ["编后记"], ["某某研究文章"]]
+        out, _ = m.third_source(((2016, 6),), {(2016, 6): notices}, search, lambda url: "另一刊物 目录\n目录\n编后记")
+        r = out["2016/6"]
+        return contained and r["none_found"] and r["forms_under_floor"] == 2
+
+    def no_url_recorded():
+        def search(query, count, route):
+            return [{"title": "x"}, {"url": "https://a.example/p", "title": "y"}], "s.json"
+        out, used = m.third_source(m.THIRD_ISSUES, LIST, search, lambda url: None)
+        p = out["2016/6"]["pages"]
+        return (used["fetches"] == 6 and len(p) == 4 and p[0]["url"] == "" and not p[0]["opened"]
+                and p[0]["rank"] == 1 and p[1]["host"] == "a.example")
 
     def other_year_header():
         return raises(m.ShapeMismatch, lambda: m.file_blocks(page_2012().replace(head(2012, 3), head(2013, 3)), 2012))
@@ -1129,6 +1292,9 @@ def reread_checks(load):
         ("third source: the first 5 results in rank order, each with its host", third_rank_and_host),
         ("third source: held entries and leftover lines (4-40 CJK) of a page", third_held_and_left),
         ("third source: none found where no page holds an entry", third_none_found),
+        ("third source: a form under 6 characters is never held, and counted; a title the line contains is held",
+         floor_and_containment),
+        ("third source: a result with no url is recorded as a page not opened", no_url_recorded),
         ("third source: the 7th search is refused", search_cap),
         ("third source: the 31st fetch is refused", fetch_cap),
         ("third command: counts only on stdout, third.json written, a second run refused", third_cli),

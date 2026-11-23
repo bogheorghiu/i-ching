@@ -205,16 +205,26 @@ def page_forms(ln):
     return [ln] + [p for p in PART.split(ln) if p != ln and len(bk.norm(p)) >= control_topics.FLOOR]
 
 
+def line_holds(ln, form):
+    """A form of at least FLOOR characters (15.4.4's reason: a short notice such as 目录 would match any page) that
+    the line, read whole or as its parts, fits by controls.best at controls.SIM_MATCH, or that the line contains: so
+    many characters in a row are strong evidence, and the similarity drops them when authors and pages share the
+    line."""
+    n = bk.norm(form)
+    return len(n) >= control_topics.FLOOR and (
+        n in bk.norm(ln) or controls.best([form], [{"forms": page_forms(ln)}]) >= controls.SIM_MATCH)
+
+
 def held_and_left(text, listing):
     """listing: the issue's entries as verdicts.json holds them (a list of forms). Returns the entries the page holds
-    and the page's lines that fit none of them, by controls.best at controls.SIM_MATCH, each line read whole and as
-    its parts."""
+    and the page's lines that fit none of them."""
     lines = page_lines(text)
-    page, entries = [{"forms": page_forms(ln)} for ln in lines], [{"forms": f} for f in listing]
-    held = [f for f in listing if controls.best(f, page) >= controls.SIM_MATCH]
+    entries = [{"forms": f} for f in listing]
+    held = [f for f in listing if any(line_holds(ln, t) for t in f for ln in lines)]
     lo, hi = LEFTOVER_CJK
     left = [ln for ln in lines if lo <= sum(map(bk.has_cjk, ln)) <= hi
-            and controls.best(page_forms(ln), entries) < controls.SIM_MATCH]
+            and controls.best(page_forms(ln), entries) < controls.SIM_MATCH
+            and not any(line_holds(ln, t) for f in listing for t in f)]
     return held, left
 
 
@@ -239,7 +249,9 @@ def third_source(issues, listings, search=None, fetch=None):
                 pages.append({"query": query, "rank": rank, "url": url, "host": bk.host_of(url),
                               "snapshot": f"cd_{bk.sha(url)}.json" if url else None, "opened": text is not None,
                               "held_count": len(held), "held": held, "leftover": left})
-        out[f"{y}/{n}"] = {"pages": pages, "none_found": not any(p["held_count"] for p in pages)}
+        out[f"{y}/{n}"] = {"pages": pages, "none_found": not any(p["held_count"] for p in pages),
+                           "forms_under_floor": sum(len(bk.norm(t)) < control_topics.FLOOR
+                                                    for f in listings[(y, n)] for t in f)}
     return out, used
 
 
@@ -297,7 +309,8 @@ def main(argv=None):
         print(key, "pages:", len(r["pages"]), "opened:", sum(x["opened"] for x in r["pages"]),
               "holding an entry:", sum(x["held_count"] > 0 for x in r["pages"]),
               "most entries held:", max((x["held_count"] for x in r["pages"]), default=0),
-              "leftover lines:", sum(len(x["leftover"]) for x in r["pages"]), "none found:", r["none_found"])
+              "leftover lines:", sum(len(x["leftover"]) for x in r["pages"]), "none found:", r["none_found"],
+              "forms under the floor, not counted:", r["forms_under_floor"])
     print("searches:", used["searches"], "fetches:", used["fetches"])
 
 
